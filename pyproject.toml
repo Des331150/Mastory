@@ -1,0 +1,30 @@
+[project]
+name = "mastory"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.2",
+    "psycopg[binary]>=3.2",
+    "dj-database-url>=2.2",
+    "pymupdf4llm>=0.0.17",
+    "markdown>=3.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.11",
+    "django-stubs[compatible-mypy]>=5.0",
+]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["pymupdf4llm.*", "markdown.*", "dj_database_url.*", "fitz.*", "pymupdf.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

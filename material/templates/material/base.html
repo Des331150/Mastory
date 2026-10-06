@@ -1,0 +1,18 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Mastory{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'material/reading.css' %}" />
+    <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+    <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="wordmark" href="{% url 'course-list' %}">Mastory</a>
+      <span class="tagline">Your course material, readable</span>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>

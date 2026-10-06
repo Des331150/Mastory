@@ -1,0 +1,74 @@
+{% extends "material/base.html" %}
+{% block title %}{{ course.title }}: reading{% endblock %}
+
+{% block content %}
+<div class="reader" x-data="{ navOpen: false }">
+  <aside class="reader-sidebar" :class="navOpen && 'open'">
+    <form class="search" method="get" action="{% url 'course-read' course.pk %}">
+      <label class="visually-hidden" for="id_q">Search this material</label>
+      <input id="id_q" type="search" name="q" value="{{ query }}"
+             placeholder="Search this material" />
+      <button type="submit">Search</button>
+    </form>
+
+    <nav class="index">
+      <h2>On this page</h2>
+      {% for document in documents %}
+        <p class="index-file">
+          <a href="{% url 'source-original' course.pk document.source_file.pk %}"
+             >{{ document.source_file.original_name }}</a>
+        </p>
+        <ol>
+          {% for section in document.sections %}
+            <li{% if query and not section.matched %} class="no-match"{% endif %}>
+              <a href="#{{ section.anchor }}">{{ section.title }}</a>
+            </li>
+          {% endfor %}
+        </ol>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <article class="reading">
+    <header class="reading-head">
+      <button class="nav-toggle" type="button" @click="navOpen = !navOpen">Sections</button>
+      <h1>{{ course.title }}</h1>
+      <p class="muted">
+        Converted from your PDF.
+        {% for document in documents %}
+          <a href="{% url 'source-original' course.pk document.source_file.pk %}"
+             >View the original {{ document.source_file.original_name }}</a>{% if not forloop.last %} ·{% endif %}
+        {% endfor %}
+      </p>
+    </header>
+
+    {% for failed in failures %}
+      <p class="error failure" role="alert">
+        {{ failed.source_file.original_name }} could not be converted: {{ failed.source_file.failure_reason }}
+        Try splitting the file and uploading the parts.
+      </p>
+    {% endfor %}
+
+    {% if query %}
+      <p class="search-summary" role="status">
+        {% if matching %}
+          {{ matching|length }} section{{ matching|length|pluralize }} match &ldquo;{{ query }}&rdquo;
+        {% else %}
+          No sections match &ldquo;{{ query }}&rdquo;
+        {% endif %}
+      </p>
+    {% endif %}
+
+    {% for document in documents %}
+      <div class="document">
+        {% for section in document.sections %}
+          <section id="{{ section.anchor }}" class="slide{% if query and not section.matched %} dimmed{% endif %}">
+            <h2>{{ section.title }}</h2>
+            {{ section.html|safe }}
+          </section>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </article>
+</div>
+{% endblock %}

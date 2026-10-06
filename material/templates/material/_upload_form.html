@@ -1,0 +1,15 @@
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form class="upload" method="post" enctype="multipart/form-data"
+      action="{% url 'course-create' %}"
+      hx-post="{% url 'course-create' %}" hx-encoding="multipart/form-data"
+      hx-swap="none">
+  {% csrf_token %}
+  <label for="id_title">Course title</label>
+  <input id="id_title" type="text" name="title" placeholder="e.g. MATH 201 Linear Algebra" />
+
+  <label for="id_file">Course PDF</label>
+  <input id="id_file" type="file" name="file" accept="application/pdf" required />
+
+  <button type="submit">Upload and read</button>
+  <p class="muted small">Reading, extracting and checking the source takes a moment for a long deck.</p>
+</form>

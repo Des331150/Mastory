@@ -1,0 +1,25 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>{{ course.title }}</h1>
+  <p><a class="cta" href="{% url 'course-read' course.pk %}">Read the material</a></p>
+</section>
+
+<section class="panel">
+  <h2>Files</h2>
+  <ul class="file-list">
+    {% for file in files %}
+      <li>
+        <a href="{% url 'source-original' course.pk file.pk %}">{{ file.original_name }}</a>
+        <span class="muted">{{ file.page_count }} page{{ file.page_count|pluralize }}</span>
+        {% if file.status == "failed" %}
+          <span class="error">{{ file.failure_reason }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

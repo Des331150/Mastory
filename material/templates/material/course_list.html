@@ -1,0 +1,26 @@
+{% extends "material/base.html" %}
+
+{% block title %}Your courses{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>Your courses</h1>
+  {% if courses %}
+    <ul class="course-list">
+      {% for course in courses %}
+        <li>
+          <a href="{% url 'course-read' course.pk %}">{{ course.title }}</a>
+          <span class="muted">{{ course.files.count }} file{{ course.files.count|pluralize }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Nothing uploaded yet. Upload a course PDF to start reading.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Upload a course PDF</h2>
+  {% include "material/_upload_form.html" %}
+</section>
+{% endblock %}
