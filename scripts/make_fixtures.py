@@ -30,6 +30,35 @@ def _page(doc: pymupdf.Document, heading: str, blocks: list[str]) -> pymupdf.Pag
     return page
 
 
+def _uniform(doc: pymupdf.Document, lines: list[str]) -> pymupdf.Page:
+    """A page with no heading structure at all.
+
+    One font, one size, one leading, every line left-aligned at the same margin:
+    there is no line a converter could pick out as a heading, which is how
+    lecture handouts, transcripts and pasted print-outs actually look.
+    """
+    page = doc.new_page(width=595, height=842)
+    y = TOP
+    for line in lines:
+        for part in _wrap(line, 92):
+            page.insert_text((LEFT, y), part, fontsize=BODY, fontname="helv")
+            y += 16
+    return page
+
+
+def _rasterised(lines: list[str]) -> pymupdf.Pixmap:
+    """Text drawn, then flattened to pixels: a page with no text layer.
+
+    This is what a scanner or a phone camera produces, and it is the shape of
+    material that can only be read by looking at the picture.
+    """
+    scratch = pymupdf.open()
+    page = _uniform(scratch, lines)
+    pixmap = page.get_pixmap(dpi=150)
+    scratch.close()
+    return pixmap
+
+
 def _wrap(text: str, width: int) -> list[str]:
     words = text.split()
     lines: list[str] = []
@@ -204,9 +233,138 @@ def cell_biology() -> Path:
     return path
 
 
+def handout_notes() -> Path:
+    """A handout with no heading structure: uniform type, no titles."""
+    path = FIXTURES / "che-212-handout-notes.pdf"
+    doc = pymupdf.open()
+    _uniform(
+        doc,
+        [
+            "Week 4 tutorial. Write the curved-arrow mechanism for every step below.",
+            "Reagent 1 is sodium borohydride in methanol at 0 degrees. Reagent 2 is "
+            "the acid workup, added dropwise after the reaction has finished.",
+            "Draw the tetrahedral intermediate and say why the hydride attacks from "
+            "the less hindered face of the carbonyl.",
+        ],
+    )
+    _uniform(
+        doc,
+        [
+            "Question 3. Assign CIP priorities at each stereocentre in the product "
+            "below and state the configuration you get.",
+            "Question 4. Explain why the aldehyde is more electrophilic than the "
+            "ketone on the previous page, using orbital arguments rather than "
+            "steric ones.",
+            "Question 5. One mark each. Which of these reactions is a redox reaction, "
+            "which is a substitution, and which is an addition-elimination?",
+        ],
+    )
+    _uniform(
+        doc,
+        [
+            "Marking note from the demonstrator. Full marks are for the intermediate "
+            "and the stereochemical outcome together, not for the arrow pushing on "
+            "its own.",
+            "Further reading. Clayden, chapter 6, and the lecture recording from "
+            "Tuesday is on the course page under past papers.",
+            "Next week: nucleophilic acyl substitution. Read ahead before the "
+            "seminar because we start from the mechanisms you did here.",
+        ],
+    )
+    doc.save(str(path))
+    return path
+
+
+def handout_scan() -> Path:
+    """A scan of the same handout: pictures of pages, and no text layer."""
+    path = FIXTURES / "che-212-handout-scan.pdf"
+    doc = pymupdf.open()
+    pictures = [
+        _rasterised(
+            [
+                "Week 4 tutorial, scanned copy",
+                "Reagent 1 is sodium borohydride in methanol at 0 degrees.",
+                "Reagent 2 is the acid workup, added dropwise afterwards.",
+            ]
+        ),
+        _rasterised(
+            [
+                "Question 3, scanned copy",
+                "Assign CIP priorities at each stereocentre in the product.",
+                "Question 4. Why is the aldehyde more electrophilic?",
+            ]
+        ),
+    ]
+    for pixmap in pictures:
+        page = doc.new_page(width=595, height=842)
+        page.insert_image(page.rect, pixmap=pixmap)
+    doc.save(str(path))
+    return path
+
+
+def blank_scan() -> Path:
+    """A scan with pictures of pages and nothing written on them.
+
+    The back of a sheet, or a fold-out that came out blank. There is nothing on
+    these pages for any OCR engine to read, which is what makes them the
+    honest test of what happens when a scan yields no text at all.
+    """
+    path = FIXTURES / "che-212-blank-scan.pdf"
+    doc = pymupdf.open()
+    scratch = pymupdf.open()
+    page = scratch.new_page(width=595, height=842)
+    page.draw_rect(pymupdf.Rect(28, 28, 567, 814), color=(0.72, 0.72, 0.72), width=1)
+    page.draw_line(pymupdf.Point(28, 28), pymupdf.Point(567, 814), color=(0.86, 0.86, 0.86), width=1)
+    pixmap = page.get_pixmap(dpi=150)
+    scratch.close()
+    for _ in range(2):
+        scanned = doc.new_page(width=595, height=842)
+        scanned.insert_image(scanned.rect, pixmap=pixmap)
+    doc.save(str(path))
+    return path
+
+
+def lecture_deck() -> Path:
+    """A digital deck whose second slide is a scan: OCR is needed for one page.
+
+    The first page has an ordinary text layer, so the file reads as a digital
+    PDF to anything that looks at the whole document. The second page is a
+    picture of a slide, which is what forces the converter to fall back on OCR.
+    """
+    path = FIXTURES / "che-212-lecture-deck.pdf"
+    doc = pymupdf.open()
+    _page(
+        doc,
+        "CHE 212: Organic Chemistry",
+        [
+            "Department of Chemistry, University of Ghana. Lecturer: Dr. M. Boateng.",
+            "Lecture 9. Carbonyl chemistry: nucleophilic addition.",
+            "Prerequisites: orbital hybridisation, resonance, curved-arrow notation.",
+        ],
+    )
+    scanned = _rasterised(
+        [
+            "The carbonyl carbon carries a partial positive charge.",
+            "Nucleophiles attack this carbon; the pi electrons move to oxygen.",
+            "Protonation of the alkoxide in the workup gives the alcohol.",
+        ]
+    )
+    page = doc.new_page(width=595, height=842)
+    page.insert_image(page.rect, pixmap=scanned)
+    doc.save(str(path))
+    return path
+
+
 def main() -> None:
     FIXTURES.mkdir(parents=True, exist_ok=True)
-    for build in (linear_algebra, cell_biology):
+    for build in (
+        linear_algebra,
+        cell_biology,
+        handout_notes,
+        handout_scan,
+        blank_scan,
+        lecture_deck,
+    ):
         print(f"wrote {build()}")
 
 

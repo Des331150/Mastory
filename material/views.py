@@ -16,7 +16,12 @@ from django.views.decorators.http import require_GET, require_POST
 
 from material.models import Course, Slide, SourceFile
 from material.render import Section, build_sections
-from material.services import UploadRejected, ingest_upload
+from material.services import (
+    StageOutcome,
+    UploadRejected,
+    ingest_uploads,
+    stage_reports,
+)
 from material.users import current_user_id, owned
 
 
@@ -24,6 +29,7 @@ from material.users import current_user_id, owned
 class Document:
     source_file: SourceFile
     sections: list[Section]
+    stages: list[StageOutcome]
 
 
 def _owned_or_404(queryset: QuerySet[Any], *, pk: int, what: str) -> Any:
@@ -44,7 +50,13 @@ def _documents(course: Course, query: str) -> list[Document]:
         sections = build_sections(
             owned(source_file.slides.all()), query=query, image_url=_image_url
         )
-        documents.append(Document(source_file=source_file, sections=sections))
+        documents.append(
+            Document(
+                source_file=source_file,
+                sections=sections,
+                stages=stage_reports(source_file),
+            )
+        )
     return documents
 
 
@@ -53,7 +65,7 @@ def _image_url(slide: Slide, name: str) -> str:
 
 
 def _default_title(original_name: str) -> str:
-    """A readable course title from the uploaded filename."""
+    """A readable course title from the first of the uploaded filenames."""
     stem = Path(original_name).stem.replace("-", " ").replace("_", " ").strip()
     return stem[:1].upper() + stem[1:]
 
@@ -73,8 +85,8 @@ def course_list(request: HttpRequest) -> HttpResponse:
 
 @require_POST
 def course_create(request: HttpRequest) -> HttpResponse:
-    uploaded = request.FILES.get("file")
-    if not uploaded:
+    uploads = request.FILES.getlist("files")
+    if not uploads:
         return render(
             request,
             "material/course_create.html",
@@ -82,15 +94,14 @@ def course_create(request: HttpRequest) -> HttpResponse:
             status=200,
         )
 
-    original_name = Path(str(uploaded.name)).name
-    title = request.POST.get("title", "").strip() or _default_title(original_name)
+    first_name = Path(str(uploads[0].name)).name
+    title = request.POST.get("title", "").strip() or _default_title(first_name)
 
     try:
-        report = ingest_upload(
+        course = ingest_uploads(
             user_id=current_user_id(),
             title=title,
-            uploaded=uploaded,
-            original_name=original_name,
+            uploads=uploads,
         )
     except UploadRejected as exc:
         return render(
@@ -100,7 +111,7 @@ def course_create(request: HttpRequest) -> HttpResponse:
             status=200,
         )
 
-    destination = reverse("course-read", args=[report.course.pk])
+    destination = reverse("course-read", args=[course.pk])
     if request.headers.get("hx-request"):
         response = HttpResponse(status=200)
         response["HX-Redirect"] = destination

@@ -91,6 +91,13 @@ MEDIA_URL = "media/"
 # logic.
 HARDCODED_USER_ID = int(os.environ.get("MASTORY_USER_ID", "1"))
 
+# How long one file may spend being converted before it is abandoned. Ingestion
+# runs in the request, so an unbounded file would hold the connection open and
+# leave the student waiting with nothing to show for it.
+INGEST_FILE_TIMEOUT_SECONDS = float(
+    os.environ.get("MASTORY_INGEST_TIMEOUT_SECONDS", "120")
+)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

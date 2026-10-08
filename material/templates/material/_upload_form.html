@@ -7,9 +7,15 @@
   <label for="id_title">Course title</label>
   <input id="id_title" type="text" name="title" placeholder="e.g. MATH 201 Linear Algebra" />
 
-  <label for="id_file">Course PDF</label>
-  <input id="id_file" type="file" name="file" accept="application/pdf" required />
+  <label for="id_files">Course PDFs</label>
+  <input id="id_files" type="file" name="files" accept="application/pdf" multiple required />
 
   <button type="submit">Upload and read</button>
-  <p class="muted small">Reading, extracting and checking the source takes a moment for a long deck.</p>
+  <ol class="upload-stages" aria-label="What happens to each file">
+    <li>Reading pages</li>
+    <li>Converting</li>
+    <li>Verifying</li>
+  </ol>
+  <p class="muted small">Each file goes through these three stages in turn. A file that
+    cannot be read says so and leaves the others alone.</p>
 </form>

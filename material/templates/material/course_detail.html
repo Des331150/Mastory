@@ -16,7 +16,7 @@
         <a href="{% url 'source-original' course.pk file.pk %}">{{ file.original_name }}</a>
         <span class="muted">{{ file.page_count }} page{{ file.page_count|pluralize }}</span>
         {% if file.status == "failed" %}
-          <span class="error">{{ file.failure_reason }}</span>
+          <span class="error">{{ file.failure_reason }} {{ file.failure_advice }}</span>
         {% endif %}
       </li>
     {% endfor %}

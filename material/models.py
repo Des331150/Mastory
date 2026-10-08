@@ -44,7 +44,9 @@ class SourceFile(models.Model):
     content_sha256 = models.CharField(max_length=64, db_index=True)
     status = models.CharField(max_length=8, choices=Status, default=Status.READY)
     failure_reason = models.TextField(blank=True)
+    failure_advice = models.TextField(blank=True)
     page_count = models.PositiveIntegerField(default=0)
+    stages = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -55,7 +57,13 @@ class SourceFile(models.Model):
 
     @property
     def slug(self) -> str:
-        return self.content_sha256[:8]
+        """What keeps two sections of one course apart in the reading surface.
+
+        A course can hold several files, and two of them can hold identical
+        bytes, so this cannot be derived from the content: the row's own id is
+        what makes every anchor in a page unique.
+        """
+        return str(self.pk)
 
     @property
     def image_dir(self) -> Path:

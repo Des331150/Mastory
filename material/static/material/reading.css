@@ -48,6 +48,13 @@ main { padding: 24px 28px 64px; }
 .upload { display: grid; gap: 6px; max-width: 520px; }
 .upload button { justify-self: start; margin-top: 10px; }
 
+/* The named stages, shown while an upload runs and again for each file after. */
+.upload-stages { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.stages { margin: 0 0 20px; padding: 10px 14px 10px 32px; background: var(--wash); border-radius: 6px; font-size: 14px; }
+.stage { color: var(--muted); }
+.stage.done { color: var(--ink); }
+.stage.failed { color: #a4243b; font-weight: 600; }
+
 button, .cta {
   display: inline-block;
   padding: 9px 16px;

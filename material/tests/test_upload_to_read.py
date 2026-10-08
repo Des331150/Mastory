@@ -33,7 +33,7 @@ class UploadedCourseTestCase(TestCase):
     def setUp(self) -> None:
         super().setUp()
         use_temporary_media_root(self)
-        self.client.post("/courses/new/", {"title": "", "file": pdf_upload()})
+        self.client.post("/courses/new/", {"title": "", "files": pdf_upload()})
 
 
 class UploadAndReadTests(UploadedCourseTestCase):
@@ -58,7 +58,7 @@ class UploadAndReadTests(UploadedCourseTestCase):
     def test_a_second_course_keeps_its_own_material(self) -> None:
         self.client.post(
             "/courses/new/",
-            {"title": "Cell Biology", "file": pdf_upload(CELL_BIOLOGY_PDF)},
+            {"title": "Cell Biology", "files": pdf_upload(CELL_BIOLOGY_PDF)},
         )
         listing = self.client.get("/").content.decode()
         self.assertIn("Math 201 eigenvalues", listing)
@@ -71,7 +71,7 @@ class UploadAndReadTests(UploadedCourseTestCase):
             "/courses/new/",
             {
                 "title": "Notes",
-                "file": SimpleUploadedFile(
+                "files": SimpleUploadedFile(
                     "notes.txt", b"just some notes", content_type="text/plain"
                 ),
             },
@@ -83,14 +83,14 @@ class UploadAndReadTests(UploadedCourseTestCase):
         )
 
     def test_upload_without_a_file_says_so(self) -> None:
-        response = self.client.post("/courses/new/", {"title": "Notes", "file": ""})
+        response = self.client.post("/courses/new/", {"title": "Notes", "files": ""})
         self.assertEqual(response.status_code, 200)
         self.assertIn("Choose a PDF", response.content.decode())
 
     def test_an_htmx_upload_is_answered_with_a_redirect_the_client_follows(self) -> None:
         response = self.client.post(
             "/courses/new/",
-            {"title": "Physics", "file": pdf_upload()},
+            {"title": "Physics", "files": pdf_upload()},
             headers={"hx-request": "true"},
         )
         self.assertEqual(response.status_code, 200)
@@ -103,7 +103,7 @@ class ImageTests(UploadedCourseTestCase):
         self.assertIn("<img", html)
 
     def test_images_of_both_courses_survive_a_second_upload_of_the_same_pdf(self) -> None:
-        self.client.post("/courses/new/", {"title": "Same again", "file": pdf_upload()})
+        self.client.post("/courses/new/", {"title": "Same again", "files": pdf_upload()})
         for course_pk in (1, 2):
             with self.subTest(course=course_pk):
                 html = self.client.get(f"/courses/{course_pk}/read/").content.decode()
@@ -134,7 +134,7 @@ class ConversionFailureTests(TestCase):
             "/courses/new/",
             {
                 "title": "Broken",
-                "file": SimpleUploadedFile(
+                "files": SimpleUploadedFile(
                     "scan.pdf",
                     b"%PDF-1.7\nthis is not really a pdf",
                     content_type="application/pdf",
@@ -150,7 +150,7 @@ class ConversionFailureTests(TestCase):
 
     def test_a_failed_upload_does_not_stop_the_next_one(self) -> None:
         self.upload_broken_pdf()
-        self.client.post("/courses/new/", {"title": "Real", "file": pdf_upload()})
+        self.client.post("/courses/new/", {"title": "Real", "files": pdf_upload()})
         html = self.client.get("/courses/2/read/").content.decode()
         self.assertIn("Eigenvalues", html)
 
@@ -263,7 +263,7 @@ class IdentityTests(UploadedCourseTestCase):
     def test_material_belonging_to_another_user_is_invisible(self) -> None:
         from material.models import Course
 
-        self.client.post("/courses/new/", {"title": "Mine", "file": pdf_upload()})
+        self.client.post("/courses/new/", {"title": "Mine", "files": pdf_upload()})
         other = User.objects.create(username="someone-else")
         foreign = Course.objects.create(user=other, title="Not yours")
 
