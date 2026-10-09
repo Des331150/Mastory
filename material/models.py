@@ -1,4 +1,5 @@
-"""The extraction layer: Course -> File -> Slide -> Span.
+"""The extraction layer: Course -> File -> Slide -> Span, and the pointer map
+Course -> Topic -> TopicSlide.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
@@ -8,6 +9,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+
+from material.users import owned
 
 
 class Course(models.Model):
@@ -24,6 +27,26 @@ class Course(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    @property
+    def slides(self) -> list["Slide"]:
+        """Every slide of every readable file, in the order the course teaches.
+
+        Files are read in the order they were uploaded and slides in page order,
+        which is what makes a course made of twelve weekly decks still read as
+        one course rather than twelve. Scoped by the owning user like every
+        other query, so the property cannot become a way to see another
+        student's material.
+        """
+        readable = owned(self.files.filter(status=SourceFile.Status.READY)).order_by("id")
+        slides: list[Slide] = []
+        for source_file in readable:
+            slides.extend(owned(source_file.slides.all()).order_by("number"))
+        return slides
+
+    @property
+    def slide_count(self) -> int:
+        return len(self.slides)
 
 
 class SourceFile(models.Model):
@@ -133,3 +156,106 @@ class Span(models.Model):
 
     def __str__(self) -> str:
         return f"{self.slide.anchor}#{self.ordinal}"
+
+
+class TopicPath(models.Model):
+    """Whether the student has confirmed the course's topic path.
+
+    A wrong topic path costs nothing while the student can still fix it and is
+    fatal once a schedule has been built on it, so confirmation is a gate on
+    schedule generation rather than a preference. It is its own row rather than
+    a field on ``Course`` because the confirmation carries a moment worth
+    keeping and because re-inferring later must be able to clear it.
+    """
+
+    class State(models.TextChoices):
+        DRAFT = "draft", "Awaiting confirmation"
+        CONFIRMED = "confirmed", "Confirmed"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topic_paths"
+    )
+    course = models.OneToOneField(
+        Course, on_delete=models.CASCADE, related_name="topic_path"
+    )
+    state = models.CharField(
+        max_length=10, choices=State, default=State.DRAFT
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"{self.course.title}: {self.get_state_display()}"
+
+
+class Topic(models.Model):
+    """One topic of the course, and the student's position on it.
+
+    A topic is the unit the schedule, the quiz and mastery are all built on, so
+    it has to be able to point at several slides that are not next to each
+    other. That pointer map is the core asset: ``weight`` is derived from it and
+    a question generated later is cited back through it.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topics"
+    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="topics")
+    title = models.CharField(max_length=255)
+    position = models.PositiveIntegerField(default=0)
+    weight = models.PositiveIntegerField(default=1)
+    flagged = models.BooleanField(default=False)
+    flag_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["course", "position"], name="unique_topic_position_per_course"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def slides(self) -> list[Slide]:
+        """The slides this topic covers, in course order.
+
+        Non-contiguous by nature: a topic that comes back to an idea covers the
+        slides either side of the digression too.
+        """
+        return [pointer.slide for pointer in self.pointers.select_related("slide")]
+
+    @property
+    def span_count(self) -> int:
+        """How much text this topic covers, which is most of its weight."""
+        return sum(slide.spans.count() for slide in self.slides)
+
+
+class TopicSlide(models.Model):
+    """One slide a topic points at.
+
+    A join row rather than a list on the topic, so the pointer map survives
+    editing: merging two topics is adding rows, splitting one is deleting them,
+    and no edit has to rewrite what a topic covers into a single field.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topic_slides"
+    )
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="pointers")
+    slide = models.ForeignKey(
+        Slide, on_delete=models.CASCADE, related_name="topic_pointers"
+    )
+
+    class Meta:
+        ordering = ["slide__source_file_id", "slide__number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["topic", "slide"], name="unique_slide_per_topic"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.topic.title} -> {self.slide.anchor}"

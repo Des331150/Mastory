@@ -40,6 +40,7 @@
              >View the original {{ document.source_file.original_name }}</a>{% if not forloop.last %} ·{% endif %}
         {% endfor %}
       </p>
+      <p class="muted"><a href="{% url 'topic-path' course.pk %}">Your topic path</a></p>
     </header>
 
     {% for failed in failures %}

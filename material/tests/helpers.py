@@ -2,15 +2,28 @@
 
 Every test drives the real Django application through the test client, so the
 helpers here stay close to what a student does: POST a PDF, read the response.
+
+The one thing a test cannot do for real is talk to a model. ``use_fake_model``
+installs a deterministic answer at ``material.model.complete``, the single
+function Mastory leaves the machine through, so every test above the fake is the
+real application.
 """
 
+import json
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Iterator
+from typing import Any, Iterator
+from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+
+from material import model
+
+#: One topic as the fake model claims it: a title, the slides it cites by their
+#: course position, and how sure it is.
+Claim = dict[str, Any]
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -75,4 +88,22 @@ def use_temporary_media_root(test_case: TestCase) -> None:
     manager = temporary_media_root()
     manager.__enter__()
     test_case.addCleanup(manager.__exit__, None, None, None)
+
+
+def fake_topic(title: str, slides: list[int], confidence: float = 0.9) -> Claim:
+    """One topic the fake model claims, citing slides by their course position."""
+    return {"title": title, "slides": slides, "confidence": confidence}
+
+
+def use_fake_model(*topics: Claim, reply: str | None = None) -> Any:
+    """Answer every model call in this test with these topics.
+
+    Returns the patcher so it can be used as a context manager or started with
+    ``addCleanup``. The application above the fake is entirely real: the reply
+    still has to be grounded in the material, because that happens in
+    ``material.model`` rather than here.
+    """
+    answer = reply if reply is not None else json.dumps({"topics": list(topics)})
+    patcher = mock.patch.object(model, "complete", return_value=answer, name="complete")
+    return patcher
 

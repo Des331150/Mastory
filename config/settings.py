@@ -98,6 +98,15 @@ INGEST_FILE_TIMEOUT_SECONDS = float(
     os.environ.get("MASTORY_INGEST_TIMEOUT_SECONDS", "120")
 )
 
+# Every model call in Mastory goes through ``material.model``, which talks to an
+# OpenAI-compatible chat completions endpoint. Unset means no model is
+# configured, and the one feature that needs one says so to the student rather
+# than failing quietly.
+MODEL_BASE_URL = os.environ.get("MASTORY_MODEL_BASE_URL", "")
+MODEL_API_KEY = os.environ.get("MASTORY_MODEL_API_KEY", "")
+MODEL_NAME = os.environ.get("MASTORY_MODEL_NAME", "")
+MODEL_TIMEOUT_SECONDS = float(os.environ.get("MASTORY_MODEL_TIMEOUT_SECONDS", "60"))
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -12,6 +12,56 @@ urlpatterns = [
         name="course-read",
     ),
     path(
+        "courses/<int:course_id>/topics/",
+        views.topic_path,
+        name="topic-path",
+    ),
+    path(
+        "courses/<int:course_id>/topics/infer/",
+        views.topic_infer,
+        name="topic-infer",
+    ),
+    path(
+        "courses/<int:course_id>/topics/add/",
+        views.topic_add,
+        name="topic-add",
+    ),
+    path(
+        "courses/<int:course_id>/topics/confirm/",
+        views.topic_confirm,
+        name="topic-confirm",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/rename/",
+        views.topic_rename,
+        name="topic-rename",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/weight/",
+        views.topic_reweigh,
+        name="topic-reweigh",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/split/",
+        views.topic_split,
+        name="topic-split",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/merge/",
+        views.topic_merge,
+        name="topic-merge",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/move/",
+        views.topic_move,
+        name="topic-move",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/remove/",
+        views.topic_remove,
+        name="topic-remove",
+    ),
+    path(
         "courses/<int:course_id>/original/<int:file_id>/",
         views.source_original,
         name="source-original",

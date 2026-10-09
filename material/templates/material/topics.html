@@ -1,0 +1,160 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: topic path{% endblock %}
+
+{% block content %}
+<div class="topic-page">
+  <header class="topic-head">
+    <h1>Your topic path</h1>
+    <p class="muted">
+      The topics {{ course.title }} covers, in the order the course teaches them.
+      <a href="{% url 'course-read' course.pk %}">Read the slides</a>
+    </p>
+  </header>
+
+  {% if error %}<p class="error failure" role="alert">{{ error }}</p>{% endif %}
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+
+  {% if topics %}
+    <ol class="topic-list">
+      {% for topic in topics %}
+        <li class="topic{% if topic.flagged %} flagged{% endif %}" id="topic-{{ topic.pk }}">
+          <h2>{{ forloop.counter }}. {{ topic.title }}</h2>
+
+          <p class="topic-meta muted small">
+            {{ topic.weight }} unit{{ topic.weight|pluralize }} &middot;
+            {{ topic.pointers.count }} slide{{ topic.pointers.count|pluralize }}
+            {% if topic.pointers.count > 1 %}from {{ topic.pointers.count }} different places{% endif %}
+          </p>
+
+          {% if topic.flagged %}
+            <p class="topic-flag" role="note">{{ topic.flag_note }}</p>
+          {% endif %}
+
+          <details class="topic-slides">
+            <summary>Slides</summary>
+            <ol class="slide-pointer-list">
+              {% for pointer in topic.pointers.all %}
+                <li>
+                  <a href="{% url 'course-read' course.pk %}#{{ pointer.slide.anchor }}"
+                     >p{{ pointer.slide.number }}: {{ pointer.slide.title }}</a>
+                  <span class="muted small">{{ pointer.slide.source_file.original_name }}</span>
+                </li>
+              {% endfor %}
+            </ol>
+          </details>
+
+          <details class="topic-edit">
+            <summary>Edit</summary>
+
+            <form method="post" action="{% url 'topic-rename' course.pk topic.pk %}">
+              {% csrf_token %}
+              <label for="title-{{ topic.pk }}">Name</label>
+              <input id="title-{{ topic.pk }}" type="text" name="title"
+                     value="{{ topic.title }}" maxlength="255" />
+              <button type="submit">Rename</button>
+            </form>
+
+            <form method="post" action="{% url 'topic-reweigh' course.pk topic.pk %}">
+              {% csrf_token %}
+              <label for="weight-{{ topic.pk }}">Time this topic needs</label>
+              <input id="weight-{{ topic.pk }}" type="text" name="weight"
+                     value="{{ topic.weight }}" size="4" />
+              <button type="submit">Set time</button>
+            </form>
+
+            <form method="post" action="{% url 'topic-split' course.pk topic.pk %}">
+              {% csrf_token %}
+              <label for="split-{{ topic.pk }}">Split after slide</label>
+              <select id="split-{{ topic.pk }}" name="slide">
+                {% for pointer in topic.pointers.all %}
+                  <option value="{{ pointer.slide_id }}">p{{ pointer.slide.number }} &mdash; {{ pointer.slide.title }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="title" placeholder="Name for the second topic" />
+              <button type="submit">Split into two</button>
+            </form>
+
+            <form method="post" action="{% url 'topic-merge' course.pk topic.pk %}">
+              {% csrf_token %}
+              <label for="merge-{{ topic.pk }}">Merge into</label>
+              <select id="merge-{{ topic.pk }}" name="into">
+                {% for other in topics %}
+                  {% if other.pk != topic.pk %}
+                    <option value="{{ other.pk }}">{{ other.title }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <button type="submit">Merge these two</button>
+            </form>
+
+            <form method="post" action="{% url 'topic-move' course.pk topic.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="direction" value="up" />
+              <button type="submit" class="quiet"{% if forloop.first %} disabled{% endif %}>Move up</button>
+            </form>
+            <form method="post" action="{% url 'topic-move' course.pk topic.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="direction" value="down" />
+              <button type="submit" class="quiet"{% if forloop.last %} disabled{% endif %}>Move down</button>
+            </form>
+
+            <form method="post" action="{% url 'topic-remove' course.pk topic.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="quiet danger">Remove this topic</button>
+            </form>
+          </details>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="muted">
+      No topics yet. Work them out from your slides, or add them yourself.
+    </p>
+  {% endif %}
+
+  <section class="panel topic-confirm">
+    {% if confirmed %}
+      <h2>Topic path confirmed</h2>
+      <p class="muted">
+        This path is confirmed, so a schedule can be built on it. Change any topic
+        and it will ask you to confirm again.
+      </p>
+    {% else %}
+      <h2>Confirm this topic path</h2>
+      <p class="muted">
+        A schedule is built on these topics, so check each one against your slides
+        first. A wrong topic path you fix now costs you a minute.
+      </p>
+      {% if topics %}
+        <form method="post" action="{% url 'topic-confirm' course.pk %}">
+          {% csrf_token %}
+          <button type="submit">Confirm the topic path</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Add a topic</h2>
+    <form method="post" action="{% url 'topic-add' course.pk %}" class="stack">
+      {% csrf_token %}
+      <label for="new-topic">Topic the course covers that is missing here</label>
+      <input id="new-topic" type="text" name="title"
+             placeholder="e.g. Titration curves" maxlength="255" />
+      <button type="submit">Add topic</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Start again</h2>
+    <p class="muted">
+      Throws away your edits and works the topics out from the slides again.
+    </p>
+    <form method="post" action="{% url 'topic-infer' course.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="quiet">Work out the topics again</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -139,6 +139,44 @@ mark { background: #ffe9a8; padding: 0 1px; }
   white-space: nowrap;
 }
 
+/* Topic path: the list the student corrects before a schedule exists. */
+.topic-page { max-width: 780px; margin: 0 auto; }
+.topic-head { margin-bottom: 20px; }
+.topic-head h1 { margin: 0 0 4px; font-size: 30px; }
+
+.topic-list { padding-left: 0; list-style: none; margin: 0 0 24px; }
+.topic {
+  margin-bottom: 12px;
+  padding: 18px 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.topic.flagged { border-left: 4px solid #b8860b; }
+.topic h2 { margin: 0 0 4px; font-size: 20px; }
+.topic-meta { margin: 0 0 10px; }
+.topic-flag { margin: 0 0 10px; padding: 8px 12px; background: #fff6da; border-radius: 6px; }
+
+.topic-slides summary, .topic-edit summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.topic-slides { margin-bottom: 10px; }
+.slide-pointer-list { margin: 8px 0 0; padding-left: 20px; font-size: 15px; }
+.slide-pointer-list li { margin-bottom: 4px; }
+
+.topic-edit form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.topic-edit label { width: 100%; font-size: 14px; color: var(--muted); }
+.topic-edit input[type="text"] { flex: 1; min-width: 140px; }
+
+.stack { display: grid; gap: 6px; max-width: 520px; }
+.stack button { justify-self: start; margin-top: 8px; }
+
+button.quiet { background: var(--paper); color: var(--accent); }
+button.danger { border-color: var(--line); background: var(--paper); color: #a4243b; }
+button[disabled] { opacity: 0.5; cursor: default; }
+
+.notice { padding: 10px 14px; background: #e7f2ea; border-radius: 6px; }
+.topic-confirm { margin-bottom: 24px; }
+.topic-confirm h2 { margin-top: 0; font-size: 20px; }
+
 @media (max-width: 900px) {
   .reader { grid-template-columns: minmax(0, 1fr); }
   .nav-toggle { display: inline-block; margin-bottom: 12px; }
