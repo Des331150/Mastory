@@ -107,3 +107,34 @@ def use_fake_model(*topics: Claim, reply: str | None = None) -> Any:
     patcher = mock.patch.object(model, "complete", return_value=answer, name="complete")
     return patcher
 
+
+class RecordingModel:
+    """A fake model that remembers what it was asked.
+
+    Reads the request the way a model does, so a test can assert that the
+    material reaching the model is the student's own and shaped the way the
+    contract says, without reaching past the HTTP seam to look at it.
+    """
+
+    def __init__(self, *topics: Claim, reply: str | None = None) -> None:
+        self.prompts: list[str] = []
+        self._answer = reply if reply is not None else json.dumps(
+            {"topics": list(topics)}
+        )
+
+    def __call__(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        return self._answer
+
+    @property
+    def last_request(self) -> dict[str, Any]:
+        assert self.prompts, "the model was never called"
+        request: dict[str, Any] = json.loads(self.prompts[-1])
+        return request
+
+    def use(self, test_case: TestCase) -> None:
+        """Answer every model call for the duration of this test."""
+        patcher = mock.patch.object(model, "complete", new=self)
+        patcher.start()
+        test_case.addCleanup(patcher.stop)
+

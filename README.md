@@ -79,8 +79,13 @@ weighting.
 
 The student can rename, split, merge, reorder, re-weight, add and remove, and
 every edit persists. Any edit clears the confirmation, because a path edited
-since is not the path the student said was right — and no schedule is generated
-until they confirm.
+since is not the path the student said was right.
+
+No schedule is generated until the student confirms. The gate is
+`topics.require_confirmation()`, which raises rather than returning a boolean,
+so the schedule ticket inherits the rule instead of deciding whether it needs
+one; `/courses/<id>/schedule-check/` exposes it so the refusal is visible and
+testable before a planner exists.
 
 ## Uploads
 

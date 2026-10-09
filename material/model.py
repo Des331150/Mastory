@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 #: their own slides. Above it, the topic is shown as inferred and unremarkable.
 CONFIDENCE_FLOOR = 0.6
 
+#: What the student is told about a topic the model was unsure of.
+UNSURE = "The model was not sure of this topic. Check it against your slides."
+
 #: How much of one slide the model is shown. Long slides are trimmed rather than
 #: dropped, so a topic can still be inferred from the part that was sent.
 _SLIDE_TEXT_LIMIT = 1200
@@ -42,6 +45,10 @@ _INSTRUCTION = (
     "You are reading one student's own course material to work out the topic "
     "path of their course. Use only the slides below; do not use outside "
     "knowledge and do not invent slides.\n"
+    "The outline is a hint taken from the deck's own headings, and only if "
+    "one is given. Where outline.present is false the deck has no structure to "
+    "take, so work the topics out of what the slides say rather than expecting "
+    "a structure that is not there.\n"
     "Return one topic per idea the course teaches, in the order the course "
     "teaches them. A topic may cover slides that are not next to each other, "
     "and its 'slides' must list the index of every slide that covers it.\n"
@@ -71,12 +78,15 @@ class SlideExcerpt:
 
     ``index`` is the slide's place in course order across every file of the
     course, so it is both what the model cites and what the application orders
-    topics by.
+    topics by. ``heading`` is the deck's own heading for this slide where it has
+    one, which is what makes the outline a hint rather than a skeleton: a deck
+    with no headings has none of these and the model is told so.
     """
 
     index: int
     title: str
     text: str
+    heading: str = ""
 
 
 @dataclass(frozen=True)
@@ -106,7 +116,7 @@ def infer_topics(
     Returned in course order, each pointing only at supplied slides.
     """
     reply = complete(_topic_prompt(course_title=course_title, slides=slides))
-    return grounded_topics(reply, slides=slides)
+    return _grounded_topics(reply, slides=slides)
 
 
 def _topic_prompt(*, course_title: str, slides: Sequence[SlideExcerpt]) -> str:
@@ -115,11 +125,16 @@ def _topic_prompt(*, course_title: str, slides: Sequence[SlideExcerpt]) -> str:
     Sent as one document rather than as prose so that what the model was shown
     is readable in a log line, and so a fake at ``complete`` can read the
     material the same way a model does.
+
+    The outline is included as a hint and is explicitly marked as possibly
+    absent. Deck outlines frequently cover nothing at all, so a model told to
+    expect one invents a structure the slides do not have.
     """
     return json.dumps(
         {
             "instruction": _INSTRUCTION,
             "course": course_title,
+            "outline": _outline(slides),
             "slides": [
                 {
                     "index": slide.index,
@@ -132,7 +147,25 @@ def _topic_prompt(*, course_title: str, slides: Sequence[SlideExcerpt]) -> str:
     )
 
 
-def grounded_topics(reply: str, *, slides: Sequence[SlideExcerpt]) -> list[TopicProposal]:
+def _outline(slides: Sequence[SlideExcerpt]) -> dict[str, Any]:
+    """The deck's own headings, or a plain statement that it has none.
+
+    Reported with the slide each heading came from, so the model can use them as
+    topic boundaries where they are meaningful and ignore them where they are
+    not - a slide title is often the only text on a slide, which makes a
+    headingless deck's titles a poor outline and not a reliable one.
+    """
+    headings = [
+        {"index": slide.index, "heading": slide.heading}
+        for slide in slides
+        if slide.heading
+    ]
+    if not headings:
+        return {"present": False, "headings": []}
+    return {"present": True, "headings": headings}
+
+
+def _grounded_topics(reply: str, *, slides: Sequence[SlideExcerpt]) -> list[TopicProposal]:
     """The topics a reply claims, kept only where they point at real material.
 
     This is the grounding contract applied to a reply, and it is deliberately
@@ -143,12 +176,12 @@ def grounded_topics(reply: str, *, slides: Sequence[SlideExcerpt]) -> list[Topic
     supplied = {slide.index for slide in slides}
     proposals: list[TopicProposal] = []
     for claim in _claimed_topics(reply):
-        title = str(claim.get("title", "")).strip()
-        slides_claimed = _claimed_slides(claim.get("slides"))
-        cited = tuple(sorted(index for index in slides_claimed if index in supplied))
+        title = _title(claim.get("title"))
+        claimed = _claimed_slides(claim.get("slides"))
+        cited = tuple(sorted(set(claimed) & supplied))
         if not title or not cited:
             logger.info(
-                "dropped an ungrounded topic claim: %r citing %s", title, slides_claimed
+                "dropped an ungrounded topic claim: %r citing %s", title, claimed
             )
             continue
         confidence = _confidence(claim.get("confidence"))
@@ -162,10 +195,6 @@ def grounded_topics(reply: str, *, slides: Sequence[SlideExcerpt]) -> list[Topic
         )
     proposals.sort(key=lambda proposal: proposal.slides[0])
     return proposals
-
-
-#: What the student is told about a topic the model was unsure of.
-UNSURE = "The model was not sure of this topic. Check it against your slides."
 
 
 def _claimed_topics(reply: str) -> list[dict[str, Any]]:
@@ -185,7 +214,18 @@ def _claimed_topics(reply: str) -> list[dict[str, Any]]:
     return [claim for claim in claimed if isinstance(claim, dict)]
 
 
+def _title(value: Any) -> str:
+    """A topic's name, or nothing if the model did not give one.
+
+    Only a string counts as a name. Coercing ``None`` to text would show the
+    student a topic called "None", which reads as a title rather than as the
+    absence of one.
+    """
+    return value.strip() if isinstance(value, str) else ""
+
+
 def _claimed_slides(value: Any) -> list[int]:
+    """The slide indices a claim cites, ignoring anything that is not one."""
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, int) and not isinstance(item, bool)]

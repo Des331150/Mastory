@@ -22,6 +22,11 @@ urlpatterns = [
         name="topic-infer",
     ),
     path(
+        "courses/<int:course_id>/schedule-check/",
+        views.schedule_check,
+        name="schedule-check",
+    ),
+    path(
         "courses/<int:course_id>/topics/add/",
         views.topic_add,
         name="topic-add",

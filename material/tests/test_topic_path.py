@@ -21,6 +21,8 @@ from material.model import NOT_CONFIGURED
 from material.tests.helpers import (
     HANDOUT_NOTES_PDF,
     LINEAR_ALGEBRA_PDF,
+    RecordingModel,
+    broken_pdf_upload,
     fake_topic,
     pdf_upload,
     use_fake_model,
@@ -79,6 +81,23 @@ class TopicPathTestCase(TestCase):
             if f". {title}</h2>" in block:
                 return re.search(r'id="topic-(\d+)"', block).group(1)  # type: ignore[union-attr]
         raise AssertionError(f"no topic titled {title!r} on the page")
+
+    def block_of(self, html: str, title: str) -> str:
+        """One topic's own piece of the page, as the student reads it."""
+        for block in html.split('<li class="topic')[1:]:
+            if f". {title}</h2>" in block:
+                return block
+        raise AssertionError(f"no topic titled {title!r} on the page")
+
+    def slides_of(self, html: str, title: str) -> list[str]:
+        """The slides one topic on the page points at."""
+        return [f"p{n}" for n in re.findall(r">p(\d+):", self.block_of(html, title))]
+
+    def weight_of(self, html: str, title: str) -> int:
+        """The time one topic is allocated on the page, as the student reads it."""
+        match = re.search(r"(\d+) units?", self.block_of(html, title))
+        assert match is not None, f"no weight shown for {title!r}"
+        return int(match.group(1))
 
     def confirm(self) -> str:
         response = self.client.post("/courses/1/topics/confirm/")
@@ -174,6 +193,23 @@ class GroundingTests(TopicPathTestCase):
     def test_a_topic_with_no_title_is_not_shown(self) -> None:
         html = self.infer({"title": "  ", "slides": [2], "confidence": 0.9})
         self.assertNotIn("slide-pointer-list", html)
+
+    def test_a_reply_citing_a_slide_twice_does_not_point_at_it_twice(self) -> None:
+        html = self.infer(fake_topic("Repeated citation", [2, 2, 3]))
+        self.assertEqual(self.slides_of(html, "Repeated citation"), ["p2", "p3"])
+
+    def test_a_duplicate_citation_does_not_inflate_the_topic_weight(self) -> None:
+        html = self.infer(fake_topic("Repeated citation", [2, 2, 3]))
+        once = self.infer(fake_topic("Repeated citation", [2, 3]))
+        self.assertEqual(
+            self.weight_of(html, "Repeated citation"),
+            self.weight_of(once, "Repeated citation"),
+        )
+
+    def test_a_topic_the_model_gave_no_name_is_not_shown_as_none(self) -> None:
+        html = self.infer({"title": None, "slides": [2], "confidence": 0.9})
+        self.assertNotIn("None", html)
+        self.assertIn("No topics could be worked out", html)
 
     def test_a_reply_that_is_not_json_leaves_the_student_to_add_topics(self) -> None:
         html = self.infer(reply="I am afraid I cannot help with that.")
@@ -271,15 +307,6 @@ class StudentEditTests(TopicPathTestCase):
         self.assertEqual(
             self.slides_of(self.topics_page(), "Eigenvalues"), ["p2", "p3", "p5"]
         )
-
-    def slides_of(self, html: str, title: str) -> list[str]:
-        """The slides one topic on the page points at."""
-        for block in html.split('<li class="topic')[1:]:
-            if f". {title}</h2>" in block:
-                return [
-                    f"p{number}" for number in re.findall(r">p(\d+):", block)
-                ]
-        raise AssertionError(f"no topic titled {title!r} on the page")
 
     def test_a_topic_the_student_adds_appears_in_the_path(self) -> None:
         self.client.post("/courses/1/topics/add/", {"title": "Titration curves"})
@@ -392,6 +419,114 @@ class ModelBoundaryTests(TopicPathTestCase):
             self.client.post("/courses/1/topics/infer/")
         self.client.post("/courses/1/topics/add/", {"title": "Added by hand"})
         self.assertIn("Added by hand", self.topics_page())
+
+
+class ScheduleGateTests(TopicPathTestCase):
+    """No schedule exists on an unconfirmed topic path, and it can be asked."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.infer(fake_topic("Eigenvalues", [2, 3]), fake_topic("Eigenspaces", [4, 5]))
+
+    def check(self) -> Any:
+        return self.client.get("/courses/1/schedule-check/")
+
+    def test_a_schedule_is_refused_before_the_student_confirms(self) -> None:
+        response = self.check()
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("Confirm the topic path", response.content.decode())
+
+    def test_the_refusal_sends_the_student_to_the_topic_path(self) -> None:
+        self.assertIn('href="/courses/1/topics/"', self.check().content.decode())
+
+    def test_a_confirmed_topic_path_lets_a_schedule_be_built(self) -> None:
+        self.confirm()
+        response = self.check()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Ready to schedule", response.content.decode())
+
+    def test_the_confirmed_path_is_the_one_the_student_checked(self) -> None:
+        self.confirm()
+        html = self.check().content.decode()
+        self.assertIn("Eigenvalues", html)
+        self.assertIn("Eigenspaces", html)
+
+    def test_a_schedule_stops_being_available_once_a_topic_is_edited(self) -> None:
+        self.confirm()
+        pk = self.pk_of(self.topics_page(), "Eigenvalues")
+        self.client.post(f"/courses/1/topics/{pk}/rename/", {"title": "Renamed"})
+        self.assertEqual(self.check().status_code, 409)
+
+    def test_nothing_is_scheduled_yet_even_on_a_confirmed_path(self) -> None:
+        self.confirm()
+        self.assertIn("nothing is scheduled yet", self.check().content.decode())
+
+
+class ModelRequestTests(TopicPathTestCase):
+    """What the model is asked, checked where the model is faked.
+
+    These assert on the request rather than on the student's page because the
+    one thing a student cannot see is whether the model was handed their own
+    material and the deck's outline. Everything the student does see is asserted
+    elsewhere in this file.
+    """
+
+    def test_the_model_is_handed_the_students_own_slides(self) -> None:
+        fake = RecordingModel(fake_topic("Eigenvalues", [2]))
+        fake.use(self)
+        self.client.post("/courses/1/topics/infer/")
+        slides = fake.last_request["slides"]
+        self.assertEqual(len(slides), 5)
+        self.assertIn("eigenvalue", slides[1]["text"].lower())
+
+    def test_a_deck_with_headings_hands_the_model_its_outline(self) -> None:
+        fake = RecordingModel(fake_topic("Eigenvalues", [2]))
+        fake.use(self)
+        self.client.post("/courses/1/topics/infer/")
+        outline = fake.last_request["outline"]
+        self.assertTrue(outline["present"])
+        self.assertEqual(
+            [entry["heading"] for entry in outline["headings"]],
+            [
+                "MATH 201: Linear Algebra",
+                "Definition of an eigenvalue",
+                "Computing the characteristic polynomial",
+                "Eigenvectors and eigenspaces",
+                "Diagonalisation worked example",
+            ],
+        )
+
+    def test_a_deck_with_no_headings_says_it_has_no_outline_rather_than_inventing_one(self) -> None:
+        self.upload(HANDOUT_NOTES_PDF, title="Organic chemistry")
+        fake = RecordingModel(fake_topic("Curved-arrow mechanisms", [1]))
+        fake.use(self)
+        self.client.post("/courses/2/topics/infer/")
+        outline = fake.last_request["outline"]
+        self.assertFalse(outline["present"])
+        self.assertEqual(outline["headings"], [])
+
+    def test_a_headingless_deck_still_reaches_the_student_as_a_topic_path(self) -> None:
+        self.upload(HANDOUT_NOTES_PDF, title="Organic chemistry")
+        with use_fake_model(fake_topic("Curved-arrow mechanisms", [1, 2])):
+            self.client.post("/courses/2/topics/infer/")
+        self.assertIn("Curved-arrow mechanisms", self.topics_page(2))
+
+    def test_the_outline_hint_travels_with_the_material_it_belongs_to(self) -> None:
+        fake = RecordingModel(fake_topic("Eigenvalues", [2]))
+        fake.use(self)
+        self.client.post("/courses/1/topics/infer/")
+        outline, slides = fake.last_request["outline"], fake.last_request["slides"]
+        by_index = {slide["index"]: slide for slide in slides}
+        for entry in outline["headings"]:
+            self.assertIn(entry["heading"], by_index[entry["index"]]["title"])
+
+    def test_no_material_leaves_the_student_no_topics_rather_than_calling_the_model(self) -> None:
+        self.client.post("/courses/new/", {"title": "Broken", "files": broken_pdf_upload()})
+        fake = RecordingModel()
+        fake.use(self)
+        response = self.client.post("/courses/2/topics/infer/")
+        self.assertEqual(fake.prompts, [])
+        self.assertIn("no readable material", response.content.decode())
 
 
 class NavigationTests(TopicPathTestCase):

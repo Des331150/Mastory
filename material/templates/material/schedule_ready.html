@@ -1,0 +1,20 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: ready to schedule{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>Ready to schedule</h1>
+  <p class="muted">
+    Your topic path is confirmed, so a schedule can be built on these
+    {{ topics|length }} topic{{ topics|length|pluralize }}. The planner itself is
+    the next piece of work; nothing is scheduled yet.
+  </p>
+  <ol class="topic-list">
+    {% for topic in topics %}
+      <li class="topic"><h2>{{ forloop.counter }}. {{ topic.title }}</h2></li>
+    {% endfor %}
+  </ol>
+  <p><a class="cta" href="{% url 'topic-path' course.pk %}">Back to your topic path</a></p>
+</section>
+{% endblock %}

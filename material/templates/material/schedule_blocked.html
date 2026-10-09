@@ -1,0 +1,15 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: no schedule yet{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>No schedule yet</h1>
+  <p class="error" role="alert">{{ reason }}</p>
+  <p class="muted">
+    A schedule is built on your topics, so it waits until you have said the topic
+    path is right. Check each topic against your slides first.
+  </p>
+  <p><a class="cta" href="{% url 'topic-path' course.pk %}">Go to your topic path</a></p>
+</section>
+{% endblock %}

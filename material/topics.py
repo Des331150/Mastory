@@ -47,6 +47,15 @@ class Rejected(Exception):
         self.reason = reason
 
 
+class Unconfirmed(Rejected):
+    """Work that needs a confirmed topic path and does not have one.
+
+    A ``Rejected`` because the student can fix it by confirming, which is the
+    whole point: the schedule does not exist yet, so the only way to get one is
+    to go and check the topics.
+    """
+
+
 def topic_path(course: Course) -> TopicPath:
     """The course's topic path, created in draft on first use."""
     path, _ = TopicPath.objects.get_or_create(
@@ -62,6 +71,24 @@ def course_slides(course: Course) -> list[Slide]:
     return course.slides
 
 
+def heading_of(slide: Slide) -> str:
+    """The deck's own heading for this slide, or nothing if it has none.
+
+    A slide's title is its first line whether or not that line was a heading, so
+    the two are told apart here rather than assumed from the title. Plenty of
+    material has no heading structure at all, and that is exactly the case the
+    outline hint has to survive.
+    """
+    for line in slide.markdown.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        if not candidate.startswith("#"):
+            return ""
+        return candidate.lstrip("#").strip().strip("*").strip()
+    return ""
+
+
 def infer(course: Course) -> None:
     """Infer the course's topic path from its material, replacing what is there.
 
@@ -75,7 +102,12 @@ def infer(course: Course) -> None:
     proposals = model.infer_topics(
         course_title=course.title,
         slides=[
-            model.SlideExcerpt(index=index, title=slide.title, text=slide.plain_text)
+            model.SlideExcerpt(
+                index=index,
+                title=slide.title,
+                text=slide.plain_text,
+                heading=heading_of(slide),
+            )
             for index, slide in enumerate(slides, start=1)
         ],
     )
@@ -271,9 +303,26 @@ def confirm(course: Course) -> None:
 
 
 def is_confirmed(course: Course) -> bool:
-    """Whether a schedule may be generated on this course's topic path."""
+    """Whether the student has confirmed this course's topic path."""
     path = TopicPath.objects.filter(user_id=current_user_id(), course=course).first()
     return path is not None and path.state == TopicPath.State.CONFIRMED
+
+
+def require_confirmation(course: Course) -> list[Topic]:
+    """The topics a schedule may be built on, or a refusal if there are none yet.
+
+    The single gate a schedule has to come through. A wrong topic path the
+    student fixed in thirty seconds is acceptable; one discovered during finals
+    is fatal, so generating a schedule without asking is the one failure this
+    product cannot have. Built now, before there is a schedule to gate, so the
+    later ticket inherits the rule instead of deciding whether it needs one.
+    """
+    if not is_confirmed(course):
+        raise Unconfirmed("Confirm the topic path before building a schedule.")
+    topics = list(owned(course.topics.all()))
+    if not topics:
+        raise Unconfirmed("There are no topics to build a schedule on.")
+    return topics
 
 
 def _await_confirmation(course: Course) -> None:

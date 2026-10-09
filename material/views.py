@@ -219,6 +219,31 @@ def topic_path(request: HttpRequest, course_id: int) -> HttpResponse:
     return _topics_page(request, course)
 
 
+@require_GET
+def schedule_check(request: HttpRequest, course_id: int) -> HttpResponse:
+    """Whether a schedule could be built right now, and why not if it could not.
+
+    The gate the schedule ticket will generate through, exposed so that the
+    refusal is something the student can be shown and tested rather than a rule
+    that only exists in a service.
+    """
+    course = _course(course_id)
+    try:
+        topic_service.require_confirmation(course)
+    except topic_service.Unconfirmed as exc:
+        return render(
+            request,
+            "material/schedule_blocked.html",
+            {"course": course, "reason": exc.reason},
+            status=409,
+        )
+    return render(
+        request,
+        "material/schedule_ready.html",
+        {"course": course, "topics": owned(course.topics.all())},
+    )
+
+
 @require_POST
 def topic_infer(request: HttpRequest, course_id: int) -> HttpResponse:
     """Work the topic path out from the material, replacing what is there."""
