@@ -215,3 +215,12 @@ button[disabled] { opacity: 0.5; cursor: default; }
   .reader-sidebar.open { display: block; }
   .reading { padding: 20px; }
 }
+
+/* The week on a phone: the topic title is the content, so it gets the width. */
+@media (max-width: 600px) {
+  .session { grid-template-columns: minmax(0, 1fr) auto; }
+  .session-when { grid-column: 1 / -1; }
+  .session-topic { grid-column: 1; }
+  .session-length { grid-column: 2; }
+  .session-link { grid-column: 1 / -1; }
+}

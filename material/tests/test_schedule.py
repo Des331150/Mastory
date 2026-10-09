@@ -84,42 +84,78 @@ class ScheduleTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
+    def weeks(self, html: str) -> list[str]:
+        """Every week of the plan, in the order the student reads them down."""
+        if 'class="week"' not in html:
+            return []
+        rest = html.split('class="week"', 1)[1]
+        found = []
+        while True:
+            block, marker, tail = rest.partition('class="week"')
+            found.append(block.split("</ol>", 1)[0])
+            if not marker:
+                return found
+            rest = tail
+
     def week(self, html: str) -> str:
-        """The student's week, as its own piece of the page."""
-        assert 'class="week"' in html, "no week shown"
-        return html.split('class="week"', 1)[1].split("</ol>", 1)[0]
+        """The week the student is in, as its own piece of the page."""
+        first = self.weeks(html)
+        assert first, "no week shown"
+        return first[0]
 
     def session_titles(self, html: str) -> list[str]:
-        """The topics of the sessions in the week, in the order they are shown."""
+        """The topics of every session on the plan, in the order they are shown."""
         return [
             title.strip()
-            for title in re.findall(
-                r'<h3 class="session-topic">(.*?)</h3>', self.week(html)
-            )
+            for week in self.weeks(html)
+            for title in re.findall(r'<h3 class="session-topic">(.*?)</h3>', week)
         ]
 
     def session_minutes(self, html: str, title: str) -> int:
         """How long the session on a given topic is, as the student reads it."""
-        block = self.session_block(html, title)
-        match = re.search(r"(\d+)\s*min", block)
+        match = re.search(r"(\d+)\s*min", self.session_block(html, title))
         assert match is not None, f"no length shown for {title!r}"
         return int(match.group(1))
 
     def session_block(self, html: str, title: str) -> str:
-        for block in self.week(html).split('<li class="session"')[1:]:
-            if f">{title}</h3>" in block:
-                return block
-        raise AssertionError(f"no session on {title!r} in the week")
+        for week in self.weeks(html):
+            for block in week.split('<li class="session"')[1:]:
+                if f">{title}</h3>" in block:
+                    return block
+        raise AssertionError(f"no session on {title!r} in the plan")
 
     def session_weekdays(self, html: str) -> list[str]:
-        """Which days of the week each session is on, as the week names them."""
-        return re.findall(
-            r'<p class="session-when">(\w{3}) ', self.week(html)
+        """Which days of the week each session is on, as the weeks name them."""
+        return [
+            weekday
+            for week in self.weeks(html)
+            for weekday in re.findall(r'<p class="session-when">\s*(\w{3}) ', week)
+        ]
+
+    def fullest_week_minutes(self, html: str) -> int:
+        """The most time any one week of the plan takes on."""
+        return max(
+            (
+                sum(
+                    int(minutes)
+                    for minutes in re.findall(
+                        r'<p class="session-length">(\d+) min</p>', week
+                    )
+                )
+                for week in self.weeks(html)
+            ),
+            default=0,
         )
 
-    def week_minutes(self, html: str) -> int:
-        """The time this week's sessions take, as the student reads it off them."""
-        return sum(self.session_minutes(html, title) for title in self.session_titles(html))
+    def fullest_week_sessions(self, html: str) -> int:
+        """The most sessions any one week of the plan holds."""
+        return max(
+            (
+                len(re.findall(r'<h3 class="session-topic">', week))
+                for week in self.weeks(html)
+            ),
+            default=0,
+        )
 
     def card(self) -> str:
         """The session the student starts now, as its own piece of the page."""
@@ -168,9 +204,9 @@ class SettingAvailabilityTests(ScheduleTestCase):
             ["Eigenvalues", "Eigenspaces", "Diagonalisation"],
         )
 
-    def test_a_week_holds_no_more_sessions_than_the_days_the_study_on(self) -> None:
+    def test_no_week_holds_more_sessions_than_the_days_they_study_on(self) -> None:
         self.set_availability(days=2, hours=10)
-        self.assertEqual(len(self.session_titles(self.plan_page())), 2)
+        self.assertLessEqual(self.fullest_week_sessions(self.plan_page()), 2)
 
     def test_the_settings_the_student_gave_are_still_there_next_time(self) -> None:
         self.set_availability(days=3, hours=6)
@@ -210,9 +246,12 @@ def setting(html: str, name: str) -> str:
 
 class WeightedSessionTests(ScheduleTestCase):
     def test_a_topic_with_more_material_behind_it_gets_a_longer_session(self) -> None:
-        self.confirmed_path(fake_topic("A digression", [5]), fake_topic("The whole chapter", [2, 3, 4, 5]))
-        self.set_availability(days=2, hours=4)
-        html = self.plan_page()
+        self.confirmed_path(
+            fake_topic("A digression", [5]), fake_topic("The whole chapter", [2, 3, 4, 5])
+        )
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=2)
+            html = self.plan_page()
         self.assertGreater(
             self.session_minutes(html, "The whole chapter"),
             self.session_minutes(html, "A digression"),
@@ -223,11 +262,10 @@ class WeightedSessionTests(ScheduleTestCase):
         self.client.post("/courses/1/topics/confirm/")
         self.set_availability(days=3, hours=6)
         html = self.plan_page()
-        lengths = {
-            title: self.session_minutes(html, title)
-            for title in self.session_titles(html)
-        }
-        self.assertEqual(max(lengths, key=lambda title: lengths[title]), "Eigenvalues")
+        self.assertEqual(
+            self.session_minutes(html, "Eigenvalues"),
+            max(self.session_minutes(html, t) for t in self.session_titles(html)),
+        )
 
     def test_a_smaller_topic_is_never_given_a_longer_session_than_a_bigger_one(self) -> None:
         self.confirmed_path(
@@ -245,8 +283,7 @@ class WeightedSessionTests(ScheduleTestCase):
 
     def test_the_week_of_sessions_fits_the_hours_the_student_said(self) -> None:
         self.set_availability(days=3, hours=2)
-        html = self.plan_page()
-        self.assertLessEqual(self.week_minutes(html), 2 * 60)
+        self.assertLessEqual(self.fullest_week_minutes(self.plan_page()), 2 * 60)
 
     def test_no_session_is_shorter_than_a_sitting_down_to_study(self) -> None:
         self.confirmed_path(*[fake_topic(f"Topic {n}", [n]) for n in range(1, 6)])
@@ -325,7 +362,7 @@ class StudyDaysTests(ScheduleTestCase):
         with a_week_of(A_MONDAY):
             self.set_availability(days=5, hours=10, exam="2026-11-20")
             self.assertEqual(
-                self.session_weekdays(self.plan_page()),
+                self.session_weekdays(self.plan_page())[:5],
                 ["Mon", "Tue", "Wed", "Thu", "Fri"],
             )
 
@@ -338,7 +375,7 @@ class StudyDaysTests(ScheduleTestCase):
         with a_week_of(A_MONDAY):
             self.set_availability(days=6, hours=20, exam="2026-11-20")
             weekdays = self.session_weekdays(self.plan_page())
-        self.assertEqual(weekdays, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
+        self.assertEqual(weekdays[:6], ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
 
 
 class ExamModeTests(ScheduleTestCase):
@@ -366,7 +403,7 @@ class ExamModeTests(ScheduleTestCase):
         self.set_availability(days=3, hours=6, exam=self.days_from_today(0))
         html = self.plan_page()
         self.assertIn("It is your exam today", html)
-        self.assertIn("no revision left to schedule", html)
+        self.assertIn("Your exam is too close for a session", html)
         self.assertNotIn("Every date on this plan has passed", html)
 
     def test_nothing_is_scheduled_on_the_day_of_the_exam_or_after_it(self) -> None:
@@ -430,6 +467,15 @@ class TodaysSessionTests(ScheduleTestCase):
         self.assertIn("Next session", card)
         self.assertIn("Monday 9 November", card)
 
+    def test_a_week_with_nothing_in_it_says_so_rather_than_blaming_the_clock(self) -> None:
+        """An exam tomorrow leaves no day to put a session on. Say that, not
+        that the dates have gone."""
+        with a_week_of(date(2026, 11, 3)):  # a Tuesday
+            self.set_availability(days=1, hours=6, exam="2026-11-04")
+            html = self.plan_page()
+        self.assertIn("too close for a session", html)
+        self.assertNotIn("Every date on this plan has passed", html)
+
     def test_a_topic_with_no_slides_does_not_offer_a_link_to_nothing(self) -> None:
         self.client.post("/courses/1/topics/add/", {"title": "From the lecturer"})
         self.client.post("/courses/1/topics/confirm/")
@@ -443,6 +489,63 @@ class TodaysSessionTests(ScheduleTestCase):
         with a_week_of(date(2026, 11, 10)):
             html = self.plan_page()
         self.assertIn("Every date on this plan has passed", html)
+
+
+class WhatTheWeekDoesNotSayTests(ScheduleTestCase):
+    """Claims the page has to either keep or not make.
+
+    A student makes decisions from what a schedule says about itself. Each of
+    these is a sentence the page used to say and stop being true.
+    """
+
+    def test_a_week_that_cannot_use_the_hours_says_where_they_went(self) -> None:
+        self.confirmed_path(fake_topic("A short thing", [2]), fake_topic("Everything", [2, 3, 4, 5]))
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=10)
+            html = self.plan_page()
+        self.assertLessEqual(self.fullest_week_minutes(html), 600)
+        self.assertIn("could not be used", html)
+
+    def test_the_page_names_the_days_it_assumed_the_student_studies(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6)
+            html = self.plan_page()
+        self.assertIn("Monday, Wednesday and Friday", html)
+
+    def test_two_days_a_week_names_both_days(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=2, hours=6)
+            self.assertIn("Monday and Friday", self.plan_page())
+
+    def test_a_form_that_came_back_with_an_error_keeps_what_was_typed(self) -> None:
+        response = self.client.post(
+            "/courses/1/plan/settings/",
+            {"exam_date": "", "days_per_week": "4", "hours_per_week": "999"},
+        )
+        html = response.content.decode()
+        self.assertEqual(setting(html, "hours_per_week"), "999")
+        self.assertEqual(setting(html, "days_per_week"), "4")
+
+    def test_the_button_that_rebuilds_the_week_says_that_it_replaces_it(self) -> None:
+        self.set_availability(days=3, hours=6)
+        self.assertIn("replaces the sessions", self.plan_page())
+
+    def test_a_day_already_gone_is_marked_as_gone(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=2, hours=6)
+            html = self.plan_page()
+            with a_week_of(date(2026, 11, 30)):
+                html = self.plan_page()
+        self.assertIn("gone", html)
+
+    def test_the_sessions_the_student_has_not_reached_are_not_marked_gone(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=2, hours=6)
+            self.assertNotIn("gone", self.week(self.plan_page()))
+
+    def test_each_session_says_which_topic_it_opens(self) -> None:
+        self.set_availability(days=3, hours=6)
+        self.assertIn("Read Eigenvalues", self.plan_page())
 
 
 class PlanNavigationTests(ScheduleTestCase):
@@ -513,15 +616,15 @@ class SessionCountTests(ScheduleTestCase):
 
     def test_a_budget_too_tight_for_a_session_a_day_offers_fewer(self) -> None:
         self.set_availability(days=5, hours=1)
-        self.assertEqual(len(self.session_titles(self.plan_page())), 2)
+        self.assertLessEqual(self.fullest_week_sessions(self.plan_page()), 2)
 
     def test_a_budget_that_stretches_offers_one_session_for_each_study_day(self) -> None:
         self.set_availability(days=5, hours=10)
-        self.assertEqual(len(self.session_titles(self.plan_page())), 5)
+        self.assertEqual(self.fullest_week_sessions(self.plan_page()), 5)
 
     def test_the_days_the_student_studies_still_cap_the_sessions_offered(self) -> None:
         self.set_availability(days=2, hours=20)
-        self.assertEqual(len(self.session_titles(self.plan_page())), 2)
+        self.assertLessEqual(self.fullest_week_sessions(self.plan_page()), 2)
 
     def test_the_student_can_see_the_weeks_after_this_one_too(self) -> None:
         self.set_availability(days=3, hours=6)

@@ -34,8 +34,6 @@
     {% endif %}
   </header>
 
-  {% if error %}<p class="error failure" role="alert">{{ error }}</p>{% endif %}
-
   {% if overview.current %}
     <section class="panel next-session">
       <p class="next-label">
@@ -59,21 +57,61 @@
     </section>
   {% elif plan %}
     <section class="panel">
-      <h2>No session waiting</h2>
-      {% if plan.exam_date and overview.days_left <= 0 %}
+      <h2>No session to start</h2>
+      {% if overview.empty and overview.days_left is None %}
         <p class="muted">
-          There is no revision left to schedule before
-          {{ plan.exam_date|date:"j F Y" }}. Take the exam, then either set the
-          next one below or clear the date to carry on planning in open mode.
+          There is no session in this week. Building the week again below will
+          place your topics on the days you study.
+        </p>
+      {% elif overview.empty %}
+        <p class="muted">
+          Your exam is too close for a session on any day left before it. What
+          is left to read is on your topic path, and reading the last of it is
+          worth more than a plan that will not happen.
+          <a href="{% url 'topic-path' course.pk %}">Open your topic path</a>.
         </p>
       {% else %}
         <p class="muted">
-          Every date on this plan has passed. Build the week again below and it
-          starts from today.
+          Every date on this plan has passed. Building the week again below
+          starts it from today.
         </p>
       {% endif %}
     </section>
   {% endif %}
+
+  {% for week in overview.weeks %}
+    <section class="panel">
+      <h2>{{ week.label }}</h2>
+      <p class="muted small">
+        {{ week.sessions|length }} session{{ week.sessions|length|pluralize }} &middot;
+        {{ week.minutes }} min in total
+        {% if forloop.first and overview.unspent %}
+          &middot; {{ overview.unspent }} min could not be used: no topic can
+          take a longer session than {{ 180 }} min
+        {% endif %}
+      </p>
+      <ol class="week">
+        {% for session in week.sessions %}
+          <li class="session{% if session.scheduled_on < today %} passed{% endif %}">
+            <p class="session-when">
+              {{ session.scheduled_on|date:"D j M" }}{% if session.scheduled_on < today %} &middot; gone{% endif %}
+            </p>
+            <h3 class="session-topic">{{ session.topic.title }}</h3>
+            <p class="session-length">{{ session.minutes }} min</p>
+            {% with slides=session.topic.slides %}
+              {% if slides %}
+                <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
+                   >Read {{ session.topic.title }}</a>
+              {% else %}
+                <a class="session-link" href="{% url 'topic-path' course.pk %}"
+                   >No slides pointed at yet</a>
+              {% endif %}
+            {% endwith %}
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endfor %}
 
   {% if overview.unplaced %}
     <section class="panel">
@@ -81,13 +119,15 @@
       <p class="muted">
         {% if plan.exam_date %}
           {% if overview.unplaced|length == 1 %}
-            One topic of your course does not fit before
-            {{ plan.exam_date|date:"j F Y" }} at the pace you set. It is still
-            here, and whether to spend time on it is your call.
+            One topic of your course has no session before
+            {{ plan.exam_date|date:"j F Y" }}, because the days you study do not
+            leave room for it. It is still on your path, last in the order you
+            set, and whether to spend time on it is your call.
           {% else %}
-            {{ overview.unplaced|length }} topics of your course do not fit before
-            {{ plan.exam_date|date:"j F Y" }} at the pace you set. They are still
-            here, and which of them to spend time on is your call.
+            {{ overview.unplaced|length }} topics of your course have no session
+            before {{ plan.exam_date|date:"j F Y" }}, because the days you study
+            do not leave room for them. They are the last topics in the order
+            you set, and which of them to spend time on is your call.
           {% endif %}
         {% else %}
           These topics have no session this week. They are still on your path,
@@ -100,55 +140,36 @@
     </section>
   {% endif %}
 
-  {% for week in overview.weeks %}
-    <section class="panel">
-      <h2>{{ week.label }}</h2>
-      <p class="muted small">
-        {{ week.sessions|length }} session{{ week.sessions|length|pluralize }} &middot;
-        {{ week.minutes }} min in total
-      </p>
-      <ol class="week">
-        {% for session in week.sessions %}
-          <li class="session" id="session-{{ session.pk }}">
-            <p class="session-when">{{ session.scheduled_on|date:"D j M" }}</p>
-            <h3 class="session-topic">{{ session.topic.title }}</h3>
-            <p class="session-length">{{ session.minutes }} min</p>
-            {% with slides=session.topic.slides %}
-              {% if slides %}
-                <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
-                   >Read the slides</a>
-              {% else %}
-                <a class="session-link" href="{% url 'topic-path' course.pk %}"
-                   >No slides pointed at yet</a>
-              {% endif %}
-            {% endwith %}
-          </li>
-        {% endfor %}
-      </ol>
-    </section>
-  {% endfor %}
-
   <section class="panel">
     <h2>{% if plan %}Change your week{% else %}Set up your week{% endif %}</h2>
     <p class="muted">
       The time you say you have is the time the plan is built inside. It is
       better to be honest here and have a week you keep to.
+      {% if plan %}
+        Your sessions land on {{ overview.study_days }}. If those are not days
+        you can study, change the number below and read which days it names.
+      {% endif %}
     </p>
     <form method="post" action="{% url 'plan-settings' course.pk %}" class="stack">
       {% csrf_token %}
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
       <label for="exam_date">Exam date (if you know it)</label>
       <input id="exam_date" type="date" name="exam_date"
-             value="{{ plan.exam_date|date:'Y-m-d' }}" />
+             value="{{ entered.exam_date }}" />
 
       <label for="days_per_week">Days a week you can study</label>
       <input id="days_per_week" type="number" name="days_per_week" min="1" max="7"
-             value="{{ plan.days_per_week|default:3 }}" />
+             value="{{ entered.days_per_week }}" />
 
       <label for="hours_per_week">Hours a week you can study</label>
       <input id="hours_per_week" type="number" name="hours_per_week" min="1" max="24"
-             value="{{ plan.hours_per_week|default:6 }}" />
+             value="{{ entered.hours_per_week }}" />
 
-      <button type="submit">Build my week</button>
+      <button type="submit">{% if plan %}Build this week again{% else %}Build my week{% endif %}</button>
+      {% if plan %}
+        <p class="muted small">This replaces the sessions on your week and starts again from today.</p>
+      {% endif %}
     </form>
   </section>
 

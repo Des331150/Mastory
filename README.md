@@ -108,9 +108,14 @@ student could check by hand.
 - **Weight sets the length.** A topic covering more material gets more of the
   week. The week's total never exceeds the budget, and no topic is promised a
   sitting over three hours, because a topic cannot be split to make it fit.
+  When that ceiling means some of the stated hours cannot be used, the week says
+  so rather than totalling quietly short of the number the student typed.
 - **Study days are spread across the working week.** Three days is Monday,
   Wednesday and Friday; five is the whole working week; Saturday and Sunday only
-  appear for a student who asked for six or seven.
+  appear for a student who asked for six or seven. The student picks a number of
+  days rather than the days themselves, so the page names the ones it assumed.
+- **Weeks are calendar weeks.** A plan built on a Thursday does not put Thursday
+  and Monday in one panel and call it a week.
 
 Two modes, and the exam date is the only difference. **Exam mode** counts down,
 and nothing lands on or after the exam; topics that will not fit before it are

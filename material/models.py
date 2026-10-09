@@ -280,6 +280,11 @@ class Session(models.Model):
     A session holds exactly one topic and a topic holds exactly one session.
     Nothing here can express half a topic or two topics in a sitting, which is
     the point: a topic split across days is a topic the student dreads finishing.
+
+    Which week a session sits in is not stored. It is read off ``scheduled_on``
+    when the plan is shown, because a week is a property of a calendar and not
+    of a position in a list, and storing it would mean a plan whose first week
+    spanned two real ones.
     """
 
     user = models.ForeignKey(
@@ -288,7 +293,6 @@ class Session(models.Model):
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="sessions")
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="sessions")
     position = models.PositiveIntegerField()
-    week = models.PositiveSmallIntegerField()
     minutes = models.PositiveSmallIntegerField()
     scheduled_on = models.DateField()
 

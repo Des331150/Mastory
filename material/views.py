@@ -9,14 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from django.db.models import QuerySet
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.db.models import Field, QuerySet
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from material import model, planning, topics as topic_service
-from material.models import Course, Slide, SourceFile, Topic
+from material.models import Course, Plan, Slide, SourceFile, Topic
 from material.render import Section, build_sections
 from material.services import (
     StageOutcome,
@@ -385,7 +385,9 @@ def plan_settings(request: HttpRequest, course_id: int) -> HttpResponse:
     except topic_service.Unconfirmed as exc:
         return _schedule_blocked(request, course, exc.reason)
     except topic_service.Rejected as exc:
-        return _plan_page(request, course, topics=topics, error=exc.reason)
+        return _plan_page(
+            request, course, topics=topics, error=exc.reason, entered=request.POST
+        )
     return redirect("plan", course_id=course.pk)
 
 
@@ -404,12 +406,17 @@ def _plan_page(
     *,
     topics: list[Topic],
     error: str = "",
+    entered: QueryDict | None = None,
 ) -> HttpResponse:
     """The week, the next session, and the form that built them.
 
     The plan is read in one pass by ``planning.overview`` so that the weeks, the
     next session and the countdown on this page are all answers about the same
     read of the plan rather than three reads that could disagree.
+
+    A form that came back with an error shows what the student typed rather
+    than what was last saved. Being told your own hours are impossible and then
+    finding them silently replaced is how a student stops trusting the form.
     """
     plan = planning.plan_for(course)
     return render(
@@ -420,9 +427,39 @@ def _plan_page(
             "plan": plan,
             "today": planning.today(),
             "overview": planning.overview(plan, topics) if plan is not None else None,
+            "entered": entered or _saved_settings(plan),
             "error": error,
         },
     )
+
+
+#: The three things the student tells the planner, in the order the form asks
+#: for them.
+SETTINGS = ("exam_date", "days_per_week", "hours_per_week")
+
+
+def _default_setting(name: str) -> Any:
+    """What the form starts at, read off the field rather than the template."""
+    field: Field[Any, Any] = Plan._meta.get_field(name)  # type: ignore[assignment]
+    return field.get_default()
+
+
+def _saved_settings(plan: Plan | None) -> dict[str, str]:
+    """What the form shows when the student has not just typed something.
+
+    The starting numbers live on ``Plan`` rather than in the template, so the
+    number the form offers and the number the schema would use are one answer
+    rather than two that can drift. A date that is not set shows as nothing,
+    which is what an empty date input needs.
+    """
+    values = [
+        getattr(plan, name) if plan is not None else _default_setting(name)
+        for name in SETTINGS
+    ]
+    return {
+        name: "" if value is None else str(value)
+        for name, value in zip(SETTINGS, values, strict=True)
+    }
 
 
 def _reason(exc: Exception) -> str:

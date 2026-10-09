@@ -30,7 +30,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('position', models.PositiveIntegerField()),
-                ('week', models.PositiveSmallIntegerField()),
                 ('minutes', models.PositiveSmallIntegerField()),
                 ('scheduled_on', models.DateField()),
                 ('plan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sessions', to='material.plan')),

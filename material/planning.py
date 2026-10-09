@@ -38,7 +38,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from django.db import transaction
-from django.utils import timezone
+from django.utils import formats, timezone
 
 from material.models import Course, Plan, Session, Topic
 from material.topics import Rejected, require_confirmation
@@ -123,11 +123,40 @@ class Overview:
     current: Session | None
     unplaced: tuple[Topic, ...]
     days_left: int | None
+    budget: int
+    study_days: str
+
+    @property
+    def planned(self) -> int:
+        """Minutes the first week of the plan actually uses."""
+        return self.weeks[0].minutes if self.weeks else 0
 
     @property
     def passed(self) -> bool:
         """Whether every date on this plan is behind the student."""
         return self.current is None
+
+    @property
+    def empty(self) -> bool:
+        """Whether the plan never managed to hold a session at all.
+
+        Different from ``passed``: a plan with no sessions has not run out of
+        days, it was built with none in it, which is what an exam tomorrow
+        produces. Saying "every date has passed" about a plan that never had a
+        date is how a page starts lying to a student with one day left.
+        """
+        return not any(week.sessions for week in self.weeks)
+
+    @property
+    def unspent(self) -> int:
+        """Minutes of the student's own week the plan could not put anywhere.
+
+        Non-zero when every session is already at the ceiling - one topic that
+        cannot be split, and a budget too large for it. The student said they
+        had that time, so saying what happened to it beats a total quietly
+        falling short of the number they typed.
+        """
+        return max(0, self.budget - self.planned)
 
 
 def plan_for(course: Course) -> Plan | None:
@@ -204,10 +233,10 @@ def generate(course: Course, availability: Availability) -> Plan:
     plan.days_per_week = availability.days_per_week
     plan.hours_per_week = availability.hours_per_week
     plan.save()
-    days = _study_dates(availability, today(), len(topics))
+    weeks_of_days = _study_weeks(availability, today(), len(topics))
     with transaction.atomic():
         plan.sessions.all().delete()
-        _write(plan, topics, availability, days)
+        _write(plan, topics, availability, weeks_of_days)
     logger.info(
         "%s: %s plan of %d sessions on %d days a week, %d hours a week",
         course.title,
@@ -238,10 +267,12 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     )
     scheduled = {session.topic_id for session in sessions}
     return Overview(
-        weeks=_weeks(sessions, this_week=current.week if current else None),
+        weeks=_weeks(sessions, this_week=today()),
         current=current,
         unplaced=tuple(topic for topic in topics if topic.pk not in scheduled),
         days_left=days_until_exam(plan),
+        budget=plan.hours_per_week * 60,
+        study_days=_named_days(plan.days_per_week),
     )
 
 
@@ -252,62 +283,95 @@ def days_until_exam(plan: Plan) -> int | None:
     return (plan.exam_date - today()).days
 
 
-def _weeks(sessions: Sequence[Session], *, this_week: int | None) -> tuple[Week, ...]:
-    """The sessions grouped into the weeks the student lives in.
+def _weeks(sessions: Sequence[Session], *, this_week: date | None) -> tuple[Week, ...]:
+    """The sessions grouped into the calendar weeks they actually fall in.
 
-    The week the next session falls in is named "this week" because that is the
-    one the student is in; the rest keep their number, because a plan that
-    renumbers itself every time a session passes is a plan the student cannot
-    talk about. ``Session.week`` counts from zero and the label counts from
-    one, because zero is an index and the student is not reading an index.
+    Calendar weeks, not every Nth session: a plan started on a Thursday would
+    otherwise put Thursday and Monday in one panel and call it a week, which is
+    not what a student means by the week they are in.
+
+    The week the student is living in is named "this week" and the rest are
+    numbered from the start of the plan, so "week 3" keeps meaning the same
+    three days however long after the plan was built they open it. Only the
+    "this week" label moves, and it moves because the student has.
     """
-    grouped: dict[int, list[Session]] = {}
+    grouped: dict[tuple[int, int], list[Session]] = {}
     for session in sessions:
-        grouped.setdefault(session.week, []).append(session)
+        grouped.setdefault(session.scheduled_on.isocalendar()[:2], []).append(session)
+    this = _week_of(this_week) if this_week is not None else None
     return tuple(
         Week(
             number=number,
-            label="This week" if number == this_week else f"Week {number + 1}",
+            label="This week" if key == this else f"Week {number}",
             sessions=tuple(week_sessions),
         )
-        for number, week_sessions in sorted(grouped.items())
+        for number, (key, week_sessions) in enumerate(sorted(grouped.items()), start=1)
     )
+
+
+def _week_of(day: date) -> tuple[int, int]:
+    """The calendar week a day falls in, as the pair weeks are keyed by."""
+    return day.isocalendar()[:2]
+
+
+def _named_days(days_per_week: int) -> str:
+    """The days the plan was put on, in words.
+
+    The student chose a number of days rather than the days themselves, so the
+    page says which ones it picked. A student whose free days are Saturday and
+    Sunday can see straight away that the plan has assumed weekdays, which is
+    the difference between a plan they can fix and one they abandon.
+    """
+    # A Monday, so the offsets line up with ``date.weekday()``, named through
+    # Django's own formatter so they come out in the page's language.
+    monday = date(2024, 1, 1)
+    names = [
+        formats.date_format(monday + timedelta(days=offset), "l")
+        for offset in range(7)
+        if offset in study_weekdays(days_per_week)
+    ]
+    if len(names) == 1:
+        return f"{names[0]}s"
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + f" and {names[-1]}"
 
 
 def _write(
     plan: Plan,
     topics: Sequence[Topic],
     availability: Availability,
-    days: Sequence[date],
+    weeks_of_days: Sequence[Sequence[date]],
 ) -> None:
     """One session per topic that fits, in the student's order, weighted.
 
-    A week is filled from the topics the student confirmed and then the next
-    week starts, so the topics that do not fit before the exam are simply the
-    ones at the end. The page names them rather than leaving the student to
-    notice they are not on it.
+    Each calendar week of the plan takes the topics it has room for and is given
+    the student's weekly budget to divide between them. Topics that did not fit
+    before the exam are the ones at the end, and the page names them rather
+    than leaving the student to notice they are not on it.
     """
-    per_week = availability.sessions_per_week
-    for offset in range(0, len(topics), per_week):
-        placed = days[offset : offset + per_week]
-        chunk = topics[offset : offset + len(placed)]
+    taken = 0
+    for week_of_days in weeks_of_days:
+        chunk = topics[taken : taken + len(week_of_days)]
         if not chunk:
             break
+        # The last week of a plan is short of days rather than of topics.
+        days = list(week_of_days[: len(chunk)])
         minutes = _split_week(
             availability.minutes_per_week, [topic.weight for topic in chunk]
         )
-        for index, (topic, day, length) in enumerate(
-            zip(chunk, placed, minutes, strict=True)
+        for offset, (topic, day, length) in enumerate(
+            zip(chunk, days, minutes, strict=True)
         ):
             Session.objects.create(
                 user_id=current_user_id(),
                 plan=plan,
                 topic=topic,
-                position=offset + index + 1,
-                week=(offset + index) // per_week,
+                position=taken + offset + 1,
                 minutes=length,
                 scheduled_on=day,
             )
+        taken += len(chunk)
 
 
 def _split_week(budget: int, weights: Sequence[int]) -> list[int]:
@@ -346,7 +410,10 @@ def _split_week(budget: int, weights: Sequence[int]) -> list[int]:
     for _ in range(spare // ROUNDING):
         index = _shortest_filled(minutes, exact)
         if minutes[index] >= MAX_SESSION_MINUTES:
-            break
+            # This one cannot hold any more. The rest of the week can, so keep
+            # going round rather than leaving the student's own time unspent
+            # because the topic that was owed most is already at its ceiling.
+            continue
         minutes[index] += ROUNDING
     return minutes
 
@@ -381,29 +448,51 @@ def _shortest_filled(minutes: Sequence[int], exact: Sequence[float]) -> int:
     )
 
 
-def _study_dates(
-    availability: Availability, start: date, limit: int
-) -> list[date]:
-    """The days sessions land on, from today onwards.
+def _study_weeks(availability: Availability, start: date, limit: int) -> list[list[date]]:
+    """The days sessions land on, filled one calendar week at a time.
+
+    A list of weeks rather than a flat run of days, because a week is what the
+    budget is for and what the student reads. At most ``sessions_per_week`` days
+    per calendar week, which is what keeps "fewer sessions, not more" true of
+    the weeks on the page rather than of an internal list: taking study days off
+    one flat run would put a fortnight of Monday-to-Friday study into a single
+    week whenever the plan was built on a Thursday.
 
     Exam mode stops at the exam: nothing is scheduled on the day itself or
-    after it, because a session on exam day is a session that cannot happen. If
-    that leaves topics without a day they are reported rather than quietly
-    dropped.
+    after it, because a session on exam day is a session that cannot happen. A
+    week that comes back empty ends the walk, and the topics still without a
+    day are reported rather than dropped.
 
     Open mode has no horizon to stop at and does not need one. Every week holds
-    at least one study day, so the walk ends as soon as it has a day for every
-    topic, however many topics there are and however far apart they land.
+    at least one study day, so the walk ends as soon as every topic has a day,
+    however many topics there are and however far apart they land.
     """
     weekdays = study_weekdays(availability.days_per_week)
+    per_week = availability.sessions_per_week
     until = availability.exam_date
-    dates: list[date] = []
+    filled: list[list[date]] = []
+    placed = 0
     day = start
-    while len(dates) < limit and (until is None or day < until):
-        if day.weekday() in weekdays:
-            dates.append(day)
-        day += timedelta(days=1)
-    return dates
+    while placed < limit:
+        if until is not None and day >= until:
+            break
+        week_end = day + timedelta(days=7 - day.weekday())
+        week: list[date] = []
+        while day < week_end and len(week) < per_week:
+            if day.weekday() in weekdays and (until is None or day < until):
+                week.append(day)
+            day += timedelta(days=1)
+        if not week:
+            # This calendar week has no study day left in it - the student
+            # studies Mondays and it is Tuesday - so carry on to the next one
+            # rather than ending the plan. The exam check at the top of the
+            # loop is what ends it, and that check still applies.
+            day = max(day, week_end)
+            continue
+        filled.append(week)
+        placed += len(week)
+        day = max(day, week_end)
+    return filled
 
 
 def _number(raw: Any, what: str) -> int:
