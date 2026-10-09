@@ -1,5 +1,5 @@
-"""The extraction layer: Course -> File -> Slide -> Span, and the pointer map
-Course -> Topic -> TopicSlide.
+"""The extraction layer: Course -> File -> Slide -> Span, the pointer map
+Course -> Topic -> TopicSlide, and the plan Course -> Plan -> Session.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
@@ -231,6 +231,84 @@ class Topic(models.Model):
     def span_count(self) -> int:
         """How much text this topic covers, which is most of its weight."""
         return sum(slide.spans.count() for slide in self.slides)
+
+
+class Plan(models.Model):
+    """What the student has to work with: a week of sessions, and a deadline.
+
+    Exam mode and open mode are one row with a nullable date rather than two
+    models, because they are the same plan with a deadline attached or not. The
+    deadline is the whole difference: without one there is nothing to work back
+    from and nothing to count down, so the plan is the topic path in the order
+    the student put it in.
+
+    ``days_per_week`` and ``hours_per_week`` are what the student said they can
+    manage, not what would be ideal. They are the budget the scheduler is not
+    allowed to exceed, which is why they sit on the plan rather than being
+    derived from the material.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="plans"
+    )
+    course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="plan")
+    exam_date = models.DateField(null=True, blank=True)
+    days_per_week = models.PositiveSmallIntegerField(default=3)
+    hours_per_week = models.PositiveSmallIntegerField(default=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Mode(models.TextChoices):
+        EXAM = "exam", "Exam mode"
+        OPEN = "open", "Open mode"
+
+    def __str__(self) -> str:
+        return f"{self.course.title}: {self.Mode(self.mode).label}"
+
+    @property
+    def mode(self) -> str:
+        """Which of the two plans this is, decided by the date and nothing else.
+
+        Derived rather than stored, so there is no second answer on the row to
+        fall out of step with the date the student actually gave.
+        """
+        return self.Mode.EXAM if self.exam_date else self.Mode.OPEN
+
+
+class Session(models.Model):
+    """One study session: one topic, on one day, for a length derived from it.
+
+    A session holds exactly one topic and a topic holds exactly one session.
+    Nothing here can express half a topic or two topics in a sitting, which is
+    the point: a topic split across days is a topic the student dreads finishing.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sessions"
+    )
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="sessions")
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="sessions")
+    position = models.PositiveIntegerField()
+    study_day = models.PositiveIntegerField()
+    week = models.PositiveSmallIntegerField()
+    minutes = models.PositiveSmallIntegerField()
+    scheduled_on = models.DateField()
+
+    class Meta:
+        ordering = ["position"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["plan", "topic"], name="unique_session_per_topic"
+            ),
+            models.UniqueConstraint(
+                fields=["plan", "position"], name="unique_position_per_plan"
+            ),
+            models.UniqueConstraint(
+                fields=["plan", "study_day"], name="unique_study_day_per_plan"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"day {self.study_day + 1}: {self.topic.title} ({self.minutes} min)"
 
 
 class TopicSlide(models.Model):

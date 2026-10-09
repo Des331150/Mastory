@@ -27,6 +27,16 @@ urlpatterns = [
         name="schedule-check",
     ),
     path(
+        "courses/<int:course_id>/plan/",
+        views.plan_view,
+        name="plan",
+    ),
+    path(
+        "courses/<int:course_id>/plan/settings/",
+        views.plan_settings,
+        name="plan-settings",
+    ),
+    path(
         "courses/<int:course_id>/topics/add/",
         views.topic_add,
         name="topic-add",

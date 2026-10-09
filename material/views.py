@@ -15,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from material import model, topics as topic_service
+from material import model, planning, topics as topic_service
 from material.models import Course, Slide, SourceFile, Topic
 from material.render import Section, build_sections
 from material.services import (
@@ -346,7 +346,7 @@ def topic_remove(request: HttpRequest, course_id: int, topic_id: int) -> HttpRes
 
 @require_POST
 def topic_confirm(request: HttpRequest, course_id: int) -> HttpResponse:
-    """The student has checked the path. Only now may a schedule be built."""
+    """The student has checked the path. Only then may a schedule be built."""
     course = _course(course_id)
     try:
         topic_service.confirm(course)
@@ -356,6 +356,83 @@ def topic_confirm(request: HttpRequest, course_id: int) -> HttpResponse:
         request,
         course,
         notice="Topic path confirmed. You can now plan your revision.",
+    )
+
+
+@require_GET
+def plan_view(request: HttpRequest, course_id: int) -> HttpResponse:
+    """The student's week, and the card for the session they start next.
+
+    Refuses on an unconfirmed topic path the same way the schedule gate does,
+    because this page is a schedule: showing a week of sessions over topics the
+    student has not checked would be the one failure this product cannot have.
+    """
+    course = _course(course_id)
+    try:
+        topics = topic_service.require_confirmation(course)
+    except topic_service.Unconfirmed as exc:
+        return _schedule_blocked(request, course, exc.reason)
+    return _plan_page(request, course, topics=topics)
+
+
+@require_POST
+def plan_settings(request: HttpRequest, course_id: int) -> HttpResponse:
+    """Record what the student can manage and rebuild their week from it."""
+    course = _course(course_id)
+    try:
+        topics = topic_service.require_confirmation(course)
+    except topic_service.Unconfirmed as exc:
+        return _schedule_blocked(request, course, exc.reason)
+    try:
+        planning.generate(course, planning.read_availability(request.POST))
+    except planning.Rejected as exc:
+        return _plan_page(request, course, topics=topics, error=exc.reason)
+    return redirect("plan", course_id=course.pk)
+
+
+def _schedule_blocked(request: HttpRequest, course: Course, reason: str) -> HttpResponse:
+    return render(
+        request,
+        "material/schedule_blocked.html",
+        {"course": course, "reason": reason},
+        status=409,
+    )
+
+
+def _plan_page(
+    request: HttpRequest,
+    course: Course,
+    *,
+    topics: list[Topic],
+    error: str = "",
+) -> HttpResponse:
+    """The week, the next session, and the form that built them.
+
+    The week is grouped here rather than in the template so that "this week" is
+    the week the next session is in, which is a question about the plan and not
+    a question about the calendar.
+    """
+    plan = planning.plan_for(course)
+    current = planning.next_session(plan) if plan is not None else None
+    weeks = (
+        planning.weeks(plan, this_week=current.week)
+        if plan is not None and current is not None
+        else planning.weeks(plan) if plan is not None else []
+    )
+    return render(
+        request,
+        "material/plan.html",
+        {
+            "course": course,
+            "plan": plan,
+            "topics": topics,
+            "today": planning.today(),
+            "current": current,
+            "weeks": weeks,
+            "unplaced": planning.unplaced(plan, topics) if plan is not None else [],
+            "days_left": planning.days_until_exam(plan) if plan is not None else None,
+            "error": error,
+        },
     )
 
 

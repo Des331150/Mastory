@@ -40,7 +40,10 @@
              >View the original {{ document.source_file.original_name }}</a>{% if not forloop.last %} ·{% endif %}
         {% endfor %}
       </p>
-      <p class="muted"><a href="{% url 'topic-path' course.pk %}">Your topic path</a></p>
+      <p class="muted">
+        <a href="{% url 'topic-path' course.pk %}">Your topic path</a> &middot;
+        <a href="{% url 'plan' course.pk %}">Your week</a>
+      </p>
     </header>
 
     {% for failed in failures %}

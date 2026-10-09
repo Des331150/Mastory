@@ -11,6 +11,7 @@
         <li>
           <a href="{% url 'course-read' course.pk %}">{{ course.title }}</a>
           <span class="muted">{{ course.files.count }} file{{ course.files.count|pluralize }}</span>
+          <a class="quiet-link" href="{% url 'plan' course.pk %}">Your week</a>
         </li>
       {% endfor %}
     </ul>

@@ -69,7 +69,8 @@ button, .cta {
 
 .nav-toggle { background: var(--paper); color: var(--accent); }
 
-input[type="text"], input[type="search"], input[type="file"] {
+input[type="text"], input[type="search"], input[type="file"],
+input[type="date"], input[type="number"] {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -176,6 +177,36 @@ button[disabled] { opacity: 0.5; cursor: default; }
 .notice { padding: 10px 14px; background: #e7f2ea; border-radius: 6px; }
 .topic-confirm { margin-bottom: 24px; }
 .topic-confirm h2 { margin-top: 0; font-size: 20px; }
+.failure { margin-bottom: 20px; padding: 10px 14px; background: #fbeef1; border-radius: 6px; }
+.quiet-link { font-size: 14px; margin-left: 10px; }
+
+/* The week: one card to start from, then every session laid out in the open. */
+.plan-page { max-width: 780px; margin: 0 auto; }
+.plan-head { margin-bottom: 20px; }
+.plan-head h1 { margin: 0 0 4px; font-size: 30px; }
+.plan-head .mode { margin: 0 0 6px; font-size: 14px; text-transform: uppercase; color: var(--muted); }
+.plan-head .countdown { margin: 0; font-size: 18px; }
+
+.next-session { border-left: 4px solid var(--accent); }
+.next-session h2 { margin: 0 0 4px; font-size: 24px; }
+.next-session .next-label { margin: 0 0 4px; font-size: 14px; text-transform: uppercase; color: var(--muted); }
+.next-session a.cta { margin-top: 10px; }
+
+.week { margin: 14px 0 0; padding: 0; list-style: none; }
+.session {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.session-when { margin: 0; font-size: 14px; color: var(--muted); }
+.session-topic { margin: 0; font-size: 18px; }
+.session-length { margin: 0; font-size: 14px; color: var(--muted); }
+.session-link { grid-column: 2 / -1; font-size: 14px; }
+
+.unplaced-list { padding-left: 18px; margin: 8px 0 0; }
 
 @media (max-width: 900px) {
   .reader { grid-template-columns: minmax(0, 1fr); }

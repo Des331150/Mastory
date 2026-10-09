@@ -77,7 +77,7 @@ class SeveralFilesOneCourseTests(IngestTestCase):
             *pdf_uploads(LINEAR_ALGEBRA_PDF, CELL_BIOLOGY_PDF, HANDOUT_NOTES_PDF)
         )
         listing = self.client.get("/").content.decode()
-        self.assertEqual(listing.count('href="/courses/'), 1)
+        self.assertEqual(len(re.findall(r'href="/courses/\d+/read/"', listing)), 1)
         self.assertIn("3 files", listing)
 
     def test_every_file_of_the_course_stays_one_click_from_the_material(self) -> None:

@@ -8,7 +8,8 @@
     <h1>Your topic path</h1>
     <p class="muted">
       The topics {{ course.title }} covers, in the order the course teaches them.
-      <a href="{% url 'course-read' course.pk %}">Read the slides</a>
+      <a href="{% url 'course-read' course.pk %}">Read the slides</a> &middot;
+      <a href="{% url 'plan' course.pk %}">Your week</a>
     </p>
   </header>
 

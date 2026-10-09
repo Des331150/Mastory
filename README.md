@@ -37,10 +37,11 @@ Without it, the local SQLite file is used.
 
 ```
 material/
-  models.py    Course -> SourceFile -> Slide -> Span, and Course -> Topic -> TopicSlide
+  models.py    Course -> SourceFile -> Slide -> Span, and the plan Course -> Plan -> Session
   ingest.py    deterministic PDF -> Markdown conversion, images extracted inline
   model.py     the only place a model is called, and the grounding contract it enforces
   topics.py    inferring the topic path, and every edit the student makes to it
+  planning.py  the week of sessions: weighting, the weekly budget, and the two modes
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
   views.py     the student-facing HTTP surface
@@ -86,6 +87,38 @@ No schedule is generated until the student confirms. The gate is
 so the schedule ticket inherits the rule instead of deciding whether it needs
 one; `/courses/<id>/schedule-check/` exposes it so the refusal is visible and
 testable before a planner exists.
+
+## The week
+
+`/courses/<id>/plan/` is the schedule. It comes through the same confirmation
+gate, so a week over topics the student has not checked cannot be built.
+
+The student says when the exam is, how many days a week they can study and how
+many hours, and the week is built inside that. There is no model call here:
+the order is the order they confirmed, the weight is what the pointer map
+already said, and the two numbers are theirs. Generation is arithmetic a
+student could check by hand.
+
+- **One topic is one session.** Never split across days, never two topics in a
+  sitting. The shape is in the schema — a unique constraint per topic per plan —
+  so it cannot be got wrong by a later edit.
+- **Sessions are offered fewer, not more.** The count is the lesser of the days
+  they study and the number their budget carries at a 30-minute floor. Two
+  hours a week is two good sessions, not four impossible ones.
+- **Weight sets the length.** A topic covering more material gets more of the
+  week. The week's total never exceeds the budget, and no topic is promised a
+  sitting over three hours, because a topic cannot be split to make it fit.
+
+Two modes, and the exam date is the only difference. **Exam mode** counts down,
+and nothing lands on or after the exam; topics that will not fit before it are
+named rather than quietly dropped. **Open mode**, before there is a date, is the
+topic path in the student's order with no countdown and no claim about when
+they will finish — which is what makes the app worth opening in week three of
+semester.
+
+Rebuilding replaces every session. That is right while a schedule is a function
+of the topics and the time available; completion tracking and shifting missed
+sessions come later and will make it incremental.
 
 ## Uploads
 

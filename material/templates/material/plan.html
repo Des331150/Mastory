@@ -1,0 +1,134 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: your week{% endblock %}
+
+{% block content %}
+<div class="plan-page">
+  <header class="plan-head">
+    <h1>Your week</h1>
+    {% if plan %}
+      {% if plan.exam_date %}
+        <p class="mode exam">Exam mode</p>
+        <p class="countdown">
+          {% if days_left > 0 %}
+            {{ days_left }} day{{ days_left|pluralize }} to go.
+          {% elif days_left == 0 %}
+            It is your exam today.
+          {% else %}
+            Your exam date has passed.
+          {% endif %}
+          Exam on {{ plan.exam_date|date:"j F Y" }}.
+        </p>
+      {% else %}
+        <p class="mode open">Open mode</p>
+        <p class="muted">
+          No exam date set, so this is your topic path in the order you put it in,
+          with no deadline attached and no claim about when you will finish.
+        </p>
+      {% endif %}
+    {% else %}
+      <p class="muted">
+        Nothing planned yet. Say when your exam is and how much time you have,
+        and the week is built from your topic path.
+      </p>
+    {% endif %}
+  </header>
+
+  {% if error %}<p class="error failure" role="alert">{{ error }}</p>{% endif %}
+
+  {% if current %}
+    <section class="panel next-session">
+      <p class="next-label">
+        {% if current.scheduled_on == today %}Today's session{% else %}Next session{% endif %}
+      </p>
+      <h2>{{ current.topic.title }}</h2>
+      <p class="muted">
+        {{ current.minutes }} min &middot;
+        {% if current.scheduled_on == today %}today{% else %}{{ current.scheduled_on|date:"l j F" }}{% endif %}
+      </p>
+      {% with slides=current.topic.slides %}
+        <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
+      {% endwith %}
+    </section>
+  {% elif plan %}
+    <section class="panel">
+      <h2>No session waiting</h2>
+      <p class="muted">
+        Every date on this plan has passed. Build the week again below and it
+        starts from today.
+      </p>
+    </section>
+  {% endif %}
+
+  {% if unplaced %}
+    <section class="panel">
+      <h2>Not before your exam</h2>
+      <p class="muted">
+        {% if unplaced|length == 1 %}
+          One topic of your course does not fit before
+          {{ plan.exam_date|date:"j F Y" }} at the pace you set. It is still here,
+          and whether to spend time on it is your call.
+        {% else %}
+          {{ unplaced|length }} topics of your course do not fit before
+          {{ plan.exam_date|date:"j F Y" }} at the pace you set. They are still
+          here, and which of them to spend time on is your call.
+        {% endif %}
+      </p>
+      <ul class="unplaced-list">
+        {% for topic in unplaced %}<li>{{ topic.title }}</li>{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% for week in weeks %}
+    <section class="panel">
+      <h2>{{ week.label }}</h2>
+      <p class="muted small">
+        {{ week.sessions|length }} session{{ week.sessions|length|pluralize }} &middot;
+        {{ week.minutes }} min in total
+      </p>
+      <ol class="week">
+        {% for session in week.sessions %}
+          <li class="session" id="session-{{ session.pk }}">
+            <p class="session-when">{{ session.scheduled_on|date:"D j M" }}</p>
+            <h3 class="session-topic">{{ session.topic.title }}</h3>
+            <p class="session-length">{{ session.minutes }} min</p>
+            {% with slides=session.topic.slides %}
+              <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
+                 >Read the slides</a>
+            {% endwith %}
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endfor %}
+
+  <section class="panel">
+    <h2>{% if plan %}Change your week{% else %}Set up your week{% endif %}</h2>
+    <p class="muted">
+      The time you say you have is the time the plan is built inside. It is
+      better to be honest here and have a week you keep to.
+    </p>
+    <form method="post" action="{% url 'plan-settings' course.pk %}" class="stack">
+      {% csrf_token %}
+      <label for="exam_date">Exam date (if you know it)</label>
+      <input id="exam_date" type="date" name="exam_date"
+             value="{{ plan.exam_date|date:'Y-m-d' }}" />
+
+      <label for="days_per_week">Days a week you can study</label>
+      <input id="days_per_week" type="number" name="days_per_week" min="1" max="7"
+             value="{{ plan.days_per_week|default:3 }}" />
+
+      <label for="hours_per_week">Hours a week you can study</label>
+      <input id="hours_per_week" type="number" name="hours_per_week" min="1"
+             value="{{ plan.hours_per_week|default:6 }}" />
+
+      <button type="submit">Build my week</button>
+    </form>
+  </section>
+
+  <p class="muted small">
+    <a href="{% url 'topic-path' course.pk %}">Change your topic path</a>
+  </p>
+</div>
+{% endblock %}
