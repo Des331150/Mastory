@@ -288,7 +288,6 @@ class Session(models.Model):
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="sessions")
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="sessions")
     position = models.PositiveIntegerField()
-    study_day = models.PositiveIntegerField()
     week = models.PositiveSmallIntegerField()
     minutes = models.PositiveSmallIntegerField()
     scheduled_on = models.DateField()
@@ -302,13 +301,10 @@ class Session(models.Model):
             models.UniqueConstraint(
                 fields=["plan", "position"], name="unique_position_per_plan"
             ),
-            models.UniqueConstraint(
-                fields=["plan", "study_day"], name="unique_study_day_per_plan"
-            ),
         ]
 
     def __str__(self) -> str:
-        return f"day {self.study_day + 1}: {self.topic.title} ({self.minutes} min)"
+        return f"day {self.position}: {self.topic.title} ({self.minutes} min)"
 
 
 class TopicSlide(models.Model):

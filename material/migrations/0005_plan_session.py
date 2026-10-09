@@ -30,7 +30,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('position', models.PositiveIntegerField()),
-                ('study_day', models.PositiveIntegerField()),
                 ('week', models.PositiveSmallIntegerField()),
                 ('minutes', models.PositiveSmallIntegerField()),
                 ('scheduled_on', models.DateField()),
@@ -40,7 +39,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'ordering': ['position'],
-                'constraints': [models.UniqueConstraint(fields=('plan', 'topic'), name='unique_session_per_topic'), models.UniqueConstraint(fields=('plan', 'position'), name='unique_position_per_plan'), models.UniqueConstraint(fields=('plan', 'study_day'), name='unique_study_day_per_plan')],
+                'constraints': [models.UniqueConstraint(fields=('plan', 'topic'), name='unique_session_per_topic'), models.UniqueConstraint(fields=('plan', 'position'), name='unique_position_per_plan')],
             },
         ),
     ]

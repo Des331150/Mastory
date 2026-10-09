@@ -10,9 +10,9 @@
       {% if plan.exam_date %}
         <p class="mode exam">Exam mode</p>
         <p class="countdown">
-          {% if days_left > 0 %}
-            {{ days_left }} day{{ days_left|pluralize }} to go.
-          {% elif days_left == 0 %}
+          {% if overview.days_left > 0 %}
+            {{ overview.days_left }} day{{ overview.days_left|pluralize }} to go.
+          {% elif overview.days_left == 0 %}
             It is your exam today.
           {% else %}
             Your exam date has passed.
@@ -36,51 +36,71 @@
 
   {% if error %}<p class="error failure" role="alert">{{ error }}</p>{% endif %}
 
-  {% if current %}
+  {% if overview.current %}
     <section class="panel next-session">
       <p class="next-label">
-        {% if current.scheduled_on == today %}Today's session{% else %}Next session{% endif %}
+        {% if overview.current.scheduled_on == today %}Today's session{% else %}Next session{% endif %}
       </p>
-      <h2>{{ current.topic.title }}</h2>
+      <h2>{{ overview.current.topic.title }}</h2>
       <p class="muted">
-        {{ current.minutes }} min &middot;
-        {% if current.scheduled_on == today %}today{% else %}{{ current.scheduled_on|date:"l j F" }}{% endif %}
+        {{ overview.current.minutes }} min &middot;
+        {% if overview.current.scheduled_on == today %}today{% else %}{{ overview.current.scheduled_on|date:"l j F" }}{% endif %}
       </p>
-      {% with slides=current.topic.slides %}
-        <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
+      {% with slides=overview.current.topic.slides %}
+        {% if slides %}
+          <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
+        {% else %}
+          <p class="muted">
+            This topic points at no slides yet, so there is nothing to open for
+            it. <a href="{% url 'topic-path' course.pk %}">Point it at the slides that cover it</a>.
+          </p>
+        {% endif %}
       {% endwith %}
     </section>
   {% elif plan %}
     <section class="panel">
       <h2>No session waiting</h2>
-      <p class="muted">
-        Every date on this plan has passed. Build the week again below and it
-        starts from today.
-      </p>
+      {% if plan.exam_date and overview.days_left <= 0 %}
+        <p class="muted">
+          There is no revision left to schedule before
+          {{ plan.exam_date|date:"j F Y" }}. Take the exam, then either set the
+          next one below or clear the date to carry on planning in open mode.
+        </p>
+      {% else %}
+        <p class="muted">
+          Every date on this plan has passed. Build the week again below and it
+          starts from today.
+        </p>
+      {% endif %}
     </section>
   {% endif %}
 
-  {% if unplaced %}
+  {% if overview.unplaced %}
     <section class="panel">
-      <h2>Not before your exam</h2>
+      <h2>{% if plan.exam_date %}Not before your exam{% else %}Not on this week{% endif %}</h2>
       <p class="muted">
-        {% if unplaced|length == 1 %}
-          One topic of your course does not fit before
-          {{ plan.exam_date|date:"j F Y" }} at the pace you set. It is still here,
-          and whether to spend time on it is your call.
+        {% if plan.exam_date %}
+          {% if overview.unplaced|length == 1 %}
+            One topic of your course does not fit before
+            {{ plan.exam_date|date:"j F Y" }} at the pace you set. It is still
+            here, and whether to spend time on it is your call.
+          {% else %}
+            {{ overview.unplaced|length }} topics of your course do not fit before
+            {{ plan.exam_date|date:"j F Y" }} at the pace you set. They are still
+            here, and which of them to spend time on is your call.
+          {% endif %}
         {% else %}
-          {{ unplaced|length }} topics of your course do not fit before
-          {{ plan.exam_date|date:"j F Y" }} at the pace you set. They are still
-          here, and which of them to spend time on is your call.
+          These topics have no session this week. They are still on your path,
+          and you can bring them forward by making this week shorter.
         {% endif %}
       </p>
       <ul class="unplaced-list">
-        {% for topic in unplaced %}<li>{{ topic.title }}</li>{% endfor %}
+        {% for topic in overview.unplaced %}<li>{{ topic.title }}</li>{% endfor %}
       </ul>
     </section>
   {% endif %}
 
-  {% for week in weeks %}
+  {% for week in overview.weeks %}
     <section class="panel">
       <h2>{{ week.label }}</h2>
       <p class="muted small">
@@ -94,8 +114,13 @@
             <h3 class="session-topic">{{ session.topic.title }}</h3>
             <p class="session-length">{{ session.minutes }} min</p>
             {% with slides=session.topic.slides %}
-              <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
-                 >Read the slides</a>
+              {% if slides %}
+                <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
+                   >Read the slides</a>
+              {% else %}
+                <a class="session-link" href="{% url 'topic-path' course.pk %}"
+                   >No slides pointed at yet</a>
+              {% endif %}
             {% endwith %}
           </li>
         {% endfor %}
@@ -120,7 +145,7 @@
              value="{{ plan.days_per_week|default:3 }}" />
 
       <label for="hours_per_week">Hours a week you can study</label>
-      <input id="hours_per_week" type="number" name="hours_per_week" min="1"
+      <input id="hours_per_week" type="number" name="hours_per_week" min="1" max="24"
              value="{{ plan.hours_per_week|default:6 }}" />
 
       <button type="submit">Build my week</button>

@@ -10,6 +10,7 @@ real application.
 """
 
 import json
+import re
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -93,6 +94,18 @@ def use_temporary_media_root(test_case: TestCase) -> None:
 def fake_topic(title: str, slides: list[int], confidence: float = 0.9) -> Claim:
     """One topic the fake model claims, citing slides by their course position."""
     return {"title": title, "slides": slides, "confidence": confidence}
+
+
+def topic_pk(html: str, title: str) -> str:
+    """The id a topic carries on the topic page, found the way a student reads it.
+
+    Inferred paths are replaced wholesale, so a row's id is not stable across
+    requests and a test must not assume one; this reads it off the page instead.
+    """
+    for block in html.split('<li class="topic')[1:]:
+        if f". {title}</h2>" in block:
+            return re.search(r'id="topic-(\d+)"', block).group(1)  # type: ignore[union-attr]
+    raise AssertionError(f"no topic titled {title!r} on the topic path")
 
 
 def use_fake_model(*topics: Claim, reply: str | None = None) -> Any:

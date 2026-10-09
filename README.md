@@ -103,11 +103,14 @@ student could check by hand.
   sitting. The shape is in the schema — a unique constraint per topic per plan —
   so it cannot be got wrong by a later edit.
 - **Sessions are offered fewer, not more.** The count is the lesser of the days
-  they study and the number their budget carries at a 30-minute floor. Two
-  hours a week is two good sessions, not four impossible ones.
+  they study and the number their budget carries at a 30-minute floor. An hour
+  a week is two sessions, not five that would each be twelve minutes.
 - **Weight sets the length.** A topic covering more material gets more of the
   week. The week's total never exceeds the budget, and no topic is promised a
   sitting over three hours, because a topic cannot be split to make it fit.
+- **Study days are spread across the working week.** Three days is Monday,
+  Wednesday and Friday; five is the whole working week; Saturday and Sunday only
+  appear for a student who asked for six or seven.
 
 Two modes, and the exam date is the only difference. **Exam mode** counts down,
 and nothing lands on or after the exam; topics that will not fit before it are

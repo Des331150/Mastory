@@ -381,11 +381,10 @@ def plan_settings(request: HttpRequest, course_id: int) -> HttpResponse:
     course = _course(course_id)
     try:
         topics = topic_service.require_confirmation(course)
+        planning.generate(course, planning.read_availability(request.POST))
     except topic_service.Unconfirmed as exc:
         return _schedule_blocked(request, course, exc.reason)
-    try:
-        planning.generate(course, planning.read_availability(request.POST))
-    except planning.Rejected as exc:
+    except topic_service.Rejected as exc:
         return _plan_page(request, course, topics=topics, error=exc.reason)
     return redirect("plan", course_id=course.pk)
 
@@ -408,29 +407,19 @@ def _plan_page(
 ) -> HttpResponse:
     """The week, the next session, and the form that built them.
 
-    The week is grouped here rather than in the template so that "this week" is
-    the week the next session is in, which is a question about the plan and not
-    a question about the calendar.
+    The plan is read in one pass by ``planning.overview`` so that the weeks, the
+    next session and the countdown on this page are all answers about the same
+    read of the plan rather than three reads that could disagree.
     """
     plan = planning.plan_for(course)
-    current = planning.next_session(plan) if plan is not None else None
-    weeks = (
-        planning.weeks(plan, this_week=current.week)
-        if plan is not None and current is not None
-        else planning.weeks(plan) if plan is not None else []
-    )
     return render(
         request,
         "material/plan.html",
         {
             "course": course,
             "plan": plan,
-            "topics": topics,
             "today": planning.today(),
-            "current": current,
-            "weeks": weeks,
-            "unplaced": planning.unplaced(plan, topics) if plan is not None else [],
-            "days_left": planning.days_until_exam(plan) if plan is not None else None,
+            "overview": planning.overview(plan, topics) if plan is not None else None,
             "error": error,
         },
     )

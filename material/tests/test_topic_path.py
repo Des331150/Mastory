@@ -25,6 +25,7 @@ from material.tests.helpers import (
     broken_pdf_upload,
     fake_topic,
     pdf_upload,
+    topic_pk,
     use_fake_model,
     use_temporary_media_root,
 )
@@ -72,15 +73,8 @@ class TopicPathTestCase(TestCase):
         return [f"p{number}" for number in re.findall(r">p(\d+):", html)]
 
     def pk_of(self, html: str, title: str) -> str:
-        """The id the page carries for a topic, found the way a student reads it.
-
-        Inferred paths are replaced wholesale, so a row's id is not stable
-        across requests and a test must not assume one.
-        """
-        for block in html.split('<li class="topic')[1:]:
-            if f". {title}</h2>" in block:
-                return re.search(r'id="topic-(\d+)"', block).group(1)  # type: ignore[union-attr]
-        raise AssertionError(f"no topic titled {title!r} on the page")
+        """The id the page carries for a topic, found the way a student reads it."""
+        return topic_pk(html, title)
 
     def block_of(self, html: str, title: str) -> str:
         """One topic's own piece of the page, as the student reads it."""

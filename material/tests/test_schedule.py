@@ -1,10 +1,17 @@
 """The schedule: a week of sessions built on the confirmed topic path.
 
 The model is faked at ``material.model.complete`` because topics have to exist
-before a schedule can be built on them. Nothing else is faked. Generation is
-arithmetic on the student's own topics - their order, their weight, and the
-time they said they have - so every assertion here is about what the student
-sees on the page, never about how the numbers were arrived at.
+before a schedule can be built on them. Nothing else about the application is
+faked: generation is arithmetic on the student's own topics - their order, their
+weight, and the time they said they have - so every assertion here is about what
+the student sees on the page, never about how the numbers were arrived at.
+
+The clock is pinned in a few tests, and that is not a second seam. A date is an
+input a student supplies rather than a collaborator the application reaches for,
+so most tests build their exam date relative to today and need nothing pinned.
+The rest pin one because "three days a week" only has an answer if the week it
+is spread across is a known week; the application above the pinned date is
+entirely real, and the tests still go in through HTTP.
 
 The two modes are the point of the ticket, so both are driven here: exam mode
 once a date exists, open mode before that. Open mode is what makes the app
@@ -14,17 +21,19 @@ otherwise is a plan the student closes.
 
 import re
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Iterator
 from unittest import mock
 
 from django.test import TestCase
+from django.utils import timezone
 
 from material import planning
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     fake_topic,
     pdf_upload,
+    topic_pk,
     use_fake_model,
     use_temporary_media_root,
 )
@@ -55,11 +64,7 @@ class ScheduleTestCase(TestCase):
 
     def topic_pk(self, title: str) -> str:
         """The id the topic page carries for a topic, found the way a student reads it."""
-        html = self.client.get("/courses/1/topics/").content.decode()
-        for block in html.split('<li class="topic')[1:]:
-            if f". {title}</h2>" in block:
-                return re.search(r'id="topic-(\d+)"', block).group(1)  # type: ignore[union-attr]
-        raise AssertionError(f"no topic titled {title!r} on the topic path")
+        return topic_pk(self.client.get("/courses/1/topics/").content.decode(), title)
 
     def set_topic_weight(self, title: str, units: int) -> None:
         """Tell a topic how much of the week it is worth, as the edit form does."""
@@ -106,6 +111,12 @@ class ScheduleTestCase(TestCase):
                 return block
         raise AssertionError(f"no session on {title!r} in the week")
 
+    def session_weekdays(self, html: str) -> list[str]:
+        """Which days of the week each session is on, as the week names them."""
+        return re.findall(
+            r'<p class="session-when">(\w{3}) ', self.week(html)
+        )
+
     def week_minutes(self, html: str) -> int:
         """The time this week's sessions take, as the student reads it off them."""
         return sum(self.session_minutes(html, title) for title in self.session_titles(html))
@@ -116,13 +127,28 @@ class ScheduleTestCase(TestCase):
         assert 'class="panel next-session"' in html, "no session waiting on the page"
         return html.split('class="panel next-session"', 1)[1].split("</section>", 1)[0]
 
+    def days_from_today(self, days: int) -> str:
+        """An exam date a number of days from now, in the form the date input takes."""
+        return (timezone.localdate() + timedelta(days=days)).isoformat()
+
+
+def seven_topics() -> list[Any]:
+    """Enough topics that a week cannot hold them all, on a five-slide deck.
+
+    Slides are reused rather than invented: the fixture has five pages, and a
+    topic is allowed to share a slide with another.
+    """
+    return [fake_topic(f"Topic {n}", [(n - 1) % 5 + 1]) for n in range(1, 8)]
+
 
 @contextmanager
-def pretend_today(moment: date) -> Iterator[None]:
+def a_week_of(moment: date) -> Iterator[None]:
     """Build the week as though the student were living on a given day.
 
-    Time is an input to the schedule, not a collaborator being watched, so a
-    test that needs "today is a Tuesday" says so and drives the same HTTP seam.
+    A week only has an answer once you know which week it is: "three days a
+    week" is Monday, Wednesday and Friday in one week and something else in the
+    next. The date is the one thing a test has to supply; everything above it is
+    the real application, reached over HTTP.
     """
     with mock.patch.object(planning, "today", return_value=moment):
         yield
@@ -152,9 +178,16 @@ class SettingAvailabilityTests(ScheduleTestCase):
         self.assertEqual(setting(html, "hours_per_week"), "6")
         self.assertEqual(setting(html, "days_per_week"), "3")
 
-    def test_time_that_is_not_a_number_says_so_rather_than_crashing(self) -> None:
+    def test_time_the_student_cannot_have_is_refused(self) -> None:
         response = self.set_availability(days=3, hours=0)
-        self.assertIn("at least one hour", response.content.decode())
+        self.assertIn("between one and 24 hours", response.content.decode())
+
+    def test_time_that_is_not_a_number_says_so_rather_than_crashing(self) -> None:
+        response = self.client.post(
+            "/courses/1/plan/settings/",
+            {"exam_date": "", "days_per_week": "3", "hours_per_week": "loads"},
+        )
+        self.assertIn("whole number", response.content.decode())
 
     def test_no_days_says_so_rather_than_building_an_empty_week(self) -> None:
         response = self.set_availability(days=0, hours=6)
@@ -229,8 +262,8 @@ class WeightedSessionTests(ScheduleTestCase):
         self.assertLessEqual(self.session_minutes(html, "Everything"), 180)
 
 
-#: A Monday with a known week after it, so "three days a week" lands on dates
-#: a test can read off the page: 2 November, 4 November, 6 November.
+#: A Monday with a known week after it, so "three days a week" lands on days a
+#: test can name: Monday, Wednesday, Friday.
 A_MONDAY = date(2026, 11, 2)
 
 
@@ -261,29 +294,83 @@ class OpenModeTests(ScheduleTestCase):
         self.set_availability(days=3, hours=6)
         self.assertEqual(self.session_titles(self.plan_page())[0], "Eigenvalues")
 
+    def test_open_mode_never_says_a_topic_does_not_fit_before_an_exam(self) -> None:
+        """Open mode has no exam, so it has no deadline to fail to meet."""
+        self.confirmed_path(*seven_topics())
+        self.set_availability(days=1, hours=2)
+        self.assertNotIn("before your exam", self.plan_page())
+
+    def test_every_topic_gets_a_session_however_far_apart_the_days_land(self) -> None:
+        """A day a week and more topics than weeks is not a reason to drop any."""
+        self.confirmed_path(*seven_topics())
+        self.set_availability(days=1, hours=2)
+        html = self.plan_page()
+        for title in [f"Topic {n}" for n in range(1, 8)]:
+            self.assertIn(f'class="session-topic">{title}<', html)
+
+
+class StudyDaysTests(ScheduleTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.confirmed_path(*seven_topics())
+
+    def test_three_days_a_week_is_spread_across_the_week_not_clumped(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam="2026-11-20")
+            self.assertEqual(
+                self.session_weekdays(self.plan_page())[:3], ["Mon", "Wed", "Fri"]
+            )
+
+    def test_five_days_a_week_is_the_working_week(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=5, hours=10, exam="2026-11-20")
+            self.assertEqual(
+                self.session_weekdays(self.plan_page()),
+                ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            )
+
+    def test_one_day_a_week_is_a_single_day_of_the_week(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=1, hours=6, exam="2026-11-20")
+            self.assertEqual(self.session_weekdays(self.plan_page())[0], "Mon")
+
+    def test_six_days_a_week_is_the_working_week_and_saturday(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=6, hours=20, exam="2026-11-20")
+            weekdays = self.session_weekdays(self.plan_page())
+        self.assertEqual(weekdays, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
+
 
 class ExamModeTests(ScheduleTestCase):
     def test_entering_an_exam_date_switches_the_student_into_exam_mode(self) -> None:
         self.set_availability(days=3, hours=6)
         self.assertNotIn("Exam mode", self.plan_page())
-        self.set_availability(days=3, hours=6, exam="2026-11-30")
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(40))
         self.assertIn("Exam mode", self.plan_page())
 
     def test_exam_mode_says_how_long_the_student_has_left(self) -> None:
-        with pretend_today(A_MONDAY):
-            self.set_availability(days=3, hours=6, exam="2026-11-12")
-            self.assertIn("10 days to go", self.plan_page())
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(10))
+        self.assertIn("10 days to go", self.plan_page())
 
-    def test_the_week_lands_on_the_days_the_student_says_they_study(self) -> None:
-        with pretend_today(A_MONDAY):
-            self.set_availability(days=3, hours=6, exam="2026-11-20")
-            week = self.week(self.plan_page())
-        self.assertIn("Mon 2 Nov", week)
-        self.assertIn("Wed 4 Nov", week)
-        self.assertIn("Fri 6 Nov", week)
+    def test_an_exam_a_day_away_says_it_is_tomorrow(self) -> None:
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(1))
+        self.assertIn("1 day to go", self.plan_page())
+
+    def test_an_exam_date_that_has_gone_is_said_rather_than_counted_down(self) -> None:
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(-5))
+        html = self.plan_page()
+        self.assertIn("Your exam date has passed", html)
+        self.assertNotIn("days to go", html)
+
+    def test_an_exam_today_leaves_nothing_to_revise_and_says_so(self) -> None:
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(0))
+        html = self.plan_page()
+        self.assertIn("It is your exam today", html)
+        self.assertIn("no revision left to schedule", html)
+        self.assertNotIn("Every date on this plan has passed", html)
 
     def test_nothing_is_scheduled_on_the_day_of_the_exam_or_after_it(self) -> None:
-        with pretend_today(A_MONDAY):
+        with a_week_of(A_MONDAY):
             self.set_availability(days=3, hours=6, exam="2026-11-06")
             week = self.week(self.plan_page())
         self.assertIn("Mon 2 Nov", week)
@@ -291,7 +378,7 @@ class ExamModeTests(ScheduleTestCase):
         self.assertNotIn("6 Nov", week)
 
     def test_an_exam_too_close_for_the_whole_path_says_which_topics_do_not_fit(self) -> None:
-        with pretend_today(A_MONDAY):
+        with a_week_of(A_MONDAY):
             self.set_availability(days=1, hours=6, exam="2026-11-03")
             html = self.plan_page()
         self.assertEqual(self.session_titles(html), ["Eigenvalues"])
@@ -299,15 +386,8 @@ class ExamModeTests(ScheduleTestCase):
         self.assertIn("Eigenspaces", behind)
         self.assertIn("Diagonalisation", behind)
 
-    def test_an_exam_date_that_has_gone_is_said_rather_than_counted_down(self) -> None:
-        with pretend_today(A_MONDAY):
-            self.set_availability(days=3, hours=6, exam="2026-10-01")
-            html = self.plan_page()
-        self.assertIn("Your exam date has passed", html)
-        self.assertNotIn("days to go", html)
-
     def test_clearing_the_exam_date_puts_the_student_back_in_open_mode(self) -> None:
-        self.set_availability(days=3, hours=6, exam="2026-11-30")
+        self.set_availability(days=3, hours=6, exam=self.days_from_today(40))
         self.set_availability(days=3, hours=6)
         html = self.plan_page()
         self.assertIn("Open mode", html)
@@ -316,6 +396,10 @@ class ExamModeTests(ScheduleTestCase):
     def test_more_days_than_a_week_has_is_refused(self) -> None:
         response = self.set_availability(days=8, hours=6)
         self.assertIn("no more than 7", response.content.decode())
+
+    def test_more_hours_than_a_person_has_is_refused(self) -> None:
+        response = self.set_availability(days=3, hours=200)
+        self.assertIn("168 hours", response.content.decode())
 
     def test_an_exam_date_that_cannot_be_read_is_refused_rather_than_guessed(self) -> None:
         response = self.set_availability(days=3, hours=6, exam="next tuesday")
@@ -340,17 +424,25 @@ class TodaysSessionTests(ScheduleTestCase):
         self.assertRegex(card, r"\d+ min")
 
     def test_on_a_day_the_student_does_not_study_the_card_offers_the_next_one(self) -> None:
-        with pretend_today(date(2026, 11, 3)):  # a Tuesday
+        with a_week_of(date(2026, 11, 3)):  # a Tuesday
             self.set_availability(days=1, hours=6)  # Mondays only
             card = self.card()
         self.assertIn("Next session", card)
         self.assertIn("Monday 9 November", card)
 
+    def test_a_topic_with_no_slides_does_not_offer_a_link_to_nothing(self) -> None:
+        self.client.post("/courses/1/topics/add/", {"title": "From the lecturer"})
+        self.client.post("/courses/1/topics/confirm/")
+        self.set_availability(days=7, hours=6)
+        html = self.plan_page()
+        self.assertNotIn('read/#"', html)
+        self.assertIn("No slides pointed at yet", html)
+
     def test_a_week_whose_dates_have_all_gone_offers_a_fresh_one(self) -> None:
         self.set_availability(days=7, hours=6)
-        with pretend_today(date(2026, 11, 10)):
+        with a_week_of(date(2026, 11, 10)):
             html = self.plan_page()
-        self.assertIn("No session waiting", html)
+        self.assertIn("Every date on this plan has passed", html)
 
 
 class PlanNavigationTests(ScheduleTestCase):
@@ -430,11 +522,6 @@ class SessionCountTests(ScheduleTestCase):
     def test_the_days_the_student_studies_still_cap_the_sessions_offered(self) -> None:
         self.set_availability(days=2, hours=20)
         self.assertEqual(len(self.session_titles(self.plan_page())), 2)
-
-    def test_the_week_still_fits_the_hours_the_student_said(self) -> None:
-        self.set_availability(days=3, hours=2)
-        html = self.plan_page()
-        self.assertLessEqual(self.week_minutes(html), 2 * 60)
 
     def test_the_student_can_see_the_weeks_after_this_one_too(self) -> None:
         self.set_availability(days=3, hours=6)

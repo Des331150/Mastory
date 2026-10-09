@@ -1,12 +1,12 @@
 """The schedule: what the student studies, on which days, and for how long.
 
-Two modes, and the exam date is the only difference between them. With one,
-the plan is anchored - sessions land on real study days, none of them on or
-after the exam, and the countdown is shown. Without one the plan is open: the
-topics in the order the student put them in, a rolling next session, and no
-countdown, because counting down to a date the student does not have is
-pressure they did not ask for. Open mode is what makes the app worth opening in
-a week with no exam in sight.
+Two modes, and the exam date is the only difference between them. With one, the
+plan is anchored - sessions land on real study days, none of them on or after
+the exam, and the countdown is shown. Without one the plan is open: the topics
+in the order the student put them in, a rolling next session, and no countdown,
+because counting down to a date the student does not have is pressure they did
+not ask for. Open mode is what makes the app worth opening in a week with no
+exam in sight.
 
 Generation is arithmetic on the student's own topics, not a model call. Their
 order is the one they confirmed, their weight says how much of a topic there
@@ -16,15 +16,19 @@ check, and this one has to be checkable against a total they set themselves.
 
 Two rules earn their place here rather than in the ticket's prose:
 
-- **One topic is one session.** Never split across days, never two topics in
-  one sitting. A half-finished topic is where abandonment starts, so the shape
-  is in the schema and cannot be got wrong by a later edit.
+- **One topic is one session.** Never split across days, never two topics in one
+  sitting. A half-finished topic is where abandonment starts, so the shape is in
+  the schema and cannot be got wrong by a later edit.
 - **Fewer sessions, not more.** The session count is the lesser of the days the
   student can study and the number their budget honestly carries, and each one
-  is long enough to be worth opening. A student with two hours a week is
-  offered two good sessions, not five that would each be fifteen minutes of
+  is long enough to be worth opening. A student with an hour a week is offered
+  two good sessions rather than five that would each be twelve minutes of
   deciding whether to bother. A plan the student believes is achievable is the
   whole product.
+
+Availability the scheduler cannot work with is raised as
+``material.topics.Rejected``, the same refusal the student's edits to the topic
+path raise, so a page that shows either says the same kind of thing.
 """
 
 import logging
@@ -37,7 +41,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from material.models import Course, Plan, Session, Topic
-from material.topics import require_confirmation
+from material.topics import Rejected, require_confirmation
 from material.users import current_user_id, owned
 
 logger = logging.getLogger(__name__)
@@ -49,7 +53,7 @@ MIN_SESSION_MINUTES = 30
 
 #: The longest session worth offering. A topic cannot be split across days, so
 #: without a ceiling a small course and a large budget produce a single sitting
-#: of the entire week, which is the thing the student will not do. Time a topic
+#: of the whole week, which is the thing the student will not do. Time a topic
 #: cannot hold stays unspent rather than being promised as one session.
 MAX_SESSION_MINUTES = 180
 
@@ -59,20 +63,14 @@ MAX_SESSION_MINUTES = 180
 ROUNDING = 5
 
 MAX_DAYS_PER_WEEK = 7
-DEFAULT_DAYS_PER_WEEK = 3
-DEFAULT_HOURS_PER_WEEK = 6
 
-#: Long enough to be bounded even when a student's exam is a year out, so a
-#: mistyped date cannot walk the scheduler through every day until it gives up.
-MAX_HORIZON_DAYS = 400
+#: Nobody studies more than a day and a night of a week, and the column that
+#: holds the answer cannot take a bigger number than this either.
+MAX_HOURS_PER_WEEK = 24
 
-
-class Rejected(Exception):
-    """Availability the scheduler cannot work with, in words the student can use."""
-
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
-        self.reason = reason
+#: The days a week is measured in. Five days of study is the working week, and
+#: Saturday and Sunday are only offered to a student who asks for them.
+WORK_WEEK = 5
 
 
 @dataclass(frozen=True)
@@ -92,18 +90,16 @@ class Availability:
         """Sessions a week can honestly carry.
 
         The lesser of the days the student studies and the number the budget
-        stretches to at the shortest session worth offering. Capped at one: a
-        student who can study an hour a week still gets a session, because a
-        plan with nothing in it helps nobody.
+        stretches to at the shortest session worth offering. The budget side is
+        never zero, because a student cannot study less than an hour a week and
+        is refused if they try.
         """
-        return max(
-            1, min(self.days_per_week, self.minutes_per_week // MIN_SESSION_MINUTES)
-        )
+        return min(self.days_per_week, self.minutes_per_week // MIN_SESSION_MINUTES)
 
 
 @dataclass(frozen=True)
 class Week:
-    """One calendar week of the plan, as the student reads it."""
+    """One week of the plan, as the student reads it."""
 
     number: int
     label: str
@@ -112,6 +108,26 @@ class Week:
     @property
     def minutes(self) -> int:
         return sum(session.minutes for session in self.sessions)
+
+
+@dataclass(frozen=True)
+class Overview:
+    """Everything the plan page shows, read off the plan in one pass.
+
+    One query rather than one per question: the weeks, the session the student
+    starts now and the topics that missed out are all the same rows, and a page
+    that asks three times is a page that can disagree with itself.
+    """
+
+    weeks: tuple[Week, ...]
+    current: Session | None
+    unplaced: tuple[Topic, ...]
+    days_left: int | None
+
+    @property
+    def passed(self) -> bool:
+        """Whether every date on this plan is behind the student."""
+        return self.current is None
 
 
 def plan_for(course: Course) -> Plan | None:
@@ -143,21 +159,32 @@ def read_availability(form: Mapping[str, Any]) -> Availability:
         raise Rejected(
             f"Study at least one day a week, and no more than {MAX_DAYS_PER_WEEK}."
         )
-    if hours < 1:
+    if not 1 <= hours <= MAX_HOURS_PER_WEEK:
         raise Rejected(
-            "Say at least one hour a week. Less than that is not a week of study."
+            f"Say between one and {MAX_HOURS_PER_WEEK} hours a week. A week has "
+            "168 hours in it, and there is a point past which the answer is not "
+            "about studying."
         )
     return Availability(days, hours, _exam_date(form.get("exam_date")))
 
 
 def study_weekdays(days_per_week: int) -> list[int]:
-    """Which days of the week the student studies, spread across it from Monday.
+    """Which days of the week the student studies.
 
-    Evenly spread rather than the first ``days_per_week`` weekdays, because a
-    student who can study three days wants them spread through the week and not
-    clumped into Monday to Wednesday. Three days is Monday, Wednesday, Friday.
+    Spread across the working week rather than taken from the front of it,
+    because a student who can study three days wants Monday, Wednesday and
+    Friday and not Monday to Wednesday. Five days is the whole working week,
+    and Saturday and Sunday only turn up for a student who asked for six or
+    seven.
     """
-    return sorted({offset * 7 // days_per_week for offset in range(days_per_week)})
+    if days_per_week > WORK_WEEK:
+        return list(range(days_per_week))
+    if days_per_week == 1:
+        return [0]
+    last = WORK_WEEK - 1
+    return sorted(
+        {round(offset * last / (days_per_week - 1)) for offset in range(days_per_week)}
+    )
 
 
 def generate(course: Course, availability: Availability) -> Plan:
@@ -192,53 +219,30 @@ def generate(course: Course, availability: Availability) -> Plan:
     return plan
 
 
-def weeks(plan: Plan, *, this_week: int | None = None) -> list[Week]:
-    """The plan as the weeks the student lives in, the next one named.
+def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
+    """Everything the plan page shows, read off the plan's sessions once.
 
-    ``this_week`` is the week the next session falls in, which is the one the
-    student is actually in. The rest keep their number: a plan that renumbers
-    itself every time a session passes would be a plan the student cannot talk
-    about. ``week`` is stored from zero and counted from one here, because zero
-    is an index and the student is not reading an index.
-    """
-    grouped: dict[int, list[Session]] = {}
-    for session in owned(plan.sessions.all()):
-        grouped.setdefault(session.week, []).append(session)
-    return [
-        Week(
-            number=number,
-            label="This week" if number == this_week else f"Week {number + 1}",
-            sessions=tuple(sessions),
-        )
-        for number, sessions in sorted(grouped.items())
-    ]
+    The weeks, the session the student starts now, and the topics that did not
+    get one are all the same rows, so they are all read together: three queries
+    answering three questions about the same plan is a page that can disagree
+    with itself.
 
-
-def next_session(plan: Plan) -> Session | None:
-    """The session the student starts now: today's if there is one, else the next.
-
-    None once every session on the plan has a date in the past. That is not a
-    plan that ran out of topics, it is a plan whose dates have gone by, and the
-    answer to it is a fresh week rather than a session from last month.
-    """
-    current = today()
-    for session in owned(plan.sessions.all()):
-        if session.scheduled_on >= current:
-            found: Session = session
-            return found
-    return None
-
-
-def unplaced(plan: Plan, topics: Sequence[Topic]) -> list[Topic]:
-    """Topics with no session, which only happens when the exam arrives first.
-
-    They are listed rather than dropped: a topic silently missing from the plan
+    A topic with no session only happens when the exam arrives first. They are
+    listed rather than dropped, because a topic silently missing from the plan
     is a topic the student has been told to study and cannot find.
     """
-    scheduled = {
-        session.topic_id for session in owned(plan.sessions.all()).select_related("topic")
-    }
-    return [topic for topic in topics if topic.pk not in scheduled]
+    sessions = list(owned(plan.sessions.all()))
+    current = next(
+        (s for s in sessions if s.scheduled_on >= today()),
+        None,
+    )
+    scheduled = {session.topic_id for session in sessions}
+    return Overview(
+        weeks=_weeks(sessions, this_week=current.week if current else None),
+        current=current,
+        unplaced=tuple(topic for topic in topics if topic.pk not in scheduled),
+        days_left=days_until_exam(plan),
+    )
 
 
 def days_until_exam(plan: Plan) -> int | None:
@@ -248,8 +252,33 @@ def days_until_exam(plan: Plan) -> int | None:
     return (plan.exam_date - today()).days
 
 
+def _weeks(sessions: Sequence[Session], *, this_week: int | None) -> tuple[Week, ...]:
+    """The sessions grouped into the weeks the student lives in.
+
+    The week the next session falls in is named "this week" because that is the
+    one the student is in; the rest keep their number, because a plan that
+    renumbers itself every time a session passes is a plan the student cannot
+    talk about. ``Session.week`` counts from zero and the label counts from
+    one, because zero is an index and the student is not reading an index.
+    """
+    grouped: dict[int, list[Session]] = {}
+    for session in sessions:
+        grouped.setdefault(session.week, []).append(session)
+    return tuple(
+        Week(
+            number=number,
+            label="This week" if number == this_week else f"Week {number + 1}",
+            sessions=tuple(week_sessions),
+        )
+        for number, week_sessions in sorted(grouped.items())
+    )
+
+
 def _write(
-    plan: Plan, topics: Sequence[Topic], availability: Availability, days: Sequence[date]
+    plan: Plan,
+    topics: Sequence[Topic],
+    availability: Availability,
+    days: Sequence[date],
 ) -> None:
     """One session per topic that fits, in the student's order, weighted.
 
@@ -267,15 +296,15 @@ def _write(
         minutes = _split_week(
             availability.minutes_per_week, [topic.weight for topic in chunk]
         )
-        for index, (topic, day, length) in enumerate(zip(chunk, placed, minutes, strict=True)):
-            study_day = offset + index
+        for index, (topic, day, length) in enumerate(
+            zip(chunk, placed, minutes, strict=True)
+        ):
             Session.objects.create(
                 user_id=current_user_id(),
                 plan=plan,
                 topic=topic,
-                position=study_day + 1,
-                study_day=study_day,
-                week=study_day // per_week,
+                position=offset + index + 1,
+                week=(offset + index) // per_week,
                 minutes=length,
                 scheduled_on=day,
             )
@@ -357,20 +386,20 @@ def _study_dates(
 ) -> list[date]:
     """The days sessions land on, from today onwards.
 
-    Exam mode stops at the exam: nothing is scheduled on the day itself or after
-    it, because a session on exam day is a session that cannot happen. If that
-    leaves topics without a day they are reported rather than quietly dropped.
+    Exam mode stops at the exam: nothing is scheduled on the day itself or
+    after it, because a session on exam day is a session that cannot happen. If
+    that leaves topics without a day they are reported rather than quietly
+    dropped.
+
+    Open mode has no horizon to stop at and does not need one. Every week holds
+    at least one study day, so the walk ends as soon as it has a day for every
+    topic, however many topics there are and however far apart they land.
     """
     weekdays = study_weekdays(availability.days_per_week)
-    horizon = min(
-        MAX_HORIZON_DAYS,
-        (availability.exam_date - start).days
-        if availability.exam_date is not None
-        else MAX_HORIZON_DAYS,
-    )
+    until = availability.exam_date
     dates: list[date] = []
     day = start
-    while len(dates) < limit and (day - start).days < horizon:
+    while len(dates) < limit and (until is None or day < until):
         if day.weekday() in weekdays:
             dates.append(day)
         day += timedelta(days=1)
