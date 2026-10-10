@@ -134,21 +134,27 @@ class Week:
 class Cut:
     """What taking one topic off the week would cost the student, and buy them.
 
-    Both halves are needed and neither is enough. ``minutes`` is what the
-    topic takes out of the week the student budgeted for themselves, which is
-    the currency they already think in. ``finishes_on`` is the day they would
-    stop, which is the answer to the question that made them open the page, and
-    it is the same for every topic on offer: each one frees exactly one session,
-    and the remaining sessions keep their order.
+    Both halves are needed and neither is enough. ``minutes`` is read off the
+    session the plan actually holds rather than worked out a second way: the
+    panel exists so the student can price a decision, and a second calculation
+    that quietly disagrees with the first one is how a page ends up asking the
+    student to trust a fiction.
+
+    ``finishes_on`` is the day they would stop, which is the answer to the
+    question that made them open the page. It is the same for every topic on
+    offer - each one frees exactly one session and the rest keep their order -
+    and ``in_time`` says whether that day is any use, because one cut is often
+    not enough on its own and a date the student cannot actually study to is not
+    a promise.
 
     ``finishes_on`` is nothing when only one session is left to do, because
-    cutting the last one leaves nothing to finish - an edge case rather than a
-    thing to dress up as a date.
+    cutting the last one leaves nothing to finish.
     """
 
     topic: Topic
     minutes: int
     finishes_on: date | None
+    in_time: bool
 
 
 @dataclass(frozen=True)
@@ -165,17 +171,12 @@ class Behind:
     thirtieth, and being told that is checkable in a way that being told a date
     is not.
 
-    ``kept_out`` are the topics the student has already cut, so that the panel
-    which offers to drop something is also the panel that can put one back. A
-    cut the student cannot take back is a cut made in a hurry, which is exactly
-    when they will make the wrong one.
     """
 
     projected_on: date
     late_by: int
     sessions_left: int
     cuts: tuple[Cut, ...]
-    kept_out: tuple[Topic, ...]
 
 
 @dataclass(frozen=True)
@@ -193,6 +194,7 @@ class Overview:
     weeks: tuple[Week, ...]
     current: Session | None
     unplaced: tuple[Topic, ...]
+    cut_topics: tuple[Topic, ...]
     days_left: int | None
     budget: int
     study_days: str
@@ -286,10 +288,9 @@ def study_weekdays(days_per_week: int) -> list[int]:
 def availability_of(plan: Plan) -> Availability:
     """The week a plan was built from, as the numbers the student gave.
 
-    Read back off the plan rather than kept in the request, so that anything
-    which rebuilds the plan later - a cut today, a change of hours tomorrow -
-    rebuilds it from what was actually agreed rather than from what the last
-    form happened to post.
+    Read back off the plan rather than kept in the request, so that a cut
+    rebuilds the week from what was actually agreed rather than from whatever
+    the last form happened to post.
     """
     return Availability(plan.days_per_week, plan.hours_per_week, plan.exam_date)
 
@@ -327,10 +328,18 @@ on the session, precisely so that a rebuild cannot lose it - see
     plan.hours_per_week = availability.hours_per_week
     plan.save()
     held = _held(plan)
-    planned = [topic for topic in topics if not topic.cut]
-    done = [topic for topic in planned if topic.recorded_on is not None]
-    ahead = [topic for topic in planned if topic.recorded_on is None]
-    weeks_of_days = _study_weeks(availability, today(), len(ahead))
+    # A topic the student has finished is on the week whatever else they decide
+    # about it. It came off the path by no decision of the planner's, so a cut
+    # cannot reach it - see ``cut``.
+    done = [topic for topic in topics if topic.recorded_on is not None]
+    ahead = [topic for topic in topics if topic.recorded_on is None and not topic.cut]
+    start = _after(today(), held, availability)
+    weeks_of_days = _study_weeks(
+        availability,
+        start,
+        len(ahead),
+        first_week_cap=_room_left(held, start, availability),
+    )
     with transaction.atomic():
         plan.sessions.all().delete()
         _write(plan, ahead, availability, weeks_of_days, done=done, held=held)
@@ -352,12 +361,43 @@ def _held(plan: Plan) -> dict[int, tuple[date, int]]:
     completed session whose date came from the rebuild would be booked on a day
     that has not happened yet, which is a record of the plan rather than of the
     student.
+
+    The day kept is the day the student recorded the topic, not the day the
+    session was scheduled for. They mark a session early as often as late, and
+    a plan that then insists the work happened on Wednesday when the log says
+    Monday is a page arguing with itself.
     """
     return {
-        session.topic_id: (session.scheduled_on, session.minutes)
-        for session in owned(plan.sessions.all())
+        session.topic_id: (session.topic.recorded_on, session.minutes)
+        for session in owned(plan.sessions.all()).select_related("topic")
         if session.recorded_on is not None
     }
+
+
+def _after(
+    day: date, held: Mapping[int, tuple[date, int]], availability: Availability
+) -> date:
+    """The first day the work still waiting may be put on.
+
+    Today, unless the student has already done something that lands on today or
+    later. A session they finished on Monday does not block Wednesday, but a
+    session they finished this morning does block putting a second one on this
+    morning: two topics in one day is the compression this whole module exists
+    to refuse, and a rebuild is exactly where it would sneak in.
+
+    A week already spent is skipped whole. One session they did this morning
+    does not mean they have the rest of the week free, so the work still
+    waiting starts at the next one rather than being fitted into what is left of
+    a budget that is gone.
+    """
+    start = max([day, *(held_on + timedelta(days=1) for held_on, _ in held.values())])
+    week = start.isocalendar()[:2]
+    spent = sum(
+        length for held_on, length in held.values() if held_on.isocalendar()[:2] == week
+    )
+    if spent >= availability.minutes_per_week:
+        start += timedelta(days=7 - start.weekday())
+    return start
 
 
 def cut(course: Course, topic: Topic) -> Plan:
@@ -375,12 +415,18 @@ It is a toggle, like every other mark on this page. A student who cuts the
 The day is written to the topic rather than read from the request, so that the
     decision survives a rebuild the way a completion does.
     """
-    topic.cut_on = None if topic.cut else today()
-    topic.save(update_fields=["cut_on"])
     plan = plan_for(course)
     if plan is None:
         raise Rejected("There is no week to change yet.")
-    logger.info("%s: %s %s", course.title, "kept" if topic.cut else "cut", topic.title)
+    if topic.recorded_on is not None:
+        raise Rejected(
+            "That one is already in your record, so it stays on the week whatever "
+            "you decide about the rest of it."
+        )
+    keeping = topic.cut
+    topic.cut_on = None if keeping else today()
+    topic.save(update_fields=["cut_on"])
+    logger.info("%s: %s %s", course.title, "put back" if keeping else "cut", topic.title)
     return generate(course, availability_of(plan))
 
 
@@ -410,39 +456,56 @@ def _pace_days(plan: Plan, count: int) -> list[date]:
     return [day for week in weeks for day in week][:count]
 
 
-def behind(plan: Plan, topics: Sequence[Topic]) -> Behind | None:
+def behind(
+    plan: Plan, topics: Sequence[Topic], *, scheduled: Mapping[int, int]
+) -> Behind | None:
     """Whether the work left finishes before the exam, and what to do if not.
 
     Nothing in open mode: with no deadline there is nothing to be late against,
     and inventing one would be pressure the student did not ask for.
 
-    The projection lifts the exam horizon off and counts only the work the
-    student has not recorded, so a fortnight spent doing nothing moves the date
-    by a fortnight's worth of sessions rather than by nothing at all. The topics
-    on offer to cut are the same ones, costed in the minutes they take out of
-    the week and the day the student would stop.
+    The question is not "does the projected date sit past the exam" but "does
+    the plan the student is actually holding have a day for every session still
+    outstanding". The two differ by the exam day itself, which the walk refuses
+    as a study day, so a student one session short is told so rather than being
+    shown a date that lands on the exam and told there is no problem.
+
+    Only topics the plan has actually scheduled are offered. A topic with no
+    session is costing the student nothing, so offering to cut it would be
+    offering a button whose number does not move when it is pressed.
     """
     ahead = _ahead(topics)
     if plan.exam_date is None or not ahead:
         return None
-    days = _pace_days(plan, len(ahead))
-    if not days or days[-1] <= plan.exam_date:
+    fitted = sum(
+        len(week)
+        for week in _study_weeks(availability_of(plan), today(), len(ahead))
+    )
+    if fitted >= len(ahead):
         return None
-    minutes = _split_week(plan.hours_per_week * 60, [topic.weight for topic in ahead])
+    days = _pace_days(plan, len(ahead))
+    projected = days[-1]
     # Cutting any one topic frees exactly one session and the rest keep their
     # order, so every option lands on the same day. That is not a shortcut, it
     # is the arithmetic: saying it eight times with eight dates would be eight
     # claims to check and one answer.
-    after = days[-2] if len(days) > 1 else None
+    after = days[-2] if len(ahead) > 1 else None
+    on_the_week = [topic for topic in ahead if topic.pk in scheduled]
     return Behind(
-        projected_on=days[-1],
-        late_by=(days[-1] - plan.exam_date).days,
+        projected_on=projected,
+        late_by=(projected - plan.exam_date).days,
         sessions_left=len(ahead),
         cuts=tuple(
-            Cut(topic=topic, minutes=length, finishes_on=after)
-            for topic, length in zip(ahead, minutes, strict=True)
-        ),
-        kept_out=tuple(topic for topic in topics if topic.cut),
+            Cut(
+                topic=topic,
+                minutes=scheduled[topic.pk],
+                finishes_on=after,
+                in_time=after is not None and after < plan.exam_date,
+            )
+            for topic in on_the_week
+        )
+        if after is not None
+        else (),
     )
 
 
@@ -460,23 +523,24 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     purpose, and listing them next to the ones they cannot reach would read as
     a problem rather than a decision.
     """
-    sessions = list(owned(plan.sessions.all()))
+    sessions = list(owned(plan.sessions.all()).select_related("topic"))
     current = next(
         (s for s in sessions if s.scheduled_on >= today()),
         None,
     )
-    scheduled = {session.topic_id for session in sessions}
+    minutes = {session.topic_id: session.minutes for session in sessions}
     return Overview(
         sessions=tuple(sessions),
         weeks=_weeks(sessions, this_week=today()),
         current=current,
         unplaced=tuple(
-            topic for topic in topics if topic.pk not in scheduled and not topic.cut
+            topic for topic in topics if topic.pk not in minutes and not topic.cut
         ),
+        cut_topics=tuple(topic for topic in topics if topic.cut),
         days_left=days_until_exam(plan),
         budget=plan.hours_per_week * 60,
-        study_days=_named_days(plan.days_per_week),
-        behind=behind(plan, topics),
+        study_days=_named_days(plan.days_per_week, availability_of(plan).sessions_per_week),
+        behind=behind(plan, topics, scheduled=minutes),
     )
 
 
@@ -518,21 +582,27 @@ def _week_of(day: date) -> tuple[int, int]:
     return day.isocalendar()[:2]
 
 
-def _named_days(days_per_week: int) -> str:
+def _named_days(days_per_week: int, sessions_per_week: int) -> str:
     """The days the plan was put on, in words.
 
     The student chose a number of days rather than the days themselves, so the
     page says which ones it picked. A student whose free days are Saturday and
     Sunday can see straight away that the plan has assumed weekdays, which is
     the difference between a plan they can fix and one they abandon.
+
+    Only as many as the plan really fills: a student who can study three days
+    with an hour to spend is offered two sessions a week, and being told their
+    sessions land on Monday, Wednesday and Friday is being told something false
+    about a plan that never puts anything on a Friday.
     """
     # A Monday, so the offsets line up with ``date.weekday()``, named through
     # Django's own formatter so they come out in the page's language.
     monday = date(2024, 1, 1)
+    days = sorted(set(study_weekdays(days_per_week)))[:sessions_per_week]
     names = [
         formats.date_format(monday + timedelta(days=offset), "l")
         for offset in range(7)
-        if offset in study_weekdays(days_per_week)
+        if offset in days
     ]
     if len(names) == 1:
         return f"{names[0]}s"
@@ -558,10 +628,12 @@ def _write(
     than leaving the student to notice they are not on it.
 
     ``done`` is the work the student has already recorded and ``held`` says
-    where each of those sessions sat before the rebuild. They keep that day and
-    those minutes, because the week a finished topic took up is spent: the
-    remaining topics divide the budget that is left, not a budget shared with
-    work already out of the way.
+    where each of those session�� sat and how long they were. They keep that
+    day and those minutes, and the week a finished topic took up is spent: the
+    remaining topics divide what is left of the budget, not a budget shared with
+    work already out of the way. Without that, a student who finishes a session
+    and presses the button again is handed a week twice the size they said they
+    had.
 
     Everything is written in one pass ordered by the day it falls on, so a
     session that shifted later sits after the ones that did not move and the
@@ -573,7 +645,7 @@ def _write(
         # A recorded topic always has a session to have come from. Falling back
         # to the shortest session worth offering rather than to zero is what
         # keeps a session off the page claiming it is nothing long.
-        day, length = kept.get(topic.pk, (topic.recorded_on, MIN_SESSION_MINUTES))
+        day, length = kept.get(topic.pk) or (topic.recorded_on, MIN_SESSION_MINUTES)
         if day is not None:
             rows.append((topic, day, length))
     taken = 0
@@ -584,7 +656,8 @@ def _write(
         # The last week of a plan is short of days rather than of topics.
         days = list(week_of_days[: len(chunk)])
         minutes = _split_week(
-            availability.minutes_per_week, [topic.weight for topic in chunk]
+            _budget_for(rows, week_of_days, availability),
+            [topic.weight for topic in chunk],
         )
         rows.extend(zip(chunk, days, minutes, strict=True))
         taken += len(chunk)
@@ -599,6 +672,49 @@ def _write(
             minutes=length,
             scheduled_on=day,
         )
+
+
+def _room_left(
+    held: Mapping[int, tuple[date, int]], start: date, availability: Availability
+) -> int | None:
+    """How many more sessions fit in the week the rebuild starts in.
+
+    Nothing when that week is untouched, which is the ordinary case and the one
+    the walk was written for. When the student has already spent some of it, the
+    rest of it has to fit what is left of their budget rather than the budget
+    again: an hour a week means two short sessions, not three once one of them
+    is done.
+
+    Never less than one. A week with no room left still gets a session on its
+    first free study day, because "you have no time this week" is a thing the
+    student has to be told, not something to express by quietly dropping a
+    topic off their plan.
+    """
+    week = start.isocalendar()[:2]
+    spent = sum(
+        length for held_on, length in held.values() if held_on.isocalendar()[:2] == week
+    )
+    if not spent:
+        return None
+    return max(1, (availability.minutes_per_week - spent) // MIN_SESSION_MINUTES)
+
+
+def _budget_for(
+    rows: Sequence[tuple[Topic, date, int]],
+    week_of_days: Sequence[date],
+    availability: Availability,
+) -> int:
+    """What is left of the student's week once the finished sessions in it are
+    accounted for.
+
+    Spent is spent. A week that already carries a completed session has less
+    room in it for the first of the remaining topics, and handing it the whole
+    budget again is how a plan quietly promises a student more time than they
+    said they had.
+    """
+    week = week_of_days[0].isocalendar()[:2]
+    spent = sum(length for _, day, length in rows if day.isocalendar()[:2] == week)
+    return max(0, availability.minutes_per_week - spent)
 
 
 def _split_week(budget: int, weights: Sequence[int]) -> list[int]:
@@ -675,7 +791,13 @@ def _shortest_filled(minutes: Sequence[int], exact: Sequence[float]) -> int:
     )
 
 
-def _study_weeks(availability: Availability, start: date, limit: int) -> list[list[date]]:
+def _study_weeks(
+    availability: Availability,
+    start: date,
+    limit: int,
+    *,
+    first_week_cap: int | None = None,
+) -> list[list[date]]:
     """The days sessions land on, filled one calendar week at a time.
 
     A list of weeks rather than a flat run of days, because a week is what the
@@ -700,25 +822,29 @@ def _study_weeks(availability: Availability, start: date, limit: int) -> list[li
     filled: list[list[date]] = []
     placed = 0
     day = start
+    capped = first_week_cap is None
     while placed < limit:
         if until is not None and day >= until:
             break
         week_end = day + timedelta(days=7 - day.weekday())
+        room = per_week if capped else min(per_week, max(1, first_week_cap or 0))
         week: list[date] = []
-        while day < week_end and len(week) < per_week:
+        while day < week_end and len(week) < room:
             if day.weekday() in weekdays and (until is None or day < until):
                 week.append(day)
             day += timedelta(days=1)
         if not week:
             # This calendar week has no study day left in it - the student
-            # studies Mondays and it is Tuesday - so carry on to the next one
-            # rather than ending the plan. The exam check at the top of the
-            # loop is what ends it, and that check still applies.
+            # studies Mondays and it is Tuesday, or the student has spent the
+            # whole of it - so carry on to the next one rather than ending the
+            # plan. The exam check at the top of the loop is what ends it, and
+            # that check still applies.
             day = max(day, week_end)
             continue
         filled.append(week)
         placed += len(week)
         day = max(day, week_end)
+        capped = True
     return filled
 
 

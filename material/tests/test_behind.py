@@ -20,17 +20,19 @@ week it is. Above the pinned date the application is entirely real.
 
 import re
 from contextlib import contextmanager
-from datetime import date, timedelta
+from datetime import date
 from typing import Any, Iterator
 from unittest import mock
 
 from django.test import TestCase
 
 from material import planning
+from material.models import Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     fake_topic,
     pdf_upload,
+    topic_pk,
     use_fake_model,
     use_temporary_media_root,
 )
@@ -96,9 +98,9 @@ class BehindScheduleTestCase(TestCase):
             {"exam_date": exam, "days_per_week": str(days), "hours_per_week": str(hours)},
         )
 
-    def rebuild(self, *, exam: str = THE_EXAM) -> Any:
+    def rebuild(self, *, days: int = 3, hours: int = 6, exam: str = THE_EXAM) -> Any:
         """Press the button that builds the week again, keeping the same week."""
-        return self.set_availability(days=3, hours=6, exam=exam)
+        return self.set_availability(days=days, hours=hours, exam=exam)
 
     def plan_page(self) -> str:
         response = self.client.get("/courses/1/plan/")
@@ -127,6 +129,66 @@ class BehindScheduleTestCase(TestCase):
             title.strip()
             for title in re.findall(r'<h3 class="session-topic">(.*?)</h3>', html)
         ]
+
+    def session_minutes(self, html: str, topic: str) -> int:
+        """How long the session on a topic is, as the student reads it."""
+        for block in html.split('<li class="session"')[1:]:
+            if f">{topic}</h3>" in block:
+                found = re.search(r'<p class="session-length">(\d+) min</p>', block)
+                assert found is not None, f"no length shown for {topic!r}"
+                return int(found.group(1))
+        raise AssertionError(f"no session on {topic!r} in the plan")
+
+    def behind(self) -> str:
+        """A fortnight of doing nothing later on, which is the state the behind
+        panel exists for."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+        with a_week_of(A_FORTNIGHT_LATER):
+            self.rebuild()
+            return self.plan_page()
+
+    def completion(self, html: str) -> str:
+        found = re.search(r'<section class="panel completion">(.*?)</section>', html, re.S)
+        assert found is not None, "no completion panel on the plan page"
+        return flat(found.group(1))
+
+    def log_entries(self, html: str) -> list[str]:
+        found = re.search(r'<section class="panel session-log">(.*?)</section>', html, re.S)
+        assert found is not None, "no session log on the plan page"
+        return [
+            flat(re.search(r'<p class="log-topic">(.*?)</p>', block, re.S).group(1))  # type: ignore[union-attr]
+            for block in found.group(1).split('<li class="log-entry"')[1:]
+        ]
+
+    def week_session_counts(self, html: str) -> list[int]:
+        """How many sessions each week of the plan holds, in the order shown."""
+        return [
+            len(re.findall(r'<h3 class="session-topic">', week))
+            for week in re.findall(r'<ol class="week">(.*?)</ol>', html, re.S)
+        ]
+
+    def fullest_week_minutes(self, html: str) -> int:
+        """The most time any one week of the plan takes on."""
+        return max(
+            (
+                sum(
+                    int(minutes)
+                    for minutes in re.findall(
+                        r'<p class="session-length">(\d+) min</p>', week
+                    )
+                )
+                for week in re.findall(r'<ol class="week">(.*?)</ol>', html, re.S)
+            ),
+            default=0,
+        )
+
+    def topic_id(self, title: str) -> str:
+        """The id a topic carries, read off the page the student would click from."""
+        return topic_pk(self.client.get("/courses/1/topics/").content.decode(), title)
+
+    def topic(self, title: str) -> Any:
+        return Topic.objects.get(title=title)
 
     def behind_panel(self, html: str) -> str:
         found = re.search(r'<section class="panel behind">(.*?)</section>', html, re.S)
@@ -170,7 +232,14 @@ class BehindScheduleTestCase(TestCase):
         # Split on the class without its closing quote: the topics already cut
         # carry a second class and would otherwise be swallowed by the option
         # before them, which is how "put this back" ends up pressing "cut".
-        for block in self.behind_panel(html).split('class="cut-option')[1:]:
+        # Both lists are searched because a cut stays undoable long after the
+        # student is no longer behind.
+        blocks = [
+            block
+            for chunk in (self.behind_panel(html), html)
+            for block in chunk.split('class="cut-option')[1:]
+        ]
+        for block in blocks:
             if f">{topic}</p>" in block:
                 found = re.search(r'action="([^"]+)"', block)
                 assert found is not None, f"no cut button offered for {topic!r}"
@@ -228,7 +297,9 @@ class MissedSessionsShiftTests(BehindScheduleTestCase):
         with a_week_of(A_FORTNIGHT_LATER):
             self.rebuild()
             html = self.plan_page()
-        for week in re.findall(r'<ol class="week">(.*?)</ol>', html, re.S):
+        weeks = re.findall(r'<ol class="week">(.*?)</ol>', html, re.S)
+        self.assertEqual(len(weeks), 2, "the rebuild produced no weeks to check")
+        for week in weeks:
             self.assertLessEqual(len(re.findall(r'<h3 class="session-topic">', week)), 3)
 
     def test_a_session_the_student_finished_keeps_the_day_it_was_on(self) -> None:
@@ -320,39 +391,42 @@ class ProjectedFinishTests(BehindScheduleTestCase):
 
 
 class CuttingTopicsTests(BehindScheduleTestCase):
-    def behind(self) -> str:
-        with a_week_of(A_MONDAY):
-            self.set_availability(days=3, hours=6, exam=THE_EXAM)
-        with a_week_of(A_FORTNIGHT_LATER):
-            self.rebuild()
-            return self.plan_page()
+    def test_the_student_is_offered_the_topics_the_week_is_spending_on(self) -> None:
+        """Only a topic with a session is costing them anything. Offering to cut
+        one the plan never scheduled would be offering a button whose number
+        does not move when it is pressed."""
+        html = self.behind()
+        self.assertEqual(set(self.cut_costs(html)), set(self.session_titles(html)))
 
-    def test_the_student_is_offered_the_topics_still_waiting_to_be_cut(self) -> None:
-        costs = self.cut_costs(self.behind())
-        self.assertEqual(len(costs), 8)
+    def test_a_topic_the_plan_never_scheduled_is_not_offered_as_a_cut(self) -> None:
+        html = self.behind()
+        self.assertIn("Not before your exam", html)
+        self.assertNotIn("Topic 5", self.cut_costs(html))
 
     def test_cutting_a_topic_says_what_it_costs(self) -> None:
-        """The cost is time and a finish date, in the units the student thinks
-        in. A number they cannot act on is decoration."""
+        """The cost is the time the topic actually takes and a finish date, in
+        the units the student thinks in. A number they cannot act on is
+        decoration."""
         costs = self.cut_costs(self.behind())
         self.assertEqual(
             costs["Topic 1"],
-            "30 min a week, and you would finish on Monday 30 November",
+            "70 min a week, and you would finish on Monday 30 November, which "
+            "is still after it — one cut on its own is not enough",
         )
 
-    def test_the_cost_is_the_share_of_the_week_the_topic_actually_claims(self) -> None:
-        """A topic the student weighed heavier has to be worth more minutes,
-        or the panel is pricing a fiction and the student can see it."""
-        costs = self.cut_costs(self.behind())
-        minutes = {
-            title: int(cost.split(" min")[0]) for title, cost in costs.items()
-        }
-        self.assertEqual(sum(minutes.values()), 360)
-        self.assertGreater(max(minutes.values()), min(minutes.values()))
+    def test_the_price_of_a_topic_is_the_length_of_the_session_it_has(self) -> None:
+        """The panel quotes the row the plan already holds rather than working
+        the share out a second way, so the two cannot drift apart and the
+        student is never quoted a minute the plan does not spend."""
+        html = self.behind()
+        costs = self.cut_costs(html)
+        for title, cost in costs.items():
+            shown = int(cost.split(" min")[0])
+            self.assertEqual(shown, self.session_minutes(html, title), title)
 
     def test_every_topic_offers_the_same_finish_date_because_any_one_of_them_frees_one_session(self) -> None:
         costs = self.cut_costs(self.behind())
-        dates = {cost.split("you would finish on ")[1] for cost in costs.values()}
+        dates = {cost.split("you would finish on ")[1].split(",")[0] for cost in costs.values()}
         self.assertEqual(dates, {"Monday 30 November"})
 
     def test_cutting_a_topic_takes_its_session_off_the_plan(self) -> None:
@@ -391,7 +465,7 @@ class CuttingTopicsTests(BehindScheduleTestCase):
         with a_week_of(A_FORTNIGHT_LATER):
             self.client.post(self.cut_url(html, "Topic 1"))
             after_cut = self.plan_page()
-            self.assertIn("Put this back", self.behind_panel(after_cut))
+            self.assertIn("Put this back", after_cut)
             self.client.post(self.cut_url(after_cut, "Topic 1"))
             after = self.plan_page()
         self.assertIn("Topic 1", self.session_titles(after))
@@ -416,4 +490,134 @@ class CuttingTopicsTests(BehindScheduleTestCase):
             self.client.post(self.cut_url(html, "Topic 3"))
             after = self.plan_page()
         self.assertNotIn("Topic 3", self.session_titles(after))
-        self.assertNotIn('data-state="cut"', after)
+
+class NoTwoSessionsOnOneDayTests(BehindScheduleTestCase):
+    """The compression the ticket forbids, checked at the one moment it could
+    sneak in: a rebuild on a day the student has already worked on."""
+
+    def test_a_rebuild_on_the_day_a_session_was_finished_does_not_stack_two_sessions(self) -> None:
+        """Marking the first session done and then pressing the same button
+        again used to put the second session on the same Monday. A rebuild is
+        exactly where "never compress" would be lost by accident."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+            self.mark(self.plan_page(), "Topic 1")
+            self.rebuild()
+            dates = self.session_dates(self.plan_page())
+        self.assertEqual(len(dates), len(set(dates)), f"two sessions share a day: {dates}")
+        self.assertNotIn("Mon 2 Nov", dates[1:])
+
+    def test_a_week_already_worked_in_is_not_handed_out_at_the_students_full_weekly_budget(self) -> None:
+        """An hour a week is two short sessions. Finishing one of them this
+        morning means the rest of that week carries one short session, not two.
+
+        The floor is the floor: a session is never cut below the shortest
+        sitting worth offering, so the remainder of the week can exceed what is
+        left of the budget rather than becoming a sitting of nothing. What must
+        not happen is the week being handed out whole a second time.
+        """
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=1, exam=THE_EXAM)
+            self.mark(self.plan_page(), "Topic 1")
+            self.rebuild(hours=1)
+            html = self.plan_page()
+        self.assertEqual(self.fullest_week_minutes(html), 60)
+        self.assertEqual(self.week_session_counts(html)[0], 2)
+
+
+class TheRecordSurvivesEverythingTests(BehindScheduleTestCase):
+    """A cut is a change to the week. It cannot reach what the student has
+    already finished, and it cannot reach a topic the plan never scheduled."""
+
+    def test_a_topic_already_in_the_record_cannot_be_cut(self) -> None:
+        """The plan page never offers this, but the endpoint is one POST away
+        and a finished session must not be removable from under the student."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+            self.mark(self.plan_page(), "Topic 1")
+            response = self.client.post(
+                f"/courses/1/plan/topics/{self.topic_id('Topic 1')}/cut/"
+            )
+        self.assertIn("already in your record", response.content.decode())
+        self.assertIsNotNone(self.topic("Topic 1").completed_on)
+
+    def test_a_cut_leaves_the_share_the_student_had_earned(self) -> None:
+        """The share counts the sessions on the week, so removing a finished
+        one behind the planner's back would quietly take credit off work the
+        student actually did."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+            self.mark(self.plan_page(), "Topic 1")
+            self.client.post(f"/courses/1/plan/topics/{self.topic_id('Topic 1')}/cut/")
+            html = self.plan_page()
+        self.assertIn("You have done 1 of 8 sessions", self.completion(html))
+        self.assertEqual(self.log_entries(html), ["Topic 1"])
+
+
+class OneSessionShortTests(BehindScheduleTestCase):
+    def test_a_student_one_session_short_is_told_rather_than_left_to_count(self) -> None:
+        """Studying Mondays and Fridays with an exam on the Friday: the exam
+        day is not a study day, so the fourth session has no home. The
+        projection lands on the exam itself, which is not a plan, and saying so
+        is the whole point of the panel."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=2, hours=6, exam=THE_EXAM)
+            html = self.plan_page()
+            for title in ("Topic 1", "Topic 6", "Topic 2", "Topic 7"):
+                self.mark(html, title)
+        with a_week_of(A_FORTNIGHT_LATER):
+            self.rebuild(days=2)
+            html = self.plan_page()
+        panel = self.behind_panel(html)
+        self.assertEqual(self.projected_on(html), "Friday 27 November")
+        self.assertIn("4 sessions still to do", panel)
+        self.assertIn("too late to be a plan", panel)
+
+    def test_cutting_one_topic_says_when_one_cut_is_enough(self) -> None:
+        """The same panel, the other way round. Three sessions left is three
+        study days before the exam, so one cut does get there, and the page has
+        to say so rather than hedging."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=2, hours=6, exam=THE_EXAM)
+            html = self.plan_page()
+            for title in ("Topic 1", "Topic 6", "Topic 2", "Topic 7"):
+                self.mark(html, title)
+        with a_week_of(A_FORTNIGHT_LATER):
+            self.rebuild(days=2)
+            costs = self.cut_costs(self.plan_page())
+        self.assertTrue(costs)
+        for cost in costs.values():
+            self.assertIn("before your exam", cost)
+
+
+class UndoIsAlwaysReachableTests(BehindScheduleTestCase):
+    def test_a_cut_can_be_undone_once_the_student_is_no_longer_behind(self) -> None:
+        """The student who is on top of it again is not the one who needs the
+        undo, but they are the one who will have used it."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+        with a_week_of(A_FORTNIGHT_LATER):
+            self.rebuild()
+            html = self.behind()
+            self.client.post(self.cut_url(html, "Topic 1"))
+            after = self.plan_page()
+            self.assertIn("Put this back", after)
+            self.set_availability(days=3, hours=6)  # no exam: nothing to be behind
+            after = self.plan_page()
+        self.assertNotIn('class="panel behind"', after)
+        self.assertIn("Put this back", after)
+        self.assertIn("Off your week since", after)
+
+    def test_cutting_the_last_topic_still_leaves_a_way_back(self) -> None:
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6, exam=THE_EXAM)
+        with a_week_of(A_FORTNIGHT_LATER):
+            self.rebuild()
+            html = self.behind()
+            for block in self.behind_panel(html).split('class="cut-option')[1:]:
+                url = re.search(r'action="([^"]+)"', block)
+                assert url is not None
+                self.client.post(url.group(1))
+            after = self.plan_page()
+        self.assertNotIn('class="panel behind"', after)
+        self.assertIn("Put this back", after)

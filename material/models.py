@@ -345,6 +345,11 @@ class Session(models.Model):
     Nothing here can express half a topic or two topics in a sitting, which is
     the point: a topic split across days is a topic the student dreads finishing.
 
+    ``position`` is the session's place in the plan as it now stands, counted
+    in the order the sessions fall on the calendar. It moves when a rebuild
+    shifts work later, because it is a fact about this plan and not about the
+    course.
+
     Which week a session sits in is not stored. It is read off ``scheduled_on``
     when the plan is shown, because a week is a property of a calendar and not
     of a position in a list, and storing it would mean a plan whose first week

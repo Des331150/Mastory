@@ -165,6 +165,38 @@ The share and the log are counted off the same read of the plan in
 `planning.overview`, so the number and the ledger underneath it cannot tell
 different stories.
 
+### Falling behind
+
+This is the mechanic that distinguishes a planner that works from one that
+merely nags.
+
+- **A missed session shifts later. It never compresses.** A rebuild lays the
+  work still waiting onto the next study days from today. It does not refill
+  the missed days, does not add a session to a day that already has one, and
+  does not hand a week out twice because one of its sessions is done.
+  Redistributing the same work into fewer days produces a plan the student
+  already knows is impossible, which is how they abandon it.
+- **Finished work gives nothing back.** A session the student completed keeps
+  the day they recorded it and does not free a slot for anything else. A
+  rebuild re-plans what is ahead, not what is behind.
+- **When it will not fit, the page says the day it actually reaches.** The
+  projection lifts the exam horizon off and counts only the outstanding work,
+  at the pace the student said they can manage. It answers "what day do I stop
+  on?", and it says how many days late that is — including when it lands on
+  the exam itself, which is no use as a plan.
+- **Dropping a topic is the student's call, and it is priced first.** Every
+  topic with a session is offered with the length that session actually takes
+  and the finish date cutting it buys, plus whether that date is any use on
+  its own. A choice the student cannot price is a choice they are guessing at.
+- **A cut is reversible, and it cannot reach the record.** One control puts a
+  cut back, offered whether or not the student is still behind. A topic
+  already done or skipped is refused: its session is the row the share, the
+  log and the meter are counted from.
+
+`Topic.cut_on` sits beside `completed_on` and `skipped_on` on the topic rather
+than on the session, because a cut is a decision the plan rebuilds around and
+must not lose.
+
 ### Attempts
 
 `Attempt` records a sitting of a topic's quiz: when it was taken, the score as a
