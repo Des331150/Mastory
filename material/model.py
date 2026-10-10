@@ -319,6 +319,15 @@ class QuestionSet:
     dropped: int
 
 
+#: How many candidates are put back to the model for verification, and how many
+#: paragraphs are shown at all. Both bound one request: verification is one call
+#: per candidate and a call can sit on a network for a minute, so an unbounded
+#: number of them is a student whose page will not load. The limit is on the
+#: work, not on the honesty - whatever is left is counted and shown as left out.
+VERIFY_LIMIT = 8
+SPAN_LIMIT = 40
+
+
 def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> QuestionSet:
     """Questions written from these spans alone, and checked against them.
 
@@ -329,14 +338,22 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
     does not support is dropped here and never reaches the student, because a
     question with a citation the citation does not support is worse than no
     question: it looks grounded and is not.
+
+    ``dropped`` is every question written and not returned - ungrounded, of a
+    kind that cannot be marked, failed verification, or written past the point
+    this call will spend model time on. A count that only covered some of those
+    would let the page claim nothing was left out on the paths where plenty was.
     """
-    candidates = _grounded_questions(
+    candidates, ungrounded = _grounded_questions(
         complete(_question_prompt(topic_title=topic_title, spans=spans)), spans=spans
     )
     by_index = {span.index: span for span in spans}
     verified: list[QuestionProposal] = []
-    dropped = 0
+    dropped = ungrounded
     for candidate in candidates:
+        if len(verified) >= VERIFY_LIMIT:
+            dropped += 1
+            continue
         span = by_index[candidate.span_index]
         if not _answer_is_supported(span, candidate):
             logger.info(
@@ -363,7 +380,7 @@ def _question_prompt(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> str:
             "topic": topic_title,
             "spans": [
                 {"span": span.index, "text": span.text[:_SPAN_TEXT_LIMIT]}
-                for span in spans
+                for span in spans[:SPAN_LIMIT]
             ],
         }
     )
@@ -410,7 +427,9 @@ def _supported(reply: str) -> bool:
     return isinstance(parsed, dict) and parsed.get("supported") is True
 
 
-def _grounded_questions(reply: str, *, spans: Sequence[SpanExcerpt]) -> list[QuestionProposal]:
+def _grounded_questions(
+    reply: str, *, spans: Sequence[SpanExcerpt]
+) -> tuple[list[QuestionProposal], int]:
     """The questions a reply claims, kept only where they could be graded.
 
     The same contract as ``_grounded_topics`` applied to questions: a question
@@ -420,26 +439,33 @@ def _grounded_questions(reply: str, *, spans: Sequence[SpanExcerpt]) -> list[Que
     a short answer the paragraph does not contain is dropped for the same
     reason - a grader comparing an answer against a phrase the material never
     used is not checking the student against their slides.
+
+    Returns the questions and how many were refused, because a refusal the page
+    cannot report is a question the student is not being told about.
     """
     supplied = {span.index: span for span in spans}
     proposals: list[QuestionProposal] = []
+    dropped = 0
     for claim in _claimed_questions(reply):
         index = _span_index(claim.get("span"))
         prompt = _text(claim.get("prompt"))
         if index is None or index not in supplied or not prompt:
             logger.info("dropped an ungrounded question claim: %r on span %r", prompt, index)
+            dropped += 1
             continue
         proposal = _graded_question(claim, prompt, index=index)
         if proposal is None:
+            dropped += 1
             continue
         span = supplied[index]
         if proposal.kind == SHORT_ANSWER and not all(
             normalise(answer) in normalise(span.text) for answer in proposal.answers
         ):
             logger.info("dropped a question whose answer is not in its span: %r", prompt)
+            dropped += 1
             continue
         proposals.append(proposal)
-    return proposals
+    return proposals, dropped
 
 
 def _graded_question(
@@ -455,9 +481,12 @@ def _graded_question(
     if kind == MULTIPLE_CHOICE:
         choices = _distinct_texts(claim.get("choices"))
         answer = _text(claim.get("answer"))
-        if len(choices) < 2 or not any(
-            normalise(choice) == normalise(answer) for choice in choices
-        ):
+        right = [choice for choice in choices if normalise(choice) == normalise(answer)]
+        if len(choices) < 2 or not right or not normalise(right[0]):
+            # An option that reduces to nothing - a row of dots, a stray
+            # character - cannot be told apart from any other once normalised,
+            # so a question built on it is one no student can ever be right
+            # about.
             logger.info("dropped a multiple choice question with no answer in it: %r", prompt)
             return None
         return QuestionProposal(

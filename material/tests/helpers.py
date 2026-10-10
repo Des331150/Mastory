@@ -239,6 +239,15 @@ class QuizModel:
                 return spans
         raise AssertionError("the model was never asked for questions")
 
+    @property
+    def written_for_paragraphs(self) -> int:
+        """How many questions this fake actually wrote, spans and all."""
+        return sum(
+            len(self._write(json.loads(prompt)))
+            for prompt in self.prompts
+            if "questions" in json.loads(prompt)["instruction"]
+        )
+
     def use(self, test_case: TestCase) -> None:
         patcher = mock.patch.object(model, "complete", new=self)
         patcher.start()

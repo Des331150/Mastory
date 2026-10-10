@@ -14,8 +14,8 @@ import re
 
 from django.test import TestCase
 
-from material import progress
-from material.models import Topic
+from material import model, progress
+from material.models import Span, Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
@@ -51,6 +51,18 @@ FROM_OUTSIDE_THE_MATERIAL = fake_question(
 def flat(text: str) -> str:
     """The page with its line wrapping squeezed out."""
     return " ".join(text.split())
+
+
+def content_words(text: str) -> set[str]:
+    """The words of a paragraph a student could read, short ones dropped.
+
+    Markup is dropped first, because a stored span is plain text of a block that
+    the page renders as HTML and the two can legitimately differ on it - the
+    OCR markers around a picture, for one. Short words drop out because they are
+    the ones that make one paragraph look like another.
+    """
+    visible = re.sub(r"<.*", "", text, flags=re.S)
+    return {word for word in model.normalise(visible).split() if len(word) > 2}
 
 
 class QuizTestCase(TestCase):
@@ -116,12 +128,19 @@ class QuizTestCase(TestCase):
     def submit(self, html: str, answers: dict[str, str]) -> str:
         """Mark a sitting the way the form does: one field per question.
 
-        The url is read off the page rather than built, so the sitting is marked
-        on the topic the student was actually sitting.
+        The url and the quiz the form was drawn from are read off the page
+        rather than built, so the sitting is marked on the topic the student was
+        actually sitting, as a browser would send it.
         """
         action = re.search(r'action="([^"]+)"', flat(html))
         assert action is not None, "the quiz page offers no form to mark"
-        payload = {"nonsense": "", **{f"q-{key}": value for key, value in answers.items()}}
+        which = re.search(r'name="quiz" value="(\d+)"', html)
+        assert which is not None, "the form does not say which quiz it is for"
+        payload = {
+            "nonsense": "",
+            "quiz": which.group(1),
+            **{f"q-{key}": value for key, value in answers.items()},
+        }
         response = self.client.post(action.group(1), payload, follow=True)
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
@@ -161,19 +180,27 @@ class GroundingTests(QuizTestCase):
 
         dropped = self.rewrite(QuizModel(FROM_THE_MATERIAL, verified=(200,)))
         self.assertEqual(len(self.blocks(dropped)), 0)
-        self.assertIn(
-            "could not be checked against the paragraph it came from",
-            flat(dropped),
-        )
-        dropped_count = re.search(r"(\d+) question\w* could not be checked", flat(dropped))
+        self.assertIn("written and not shown", flat(dropped))
+        dropped_count = re.search(r"(\d+) question\w* more", flat(dropped))
         assert dropped_count is not None
         self.assertGreater(int(dropped_count.group(1)), 0)
 
     def test_the_page_says_the_quiz_is_not_padded_to_a_size(self) -> None:
         self.quiz(QuizModel(FROM_THE_MATERIAL))
         html = self.rewrite(QuizModel(FROM_THE_MATERIAL, verified=(200,)))
-        self.assertIn("they were left out rather than shown to you", flat(html))
+        self.assertIn("Nothing has been made up to fill the gap", flat(html))
         self.assertIn("No questions to sit", flat(html))
+
+    def test_a_question_written_past_the_limit_is_counted_as_left_out(self) -> None:
+        """A topic whose paragraphs support more verified questions than a short
+        quiz holds gets four, and the page says the rest were written and not
+        shown rather than claiming nothing was left out."""
+        model = QuizModel(FROM_THE_MATERIAL)
+        html = self.quiz(model)
+        self.assertEqual(len(self.blocks(html)), 4)
+        written = model.written_for_paragraphs
+        self.assertGreater(written, 4)
+        self.assertIn(f"{written - 4} questions more were written and not shown", flat(html))
 
     def test_a_short_answer_the_paragraph_never_uses_is_dropped(self) -> None:
         """A model answering from outside the student's slides is refused before
@@ -271,6 +298,42 @@ class GradingTests(QuizTestCase):
         self.assertEqual(taken[0].score, 1.0)
         self.assertEqual(taken[0].passes, 4)
 
+    def test_the_result_meter_shows_the_score_as_a_percentage(self) -> None:
+        html = self.quiz(QuizModel(FROM_THE_MATERIAL))
+        marked = self.submit(html, self.right(html))
+        width = re.search(r'class="meter-fill" style="width: (\d+)%"', marked)
+        assert width is not None, "no meter on the result page"
+        self.assertEqual(width.group(1), "100")
+
+    def test_a_denied_answer_is_not_the_answer(self) -> None:
+        """Marking a student right for writing the opposite of what the
+        paragraph says is the one way short answers turn grading into an
+        argument."""
+        model = QuizModel(
+            fake_question(
+                1, "What is the eigenspace of an eigenvalue?",
+                kind="short_answer", answers=["null space"],
+            )
+        )
+        html = self.quiz(model, title="Eigenspaces")
+        question = self.question_ids(html)[0]
+        marked = self.submit(html, {question: "it is not the null space"})
+        block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
+        self.assertIn("Not this one", flat(block))
+
+    def test_a_word_inside_another_word_is_not_the_answer(self) -> None:
+        model = QuizModel(
+            fake_question(
+                1, "What is the eigenspace of an eigenvalue?",
+                kind="short_answer", answers=["null space"],
+            )
+        )
+        html = self.quiz(model, title="Eigenspaces")
+        question = self.question_ids(html)[0]
+        marked = self.submit(html, {question: "null spaces"})
+        block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
+        self.assertIn("Not this one", flat(block))
+
 
 class CitationJumpTests(QuizTestCase):
     def test_a_wrong_answer_sends_the_student_to_the_paragraph_it_came_from(self) -> None:
@@ -291,6 +354,43 @@ class CitationJumpTests(QuizTestCase):
         self.assertIn("read that paragraph again", flat(block))
         self.assertIn("math-201-eigenvalues.pdf", block)
 
+    def test_the_paragraph_the_page_names_is_the_one_the_anchor_points_at(self) -> None:
+        """The two halves of a citation have to agree: a student who reads
+        "paragraph 3" and lands on paragraph 2 has been sent to check the wrong
+        thing, which is worse than a citation that pointed nowhere."""
+        html = self.quiz(QuizModel(FROM_THE_MATERIAL))
+        for block in self.blocks(html):
+            cited = re.search(r'page (\d+), paragraph (\d+)', block)
+            anchor = re.search(r'href="/courses/1/read/#\d+-p(\d+)-s(\d+)"', block)
+            assert cited and anchor, f"a question cites nothing: {block}"
+            with self.subTest(cited=cited.groups()):
+                self.assertEqual(
+                    cited.group(1), anchor.group(1), "the citation and the anchor name different slides"
+                )
+                self.assertEqual(
+                    int(cited.group(2)), int(anchor.group(2)) + 1,
+                    "the citation and the anchor name different paragraphs",
+                )
+
+    def test_the_span_a_question_cites_is_the_paragraph_the_reader_lands_on(self) -> None:
+        """The stored span and the rendered anchor are one numbering. If they
+        ever drift, every citation in the product silently moves."""
+        html = self.quiz(QuizModel(FROM_THE_MATERIAL))
+        reading = self.client.get("/courses/1/read/").content.decode()
+        spans = {span.anchor: span.text for span in Span.objects.all()}
+        self.assertTrue(spans)
+        for anchor, text in spans.items():
+            with self.subTest(anchor=anchor):
+                block = re.search(
+                    rf'<div class="span" id="{re.escape(anchor)}">(.*?)</div>', reading, re.S
+                )
+                assert block is not None, f"{anchor} has no paragraph on the reading page"
+                shown = re.sub(r"<[^>]+>", "", block.group(1))
+                self.assertTrue(
+                    content_words(text) <= content_words(shown),
+                    f"{anchor} shows a different paragraph than the span stored under it",
+                )
+
 
 class TakingItAgainTests(QuizTestCase):
     def test_writing_it_again_replaces_the_questions(self) -> None:
@@ -308,6 +408,32 @@ class TakingItAgainTests(QuizTestCase):
         because the answers they marked were marked against those questions."""
         html = self.quiz(QuizModel(FROM_THE_MATERIAL))
         self.assertEqual(self.question_ids(html), self.question_ids(self.page()))
+
+    def test_answers_given_to_questions_that_no_longer_exist_are_not_marked(self) -> None:
+        """A student who asked for different questions in another tab, then
+        submitted the page they were reading, has answered questions that are
+        gone. Marking those against the new quiz would read every answer as
+        blank and record a zero they did not earn."""
+        html = self.quiz(QuizModel(FROM_THE_MATERIAL))
+        self.rewrite(QuizModel(fake_question(1, "What is the spectrum of A?",
+                                             answer="the set of its eigenvalues")))
+        action = re.search(r'action="([^"]+)"', flat(html))
+        assert action is not None
+        which = re.search(r'name="quiz" value="(\d+)"', html)
+        assert which is not None
+        response = self.client.post(
+            action.group(1),
+            {
+                "nonsense": "",
+                "quiz": which.group(1),
+                **{f"q-{q}": "an answer" for q in self.question_ids(html)},
+            },
+            follow=True,
+        )
+        page = flat(response.content.decode())
+        self.assertIn("replaced by a newer one", page)
+        self.assertNotIn("You got", page)
+        self.assertEqual(progress.attempts(Topic.objects.get(title="Eigenvalues")), [])
 
 
 class NothingToAskTests(QuizTestCase):

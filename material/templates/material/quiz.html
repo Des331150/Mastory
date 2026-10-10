@@ -23,9 +23,10 @@
       </p>
       {% if quiz.dropped %}
         <p class="dropped-note">
-          {{ quiz.dropped }} question{{ quiz.dropped|pluralize }} could not be
-          checked against the paragraph it came from, so {{ quiz.dropped|pluralize:"it was,they were" }}
-          left out rather than shown to you. A short quiz is the honest one.
+          {{ quiz.dropped }} question{{ quiz.dropped|pluralize }} more
+          {{ quiz.dropped|pluralize:"was,were" }} written and not shown: either
+          the paragraph it came from did not check out, or there were more than
+          a short quiz holds. Nothing has been made up to fill the gap.
         </p>
       {% endif %}
       {% if quiz.low_confidence %}
@@ -48,6 +49,7 @@
   {% elif not result %}
     <form method="post" action="{% url 'topic-quiz-submit' course.pk topic.pk %}" class="quiz-form">
       {% csrf_token %}
+      <input type="hidden" name="quiz" value="{{ quiz.pk }}" />
       <ol class="questions">
         {% for question in questions %}
           <li class="question" id="question-{{ question.pk }}">
@@ -88,7 +90,7 @@
     <section class="panel quiz-result">
       <h2>You got {{ result.correct }} of {{ result.total }} right</h2>
       <div class="meter">
-        <span class="meter-fill" style="width: {{ result.score|floatformat:0 }}%"></span>
+        <span class="meter-fill" style="width: {{ result.percent }}%"></span>
       </div>
       {% if quiz.low_confidence %}
         <p class="low-confidence">{{ quiz.note }}</p>

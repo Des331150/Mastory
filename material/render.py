@@ -40,7 +40,7 @@ def plain_text(markdown: str) -> str:
 
 
 def blocks(markdown: str) -> list[str]:
-    """A slide's paragraphs, in order, with the ones holding nothing dropped.
+    """A slide's paragraphs, in order, with the ones holding no text dropped.
 
     One definition of what a paragraph is, shared with extraction: a span is
     stored at ingest time by this split and cited at quiz time by the ordinal it
@@ -48,15 +48,23 @@ def blocks(markdown: str) -> list[str]:
     point at the wrong paragraph and nothing would say so. ``Span`` rows are
     numbered over exactly this list.
 
-    A block holding nothing is dropped, unless it holds a picture. A page whose
-    only content is a diagram has a paragraph the student reads and a question
-    could cite, and dropping it here would also drop the image off the page.
+    The rule is the one extraction has always used and it cannot change without
+    renumbering every stored span: a block with no words in it is not a span,
+    whatever it holds. A picture with no words is rendered by
+    ``render_spaned_markdown`` as a block of its own, which keeps it on the page
+    without making it a thing a question can be cited to.
     """
-    return [
-        block
-        for block in markdown.split("\n\n")
-        if plain_text(block) or _MD_IMAGE.search(block)
-    ]
+    return [block for block in markdown.split("\n\n") if plain_text(block)]
+
+
+def all_blocks(markdown: str) -> list[str]:
+    """Every block of a slide, including the ones holding no words.
+
+    What the page renders, which is more than what a question can cite: a
+    diagram on a page of its own is something the student reads and something
+    this has to keep showing them.
+    """
+    return markdown.split("\n\n")
 
 
 def render_slide_markdown(
@@ -78,12 +86,23 @@ def render_spaned_markdown(
     The citation target a wrong answer jumps to. Rendering the whole slide as
     one block would leave a link that lands at the top of the page, which is the
     hunting the citation is meant to end.
+
+    Only the blocks that are spans carry an id, and they carry it at the ordinal
+    the ``Span`` row was stored with, so a citation built from that row lands
+    here. Anything else - a bare diagram - is rendered without one.
     """
-    return "\n".join(
-        f'<div class="span" id="{slide.span_anchor(ordinal)}">'
-        f"{render_slide_markdown(block, image_url=image_url)}</div>"
-        for ordinal, block in enumerate(blocks(slide.markdown))
-    )
+    parts: list[str] = []
+    ordinal = -1
+    for block in all_blocks(slide.markdown):
+        html = render_slide_markdown(block, image_url=image_url)
+        if not plain_text(block):
+            parts.append(f'<div class="block">{html}</div>')
+            continue
+        ordinal += 1
+        parts.append(
+            f'<div class="span" id="{slide.span_anchor(ordinal)}">{html}</div>'
+        )
+    return "\n".join(parts)
 
 
 def mark_term(html: str, term: str) -> str:

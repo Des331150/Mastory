@@ -20,7 +20,8 @@ Three decisions earn their place here.
   not a number, but the paragraph to re-read.
 """
 
-from collections.abc import Mapping
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -81,6 +82,16 @@ class Result:
         return len(self.answers)
 
     @property
+    def percent(self) -> int:
+        """The share right, as the whole number the meter is drawn with.
+
+        A property rather than a format filter: a fraction of one rendered as a
+        percentage is a bar one percent wide for a perfect score, and nothing in
+        a test that only reads the heading would notice.
+        """
+        return round(self.score * 100)
+
+    @property
     def score(self) -> float:
         """The share right, as a fraction of the questions actually asked.
 
@@ -117,6 +128,18 @@ def latest(topic: Topic) -> Quiz | None:
     return owned(topic.quizzes.all()).first()
 
 
+def find(topic: Topic, pk: int) -> Quiz | None:
+    """One of this topic's own quizzes, or nothing if that is not one of them.
+
+    A form is marked against the quiz it was drawn from rather than against
+    whichever quiz happens to be newest. A student who opens a second tab and
+    asks for different questions, then submits the page they were reading, has
+    answered questions that no longer exist; grading that form against the new
+    quiz would read every answer as blank and record a zero they did not earn.
+    """
+    return owned(topic.quizzes.all()).filter(pk=pk).first()
+
+
 def build(topic: Topic) -> Quiz:
     """A fresh quiz for this topic, written from its own paragraphs.
 
@@ -145,7 +168,11 @@ def build(topic: Topic) -> Quiz:
         quiz = Quiz.objects.create(
             user_id=current_user_id(),
             topic=topic,
-            dropped=written.dropped,
+            # Everything written and not asked counts as left out, including the
+            # questions that verified and were dropped only because a short quiz
+            # holds four. A count that covered some of the ways a question goes
+            # missing would let the page claim nothing was.
+            dropped=written.dropped + len(written.questions) - len(kept),
             low_confidence=len(kept) < SHORT_QUIZ_UNDER,
         )
         Question.objects.bulk_create(
@@ -167,8 +194,13 @@ def build(topic: Topic) -> Quiz:
 
 
 def questions(quiz: Quiz) -> list[Question]:
-    """The quiz's questions, in the order they are asked."""
-    return list(owned(quiz.questions.all()))
+    """The quiz's questions, in the order they are asked.
+
+    Read with the paragraph and the slide behind each one, because a marked
+    sitting shows the citation on every question and would otherwise be a query
+    per line.
+    """
+    return list(owned(quiz.questions.all()).select_related("span__slide__source_file"))
 
 
 def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
@@ -201,24 +233,46 @@ def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
 
 
 def _answer(question: Question, given: str) -> Answered:
-    """One student's answer, marked, and whether the span supports it."""
+    """One student's answer, marked, and whether the span supports it.
+
+    A short answer counts as right when it says the accepted words on their own
+    - whole words, in any order around them - rather than merely containing
+    them somewhere. Containment alone would mark "it is not selective" right on a
+    question whose answer is "selective", and would mark "grate" as an answer of
+    "rate": a grader that can be argued into a mark is not a check on anything.
+    A student who also denies the answer is not credited with it either.
+    """
     said = model.normalise(given)
     if question.kind == Question.Kind.MULTIPLE_CHOICE:
         correct = bool(said) and said in {
             model.normalise(choice) for choice in question.answers
         }
     else:
-        correct = bool(said) and any(
-            said == model.normalise(answer)
-            or (len(model.normalise(answer)) > 3 and model.normalise(answer) in said)
-            for answer in question.answers
-        )
+        correct = _short_answer_is_right(said, question.answers)
     return Answered(
         question=question,
         given=given.strip(),
         correct=correct,
         supported=correct and _span_supports(question, given),
     )
+
+
+#: Ways a student can say no. A denial is a denial of whatever else the answer
+#: contains, so an answer carrying one cannot be marking the accepted words.
+_DENIAL = frozenset({"not", "no", "never", "none", "neither", "nor", "isnt", "dont", "doesnt"})
+
+
+def _short_answer_is_right(said: str, answers: Sequence[str]) -> bool:
+    """Whether the student wrote one of these answers, word for word or around it."""
+    if not said or _DENIAL.intersection(said.split()):
+        return False
+    for accepted in answers:
+        wanted = model.normalise(accepted)
+        if not wanted:
+            continue
+        if said == wanted or re.search(rf"\b{re.escape(wanted)}\b", said):
+            return True
+    return False
 
 
 def _span_supports(question: Question, given: str) -> bool:

@@ -422,14 +422,18 @@ def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> Ht
     """
     topic = _topic(course_id, topic_id)
     course = topic.course
-    current = quiz_service.latest(topic)
+    current = quiz_service.find(topic, _int_or_none(request.POST.get("quiz")))
     if current is None:
         return _quiz_page(
             request,
             course,
             topic,
-            None,
-            error="This topic has no quiz to mark yet. Write one first.",
+            quiz_service.latest(topic),
+            error=(
+                "This page of questions has been replaced by a newer one, so "
+                "there is nothing here to mark. The quiz below is the current "
+                "one; take it again to record a sitting."
+            ),
         )
     given = {
         # The form names every field ``q-<question>`` so one form can carry a
