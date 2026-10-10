@@ -12,6 +12,11 @@ urlpatterns = [
         name="course-read",
     ),
     path(
+        "courses/<int:course_id>/read/paragraphs/<int:span_id>/open/",
+        views.section_open,
+        name="section-open",
+    ),
+    path(
         "courses/<int:course_id>/topics/",
         views.topic_path,
         name="topic-path",

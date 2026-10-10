@@ -6,6 +6,7 @@ Every query is scoped by the hardcoded user's ``user_id``.
 
 import mimetypes
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -15,8 +16,15 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from material import model, planning, progress, quiz as quiz_service, topics as topic_service
-from material.models import Course, Plan, Quiz, Session, Slide, SourceFile, Topic
+from material import (
+    model,
+    planning,
+    progress,
+    quiz as quiz_service,
+    reading,
+    topics as topic_service,
+)
+from material.models import Course, Plan, Quiz, Session, Slide, SourceFile, Span, Topic
 from material.render import Section, build_sections
 from material.services import (
     StageOutcome,
@@ -69,11 +77,23 @@ def _session(course_id: int, session_id: int) -> Session:
     return session
 
 
+def _course_spans(course: Course) -> QuerySet[Any]:
+    """Every paragraph of every slide in one course.
+
+    Resolved through the file rather than by primary key alone, so that an id
+    from another course cannot be recorded as an opening against this one.
+    """
+    return owned(Span.objects.filter(slide__source_file__course=course))
+
+
 def _documents(course: Course, query: str) -> list[Document]:
     documents = []
     for source_file in owned(course.files.all()):
         sections = build_sections(
-            owned(source_file.slides.all()), query=query, image_url=_image_url
+            owned(source_file.slides.all()).prefetch_related("spans"),
+            query=query,
+            image_url=_image_url,
+            open_url=partial(_open_url, course.pk),
         )
         documents.append(
             Document(
@@ -87,6 +107,20 @@ def _documents(course: Course, query: str) -> list[Document]:
 
 def _image_url(slide: Slide, name: str) -> str:
     return reverse("slide-image", args=[slide.pk, name])
+
+
+def _open_url(course_id: int, slide: Slide, ordinal: int) -> str:
+    """Where the reading surface reports that a paragraph has been opened.
+
+    One url per paragraph rather than one per page, because what the retry rule
+    asks about is the paragraph the student was sent to and no other. A
+    paragraph with no stored row gets no url: there is nothing to record, and
+    reporting an opening against a paragraph that does not exist would be a
+    record of nothing.
+    """
+    spans = {span.ordinal: span.pk for span in slide.spans.all()}
+    pk = spans.get(ordinal)
+    return reverse("section-open", args=[course_id, pk]) if pk else ""
 
 
 def _default_title(original_name: str) -> str:
@@ -156,7 +190,21 @@ def course_detail(request: HttpRequest, course_id: int) -> HttpResponse:
 
 @require_GET
 def read_course(request: HttpRequest, course_id: int) -> HttpResponse:
+    """The material itself, and the record that the student got to a paragraph.
+
+    Arriving at a cited paragraph by its link records the opening here rather
+    than only in the page's own event, so that a student reading without
+    JavaScript is not left with a quiz they have answered wrongly and can never
+    retake. The record is one row either way; only the door it comes through
+    differs.
+    """
     course = _course(course_id)
+    paragraph = request.GET.get("paragraph", "").strip()
+    if paragraph:
+        span: Span = _owned_or_404(
+            _course_spans(course), pk=_int_or_none(paragraph), what="paragraph"
+        )
+        reading.record_open(current_user_id(), span)
     query = _query_from(request)
     documents = _documents(course, query)
     sections = [section for d in documents for section in d.sections]
@@ -175,6 +223,22 @@ def read_course(request: HttpRequest, course_id: int) -> HttpResponse:
             ],
         },
     )
+
+
+@require_POST
+def section_open(request: HttpRequest, course_id: int, span_id: int) -> HttpResponse:
+    """One paragraph has been opened, said by the reading surface as it appears.
+
+    The event the retry rule is waiting on, arriving from the page itself rather
+    than from a button a student has to find. Empty response and no swap: opening
+    a paragraph is not a thing the page needs to say anything about.
+    """
+    course = _course(course_id)
+    span: Span = _owned_or_404(
+        _course_spans(course), pk=span_id, what="paragraph"
+    )
+    reading.record_open(current_user_id(), span)
+    return HttpResponse(status=204)
 
 
 @require_GET
@@ -396,9 +460,18 @@ def topic_quiz(request: HttpRequest, course_id: int, topic_id: int) -> HttpRespo
 
 @require_POST
 def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
-    """Write the quiz again, so the questions are not the ones just memorised."""
+    """Write the quiz again, so the questions are not the ones just memorised.
+
+    Held, not refused, when the student has failed twice and has not been back
+    to the paragraphs: the sitting they have already got is left alone and the
+    page says what would open it. The check runs before anything is generated,
+    so a blocked retake costs no model call and destroys no quiz.
+    """
     topic = _topic(course_id, topic_id)
     course = topic.course
+    reread = quiz_service.reread(topic)
+    if reread.required:
+        return _quiz_page(request, course, topic, quiz_service.latest(topic))
     try:
         written = quiz_service.build(topic)
     except (topic_service.Rejected, model.ModelUnavailable) as exc:
@@ -419,9 +492,16 @@ def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> Ht
     The result page is the only place grading is shown, and it shows the
     paragraph as well as the mark: the citation is not decoration on the
     question, it is what makes a wrong answer actionable.
+
+    Held under the same rule as asking for different questions. Submitting the
+    same quiz again is an attempt like any other, and a student who could only
+    be stopped from pressing "write different questions" would sit the same four
+    questions until one of them stuck, which is the thing the rule is for.
     """
     topic = _topic(course_id, topic_id)
     course = topic.course
+    if quiz_service.reread(topic).required:
+        return _quiz_page(request, course, topic, quiz_service.latest(topic))
     current = quiz_service.find(topic, _int_or_none(request.POST.get("quiz")))
     if current is None:
         return _quiz_page(
@@ -463,6 +543,10 @@ def _quiz_page(
     One template for both states because the student reads them as the same
     thing: a question is answered or not, and the citation beside it is the same
     citation either way.
+
+    What the next attempt is waiting for is read here rather than passed in, so
+    that every state of this page - arriving, sitting, marked, held - says the
+    same thing about it and no caller can render a state that forgets.
     """
     return render(
         request,
@@ -474,6 +558,7 @@ def _quiz_page(
             "questions": quiz_service.questions(current) if current else [],
             "limit": quiz_service.QUESTION_LIMIT,
             "result": result,
+            "reread": quiz_service.reread(topic),
             "error": error,
         },
     )

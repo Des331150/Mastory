@@ -312,7 +312,10 @@ class ExtractedOnceTests(IngestTestCase):
         def material(course_pk: int) -> str:
             html = self.read(course_pk)
             rendered = "".join(html.split("<section ")[1:])
-            return re.sub(r'(id|src)="[^"]*"', r'\1="X"', rendered)
+            # Anchors, images and the paragraph's own open event are all
+            # addressed by their row, so they differ between two courses holding
+            # the same bytes. The material is what has to match.
+            return re.sub(r'(id|src|hx-post)="[^"]*"', r'\1="X"', rendered)
 
         self.assertEqual(material(1), material(2))
 

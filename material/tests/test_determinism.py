@@ -13,15 +13,16 @@ class DeterminismTests(TestCase):
         use_temporary_media_root(self)
 
     def sections_of(self, course_pk: int) -> str:
-        """The rendered material, with per-file anchors and image URLs normalised.
+        """The rendered material, with per-row addresses normalised.
 
         Anchors are built from the file's own row, so two courses holding the
-        same bytes anchor their sections differently by design; what has to
+        same bytes anchor their sections differently by design; the paragraph's
+        own open event is addressed by its row for the same reason. What has to
         match is the material itself.
         """
         html = self.client.get(f"/courses/{course_pk}/read/").content.decode()
         rendered = "".join(html.split("<section ")[1:])
-        return re.sub(r'(id|src)="[^"]*"', r'\1="X"', rendered)
+        return re.sub(r'(id|src|hx-post)="[^"]*"', r'\1="X"', rendered)
 
     def test_two_courses_uploaded_from_one_pdf_read_identically(self) -> None:
         self.client.post("/courses/new/", {"title": "First", "files": pdf_upload()})

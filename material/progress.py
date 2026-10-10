@@ -29,13 +29,16 @@ Attempts are recorded from the first quiz onwards, because none of it can be
 backfilled. The recorder is reached over HTTP by the quiz that marks a sitting,
 which calls it once the answers are in; nothing here folds an attempt into a
 running total, because mastery is computed from the shape of these rows later.
+Each row carries the paragraphs its wrong answers came from, which is the one
+thing about an attempt that cannot be worked out later: a quiz written again
+leaves nothing behind to work it out from.
 """
 
 from dataclasses import dataclass
 from datetime import date
 from typing import Sequence
 
-from material.models import Attempt, Session, Topic
+from material.models import Attempt, Session, Span, Topic
 from material.topics import Rejected
 from material.users import owned
 
@@ -141,7 +144,9 @@ def mark(session: Session, state: str, *, on: date) -> Session:
     return session
 
 
-def record_attempt(topic: Topic, *, score: float, passes: int) -> Attempt:
+def record_attempt(
+    topic: Topic, *, score: float, passes: int, missed: Sequence[Span] = ()
+) -> Attempt:
     """One sitting of a topic's quiz, kept as it happened.
 
     A score outside zero to one is refused rather than stored, because a
@@ -149,14 +154,21 @@ def record_attempt(topic: Topic, *, score: float, passes: int) -> Attempt:
     wrong number and every later reading of the table would inherit it. Nothing
     about an attempt is folded into a running total here; mastery will weigh
     these rows later, and it needs them unmixed.
+
+    ``missed`` is the paragraphs the wrong answers in this sitting came from, and
+    is part of what the sitting is rather than a note attached to it afterwards:
+    it is what the retry rule asks about when it decides whether the next
+    attempt waits for the student to go back to their material.
     """
     if not 0.0 <= score <= 1.0:
         raise Rejected("A score is a fraction of the quiz, between nothing and all of it.")
     if passes < 0:
         raise Rejected("A quiz cannot have been verified a negative number of times.")
-    return Attempt.objects.create(
+    attempt = Attempt.objects.create(
         user_id=topic.user_id, topic=topic, score=score, passes=passes
     )
+    attempt.missed.add(*missed, through_defaults={"user_id": topic.user_id})
+    return attempt
 
 
 def attempts(topic: Topic) -> list[Attempt]:

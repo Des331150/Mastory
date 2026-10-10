@@ -18,6 +18,13 @@ Three decisions earn their place here.
   against those stored answers. A student is sent to the exact paragraph their
   answer came from when they get it wrong, which is the point of the citation:
   not a number, but the paragraph to re-read.
+
+Taking it again is free, which is what makes the one rule here mean anything. A
+student may sit a topic quiz as many times as they like: nothing is spent, no
+attempt is charged for, and the only thing a retake changes is what they are
+asked. After two failed sittings the third attempt waits until they have been
+back to the paragraphs their wrong answers came from, and it says so rather
+than refusing silently.
 """
 
 import re
@@ -26,8 +33,8 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from material import model, progress
-from material.models import Question, Quiz, Span, Topic
+from material import model, progress, reading
+from material.models import PASS_MARK, Question, Quiz, Span, Topic
 from material.topics import Rejected
 from material.users import current_user_id, owned
 
@@ -40,6 +47,49 @@ QUESTION_LIMIT = 4
 #: question measures almost nothing, and a score shown without that caveat
 #: invites a conclusion the material cannot support.
 SHORT_QUIZ_UNDER = 3
+
+#: How many failed sittings it takes before the student has to go back to the
+#: material before another attempt. Two, because the first wrong sitting is
+#: information and the second is a habit; blocking on the first would refuse a
+#: retry to a student who has only just opened the quiz page.
+FAILED_ATTEMPTS_BEFORE_REREAD = 2
+
+
+@dataclass(frozen=True)
+class Reread:
+    """What a student still has to open before another attempt is allowed.
+
+    Read rather than returned as a boolean, because the refusal has to name the
+    paragraphs or it is not a refusal a student can act on - and because the
+    page that shows the block and the rule that raises it must be counting the
+    same failures off the same rows.
+    """
+
+    failures: int
+    owed: tuple[Span, ...] = ()
+
+    @property
+    def required(self) -> bool:
+        """Whether another attempt is being held, as opposed to merely counted."""
+        return bool(self.owed)
+
+    @property
+    def reason(self) -> str:
+        """What the student is told, in one sentence they can act on.
+
+        Names what unlocks them and says there is no limit afterwards, because a
+        block with no way out of it reads as a punishment and one with a limit
+        reads as a quota.
+        """
+        paragraphs = "this paragraph" if len(self.owed) == 1 else "these paragraphs"
+        return (
+            f"You have sat this quiz {self.failures} times without getting past "
+            f"{PASS_MARK:.0%}, so the next attempt waits until you have opened "
+            f"{paragraphs} your wrong answers came from. Open "
+            f"{'it' if len(self.owed) == 1 else 'them'} and you can sit the quiz "
+            f"again straight away, as many times as you like: nothing is spent "
+            f"on a retake."
+        )
 
 
 @dataclass(frozen=True)
@@ -140,6 +190,27 @@ def find(topic: Topic, pk: int) -> Quiz | None:
     return owned(topic.quizzes.all()).filter(pk=pk).first()
 
 
+def reread(topic: Topic) -> Reread:
+    """What this topic's next attempt is waiting for, if anything.
+
+    Free until the student has failed twice. After that it names the paragraphs
+    the wrong answers in their last failing sitting came from, less the ones
+    they have since opened. A paragraph opened before the second failure still
+    counts, because they had been to it and nothing about failing again makes
+    that untrue.
+
+    The latest failing sitting is the one that counts rather than every wrong
+    answer the topic has ever collected. A student whose last sitting went well
+    has already been shown the rest of what they got wrong, and sending them
+    back through the whole history is work with nothing at the end of it.
+    """
+    failures = [attempt for attempt in progress.attempts(topic) if attempt.failed]
+    if len(failures) < FAILED_ATTEMPTS_BEFORE_REREAD:
+        return Reread(failures=len(failures))
+    owed = reading.unopened(current_user_id(), owned(failures[-1].missed.all()))
+    return Reread(failures=len(failures), owed=owed)
+
+
 def build(topic: Topic) -> Quiz:
     """A fresh quiz for this topic, written from its own paragraphs.
 
@@ -228,7 +299,17 @@ def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
         correct=sum(1 for answer in marked if answer.correct),
         passes=sum(1 for answer in marked if answer.correct and answer.supported),
     )
-    progress.record_attempt(quiz.topic, score=result.score, passes=result.passes)
+    progress.record_attempt(
+        quiz.topic,
+        score=result.score,
+        passes=result.passes,
+        # The paragraphs this sitting sent the student back to, kept with the
+        # sitting itself: they are what the retry rule reads when it decides
+        # whether to hold the next attempt, and a rule that had to guess them
+        # from the quiz would be guessing from a quiz that may since have been
+        # written again.
+        missed=[answer.question.span for answer in result.wrong],
+    )
     return result
 
 

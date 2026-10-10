@@ -43,7 +43,8 @@ material/
   topics.py    inferring the topic path, and every edit the student makes to it
   planning.py  the week of sessions: weighting, the weekly budget, and the two modes
   progress.py  what the student has done: the share of their plan, the log, and quiz attempts
-  quiz.py      a topic's quiz: written from spans, cited to them, and marked against them
+  quiz.py      a topic's quiz: written from spans, cited to them, marked against them, and retaken
+  reading.py   whether the student has opened a cited paragraph
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
   views.py     the student-facing HTTP surface
@@ -204,7 +205,10 @@ first quiz onwards because none of it can be backfilled — mastery will be weig
 out of these rows later, and a table invented after the fact starts empty and
 stays wrong. `progress.record_attempt()` refuses a score outside zero to one
 rather than storing it, so nothing downstream inherits a mark counted out of the
-wrong number. `material/quiz.py` calls it once a sitting has been marked, and
+wrong number. Each row also keeps the paragraphs its wrong answers came from,
+as `AttemptMissed` rows rather than ids in a column: they are what the retry
+rule asks about, and a quiz written again leaves nothing behind to work them out
+from. `material/quiz.py` calls it once a sitting has been marked, and
 `/courses/<id>/topics/<id>/quiz/` is where a student reaches it.
 
 ## Quizzes
@@ -223,6 +227,38 @@ cited paragraph. That is what makes grading unable to contradict its source: the
 same normalisation checks an answer against the span and marks it against the
 student. A wrong answer sends the student to the exact paragraph, via an anchor
 the reading page renders per paragraph rather than per slide.
+
+### Taking it again
+
+Retaking a topic quiz is unlimited and free. Nothing is spent on a sitting and
+no attempt is taken away, so getting one wrong ends nothing: the next press
+writes the quiz again, from the same paragraphs, and the questions are new.
+
+- **Retakes regenerate.** Every one of them writes the quiz again, which is
+  what stops a retake being a way of memorising an answer.
+- **After two failed sittings the next attempt waits.** A sitting is a failure
+  below half right — the line is `models.PASS_MARK`, kept beside the table so
+  the word cannot mean two things — and the rule is read off `Attempt.failed`,
+  so the page counting attempts and the row that recorded one cannot disagree.
+- **It waits for the material, not for a decision.** The refused attempt is a
+  server answer, not a panel a student can dismiss, and it names the paragraphs
+  the wrong answers in their last failing sitting came from along with what
+  opening them does. The sitting they already have is left alone and no model
+  call is made while they are held.
+- **Presence is enough.** Every paragraph on the reading surface carries the
+  event that reports it being opened, fired as it scrolls into view, and the
+  citation links record it too for a student reading without JavaScript.
+  Scrolling to the end is not required: a rule that can be satisfied without
+  understanding still works, and one that requires understanding cannot be
+  checked by a server at all.
+- **Unlocking is immediate.** Opening the last paragraph the refusal names is
+  the moment the next press is allowed; nothing is queued and nothing is waiting
+  to be recalculated. The same rule covers submitting the same quiz again, or
+  the block would be a speed bump past the other button.
+
+`SectionOpen` is one row per paragraph, kept however many times it is opened:
+what it records is that the student has been there, and a paragraph read after
+two failures stays read for the third.
 
 ## Uploads
 

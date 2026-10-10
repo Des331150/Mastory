@@ -79,7 +79,7 @@ def render_slide_markdown(
 
 
 def render_spaned_markdown(
-    slide: Slide, *, image_url: Callable[[str], str]
+    slide: Slide, *, image_url: Callable[[str], str], open_url: Callable[[int], str]
 ) -> str:
     """A slide as HTML, with every paragraph addressable on its own.
 
@@ -90,6 +90,11 @@ def render_spaned_markdown(
     Only the blocks that are spans carry an id, and they carry it at the ordinal
     the ``Span`` row was stored with, so a citation built from that row lands
     here. Anything else - a bare diagram - is rendered without one.
+
+    Each paragraph also carries the event that records the student having been
+    at it, fired when it scrolls into view. That is the whole of what the retry
+    rule is entitled to know about reading, and asking for more would be a rule
+    this page cannot check.
     """
     parts: list[str] = []
     ordinal = -1
@@ -100,7 +105,9 @@ def render_spaned_markdown(
             continue
         ordinal += 1
         parts.append(
-            f'<div class="span" id="{slide.span_anchor(ordinal)}">{html}</div>'
+            f'<div class="span" id="{slide.span_anchor(ordinal)}"'
+            f' hx-post="{open_url(ordinal)}" hx-trigger="revealed" hx-swap="none"'
+            f">{html}</div>"
         )
     return "\n".join(parts)
 
@@ -140,11 +147,16 @@ def build_sections(
     *,
     query: str,
     image_url: Callable[[Slide, str], str],
+    open_url: Callable[[Slide, int], str],
 ) -> list[Section]:
     """The reading surface: one section per slide, filtered by the query."""
     sections: list[Section] = []
     for slide in slides:
-        html = render_spaned_markdown(slide, image_url=partial(image_url, slide))
+        html = render_spaned_markdown(
+            slide,
+            image_url=partial(image_url, slide),
+            open_url=partial(open_url, slide),
+        )
         if query:
             html = mark_term(html, query)
         sections.append(

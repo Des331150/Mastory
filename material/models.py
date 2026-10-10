@@ -1,6 +1,8 @@
 """The extraction layer: Course -> File -> Slide -> Span, the pointer map
 Course -> Topic -> TopicSlide, the plan Course -> Plan -> Session, and the record
-the student keeps on a topic: ``Topic.completed_on`` and the per-topic ``Attempt``.
+the student keeps on a topic: ``Topic.completed_on``, the per-topic ``Attempt``
+with the paragraphs it sent them back to, and the ``SectionOpen`` saying they
+went.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
@@ -22,6 +24,15 @@ LOW_CONFIDENCE = (
     "this score says less than a longer one would. Read the paragraphs it "
     "cites."
 )
+
+#: The share of a quiz a sitting has to reach to count as having got it, and
+#: below which it counts as a failed attempt. Kept beside ``Attempt`` for the
+#: same reason the flag's wording is: it is the definition of a word the page
+#: uses, and two places answering it differently is how a student gets refused a
+#: retry on a score one of them thought was a pass. Half right is the line
+#: because a quiz of four is a topic they half know, and sitting it again is the
+#: sensible thing for a student to do with one.
+PASS_MARK = 0.5
 
 
 class Course(models.Model):
@@ -451,6 +462,14 @@ class Attempt(models.Model):
     gave were verified - a second signal from the same sitting, kept because
     separating "knew it" from "got the right answer for the wrong reason" is
     what mastery is later for.
+
+    ``missed`` is the third thing a sitting records: the paragraphs the wrong
+    answers came from. Without it the rows cannot say what the student was sent
+    to read, and a rule that refuses a retry until the material has been opened
+    would have nothing to point at. They are kept as ``AttemptMissed`` rows
+    rather than as ids in a column, because a paragraph is a thing the student
+    is pointed at and this schema does not keep pointers to things that can be
+    deleted underneath them.
     """
 
     user = models.ForeignKey(
@@ -459,6 +478,9 @@ class Attempt(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="attempts")
     score = models.FloatField()
     passes = models.PositiveIntegerField(default=0)
+    missed = models.ManyToManyField(
+        Span, through="AttemptMissed", related_name="missed_attempts"
+    )
     taken_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -466,6 +488,83 @@ class Attempt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.topic.title}: {self.score:.0%} ({self.passes} verified)"
+
+    @property
+    def failed(self) -> bool:
+        """Whether this sitting left the topic half known or less.
+
+        Read off the score rather than stored, so that the page counting the
+        attempts and the row that recorded one cannot answer "was that a
+        failure?" differently.
+        """
+        return self.score < PASS_MARK
+
+
+class AttemptMissed(models.Model):
+    """One paragraph a sitting sent the student back to.
+
+    Its own row rather than a column of ids on the attempt, for two reasons that
+    both point the same way: a paragraph can be deleted without the sitting that
+    cited it being wrong, and every table in this schema carries a ``user_id`` so
+    that v1 adds a filter rather than a refactor.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="attempt_misseds"
+    )
+    attempt = models.ForeignKey(
+        Attempt, on_delete=models.CASCADE, related_name="missed_rows"
+    )
+    span = models.ForeignKey(
+        Span, on_delete=models.CASCADE, related_name="missed_in"
+    )
+
+    class Meta:
+        ordering = ["span_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attempt", "span"], name="unique_missed_span_per_attempt"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"attempt {self.attempt_id} missed {self.span_id}"
+
+
+class SectionOpen(models.Model):
+    """One student opening one cited paragraph of the reading surface.
+
+    Presence, not comprehension: opening is enough, and scrolling to the end is
+    not required because a rule that can be satisfied by scrolling to the end is
+    a rule nobody has to have read anything to pass. The event is cheap because
+    the retry rule needs to know the student went back to the material, and that
+    is the whole of what it is entitled to ask.
+
+    One row per paragraph, kept however many times it is opened, because what it
+    records is that the student has been there rather than how often - a
+    paragraph read twice is not twice the evidence that it was read once.
+
+    Kept apart from ``Attempt`` on purpose. An attempt is what the student sat;
+    this is what they have looked at since, and it outlives every quiz written
+    on the topic, so nothing regenerating a quiz can take it away.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="section_opens"
+    )
+    span = models.ForeignKey(Span, on_delete=models.CASCADE, related_name="opens")
+    opened_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["opened_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "span"], name="unique_open_per_span"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} opened {self.span_id}"
 
 
 class Quiz(models.Model):

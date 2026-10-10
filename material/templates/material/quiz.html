@@ -14,6 +14,21 @@
     {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   </header>
 
+  {% if reread.required %}
+    <section class="panel quiz-held" role="alert">
+      <h2>Back to the material first</h2>
+      <p>{{ reread.reason }}</p>
+      <ul class="to-read">
+        {% for span in reread.owed %}
+          <li>
+            <a href="{% url 'course-read' course.pk %}?paragraph={{ span.pk }}#{{ span.anchor }}"
+               >Open {{ span.citation }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   {% if quiz %}
     <section class="panel quiz-shape">
       <h2>What this quiz is</h2>
@@ -79,13 +94,17 @@
           </li>
         {% endfor %}
       </ol>
-      <button type="submit">Mark my answers</button>
+      {% if not reread.required %}
+        <button type="submit">Mark my answers</button>
+      {% endif %}
     </form>
 
-    <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
-      {% csrf_token %}
-      <button type="submit" class="quiet">Write different questions</button>
-    </form>
+    {% if not reread.required %}
+      <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="quiet">Write different questions</button>
+      </form>
+    {% endif %}
   {% else %}
     <section class="panel quiz-result">
       <h2>You got {{ result.correct }} of {{ result.total }} right</h2>
@@ -130,10 +149,12 @@
       {% endfor %}
     </ol>
 
-    <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
-      {% csrf_token %}
-      <button type="submit" class="quiet">Try it again with different questions</button>
-    </form>
+    {% if not reread.required %}
+      <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="quiet">Try it again with different questions</button>
+      </form>
+    {% endif %}
   {% endif %}
 
   <p class="muted small">

@@ -382,7 +382,9 @@ class CitationJumpTests(QuizTestCase):
         for anchor, text in spans.items():
             with self.subTest(anchor=anchor):
                 block = re.search(
-                    rf'<div class="span" id="{re.escape(anchor)}">(.*?)</div>', reading, re.S
+                    rf'<div class="span"[^>]*id="{re.escape(anchor)}"[^>]*>(.*?)</div>',
+                    reading,
+                    re.S,
                 )
                 assert block is not None, f"{anchor} has no paragraph on the reading page"
                 shown = re.sub(r"<[^>]+>", "", block.group(1))
