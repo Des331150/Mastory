@@ -204,11 +204,17 @@ class Topic(models.Model):
     whenever the student changes their hours or their exam date, so anything
     stored on a session is destroyed by a rebuild. A topic is the thing the
     student finished, the plan moves it around, and the record stays put.
+
+    ``cut_on`` is the third day-shaped decision stored here rather than on the
+    session, and for the same reason: it is the student saying they are not
+    spending a week on this topic, which the plan rebuilds around rather than
+    loses.
     """
 
     DONE = "done"
     SKIPPED = "skipped"
     PLANNED = "planned"
+    CUT = "cut"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topics"
@@ -221,6 +227,7 @@ class Topic(models.Model):
     flag_note = models.TextField(blank=True)
     completed_on = models.DateField(null=True, blank=True)
     skipped_on = models.DateField(null=True, blank=True)
+    cut_on = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ["position", "id"]
@@ -234,20 +241,42 @@ class Topic(models.Model):
     def state(self) -> str:
         """Where this topic stands in the student's record.
 
-        Three answers and no others. There is deliberately no state for "the
+        Four answers and no others. There is deliberately no state for "the
         student missed this": a day that went by unmarked is the ordinary case
         for a student with a life, and naming it as a failure is the streak
         mechanic this product turned down.
+
+        ``CUT`` is a decision about the plan rather than about the work: the
+        student said they are not spending a week on this topic, which is
+        different from having decided not to do it and different again from
+        having run out of days before the exam.
         """
         if self.completed_on is not None:
             return self.DONE
         if self.skipped_on is not None:
             return self.SKIPPED
+        if self.cut_on is not None:
+            return self.CUT
         return self.PLANNED
 
     @property
+    def cut(self) -> bool:
+        """Whether the student has taken this topic off their week.
+
+        Read rather than stored as its own column because the day they cut it is
+        worth keeping the way the day they skipped it is: both are a decision
+        made on a date, and neither is something the plan can afford to lose on
+        a rebuild.
+        """
+        return self.cut_on is not None
+
+    @property
     def recorded_on(self) -> date | None:
-        """The day this topic entered the log, whichever way it entered it."""
+        """The day this topic entered the log, whichever way it entered it.
+
+        A cut is not an entry in the log - nothing was done - so it is not one
+        of the two days this answers with.
+        """
         return self.completed_on or self.skipped_on
 
     def __str__(self) -> str:

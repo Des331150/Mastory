@@ -407,6 +407,27 @@ def plan_settings(request: HttpRequest, course_id: int) -> HttpResponse:
 
 
 @require_POST
+def plan_cut(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
+    """Take one topic off the student's week, or put it back on it.
+
+    One POST and back to the same page, like every other decision on it. The
+    cost of the cut is on the page before the button is pressed, because a
+    choice the student cannot price is a choice they are being asked to guess
+    at.
+    """
+    topic = _topic(course_id, topic_id)
+    course = topic.course
+    try:
+        topics = topic_service.require_confirmation(course)
+        planning.cut(course, topic)
+    except topic_service.Unconfirmed as exc:
+        return _schedule_blocked(request, course, exc.reason)
+    except topic_service.Rejected as exc:
+        return _plan_page(request, course, topics=topics, error=exc.reason)
+    return redirect("plan", course_id=course.pk)
+
+
+@require_POST
 def session_mark(request: HttpRequest, course_id: int, session_id: int) -> HttpResponse:
     """Put one session into the student's record, or take it back out of it.
 

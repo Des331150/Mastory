@@ -42,6 +42,11 @@ urlpatterns = [
         name="session-mark",
     ),
     path(
+        "courses/<int:course_id>/plan/topics/<int:topic_id>/cut/",
+        views.plan_cut,
+        name="plan-cut",
+    ),
+    path(
         "courses/<int:course_id>/topics/add/",
         views.topic_add,
         name="topic-add",

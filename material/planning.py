@@ -26,6 +26,26 @@ Two rules earn their place here rather than in the ticket's prose:
   deciding whether to bother. A plan the student believes is achievable is the
   whole product.
 
+A third rule is about what happens when the student falls behind, and it is the
+one that decides whether this product is worth coming back to:
+
+- **Missed sessions shift later. They never compress.** A day that went by
+  unmarked does not hand its day back to the work still waiting: the remaining
+  topics move to the next study days, and the day the student said they would
+  finish moves with them. Fitting the same work into the days that are left is
+  how a planner produces a plan the student already knows is impossible, and an
+  impossible plan is how they stop opening the app.
+- **Finished work gives nothing back either.** A rebuild re-plans what is ahead,
+  not what is behind, so a session the student completed keeps the day it was on
+  and the work still waiting starts from today. See ``generate``.
+- **When it will not fit, say the day.** The finish date the student is shown is
+  the one their remaining work actually reaches at the pace they said they can
+  manage, with the exam horizon lifted off it. An answer that stopped at the
+  exam would only restate the problem. See ``behind``.
+- **Dropping a topic is the student's call, and it says what it costs.** What
+  cutting buys - minutes a week, a finish date a week earlier - is on the page
+  before the button, never after it. See ``cut``.
+
 Availability the scheduler cannot work with is raised as
 ``material.topics.Rejected``, the same refusal the student's edits to the topic
 path raise, so a page that shows either says the same kind of thing.
@@ -111,6 +131,54 @@ class Week:
 
 
 @dataclass(frozen=True)
+class Cut:
+    """What taking one topic off the week would cost the student, and buy them.
+
+    Both halves are needed and neither is enough. ``minutes`` is what the
+    topic takes out of the week the student budgeted for themselves, which is
+    the currency they already think in. ``finishes_on`` is the day they would
+    stop, which is the answer to the question that made them open the page, and
+    it is the same for every topic on offer: each one frees exactly one session,
+    and the remaining sessions keep their order.
+
+    ``finishes_on`` is nothing when only one session is left to do, because
+    cutting the last one leaves nothing to finish - an edge case rather than a
+    thing to dress up as a date.
+    """
+
+    topic: Topic
+    minutes: int
+    finishes_on: date | None
+
+
+@dataclass(frozen=True)
+class Behind:
+    """Where the student really is, and what they could do about it.
+
+    Only ever built when the work left does not finish before the exam. In open
+    mode there is no deadline to be late against, so there is nothing to say,
+    and ``None`` is the honest answer rather than a panel with a made-up clock
+    in it.
+
+    ``sessions_left`` is here because the student should be able to check the
+    date against their own arithmetic: seven sessions at three a week is the
+    thirtieth, and being told that is checkable in a way that being told a date
+    is not.
+
+    ``kept_out`` are the topics the student has already cut, so that the panel
+    which offers to drop something is also the panel that can put one back. A
+    cut the student cannot take back is a cut made in a hurry, which is exactly
+    when they will make the wrong one.
+    """
+
+    projected_on: date
+    late_by: int
+    sessions_left: int
+    cuts: tuple[Cut, ...]
+    kept_out: tuple[Topic, ...]
+
+
+@dataclass(frozen=True)
 class Overview:
     """Everything the plan page shows, read off the plan in one pass.
 
@@ -128,6 +196,7 @@ class Overview:
     days_left: int | None
     budget: int
     study_days: str
+    behind: Behind | None
 
     @property
     def planned(self) -> int:
@@ -214,6 +283,17 @@ def study_weekdays(days_per_week: int) -> list[int]:
     )
 
 
+def availability_of(plan: Plan) -> Availability:
+    """The week a plan was built from, as the numbers the student gave.
+
+    Read back off the plan rather than kept in the request, so that anything
+    which rebuilds the plan later - a cut today, a change of hours tomorrow -
+    rebuilds it from what was actually agreed rather than from what the last
+    form happened to post.
+    """
+    return Availability(plan.days_per_week, plan.hours_per_week, plan.exam_date)
+
+
 def generate(course: Course, availability: Availability) -> Plan:
     """Rebuild the course's week of sessions from its confirmed topics.
 
@@ -223,9 +303,20 @@ Replaces what is there rather than adjusting it: a schedule is a function of
     gated on confirmation, so nothing here can build a plan on topics the
     student has not checked.
 
-    Nothing the student has recorded is touched. That lives on the topic, not
-    on the session, precisely so that a rebuild cannot lose it - see
-    ``material.models.Topic``.
+Two rules make the rebuild safe to run on a plan with a history on it, and
+both of them are what "shift, never compress" means in practice:
+
+- **The work the student has finished keeps its day and gives nothing back.**
+  It is not re-planned into the future and it does not free a slot. A rebuild
+  after a fortnight of doing nothing is how the remaining topics land further
+  down the calendar, which is the honest reading of two lost weeks.
+- **The work still waiting starts from today.** Missed days are not refilled
+  and are not compressed: the next topic goes on the next study day, and the
+  one after that on the one after that.
+
+Nothing the student has recorded is touched. That lives on the topic, not
+on the session, precisely so that a rebuild cannot lose it - see
+``material.models.Topic``.
     """
     topics = require_confirmation(course)
     plan, _ = Plan.objects.get_or_create(
@@ -235,10 +326,14 @@ Replaces what is there rather than adjusting it: a schedule is a function of
     plan.days_per_week = availability.days_per_week
     plan.hours_per_week = availability.hours_per_week
     plan.save()
-    weeks_of_days = _study_weeks(availability, today(), len(topics))
+    held = _held(plan)
+    planned = [topic for topic in topics if not topic.cut]
+    done = [topic for topic in planned if topic.recorded_on is not None]
+    ahead = [topic for topic in planned if topic.recorded_on is None]
+    weeks_of_days = _study_weeks(availability, today(), len(ahead))
     with transaction.atomic():
         plan.sessions.all().delete()
-        _write(plan, topics, availability, weeks_of_days)
+        _write(plan, ahead, availability, weeks_of_days, done=done, held=held)
     logger.info(
         "%s: %s plan of %d sessions on %d days a week, %d hours a week",
         course.title,
@@ -250,6 +345,107 @@ Replaces what is there rather than adjusting it: a schedule is a function of
     return plan
 
 
+def _held(plan: Plan) -> dict[int, tuple[date, int]]:
+    """Where the plan's recorded sessions already sit, before it is rebuilt.
+
+    Read before the delete and used to put them back where they were. A
+    completed session whose date came from the rebuild would be booked on a day
+    that has not happened yet, which is a record of the plan rather than of the
+    student.
+    """
+    return {
+        session.topic_id: (session.scheduled_on, session.minutes)
+        for session in owned(plan.sessions.all())
+        if session.recorded_on is not None
+    }
+
+
+def cut(course: Course, topic: Topic) -> Plan:
+    """Take one topic off the student's week, or put it back on it.
+
+A cut is a decision about the week, not a deletion from the course: the topic
+    keeps its place on the path and everything the student pointed at it, and
+    the plan is rebuilt around its absence. That rebuild is what makes a cut
+    work - the days the topic was on are given back to the remaining work,
+    which is the only way cutting anything ever finishes a plan earlier.
+
+It is a toggle, like every other mark on this page. A student who cuts the
+    wrong topic should not have to find an undo to put it back.
+
+The day is written to the topic rather than read from the request, so that the
+    decision survives a rebuild the way a completion does.
+    """
+    topic.cut_on = None if topic.cut else today()
+    topic.save(update_fields=["cut_on"])
+    plan = plan_for(course)
+    if plan is None:
+        raise Rejected("There is no week to change yet.")
+    logger.info("%s: %s %s", course.title, "kept" if topic.cut else "cut", topic.title)
+    return generate(course, availability_of(plan))
+
+
+def _ahead(topics: Sequence[Topic]) -> list[Topic]:
+    """The topics still to be studied: not finished, not skipped, not cut."""
+    return [topic for topic in topics if topic.recorded_on is None and not topic.cut]
+
+
+def _pace_days(plan: Plan, count: int) -> list[date]:
+    """The days ``count`` sessions take at the pace the student said they have.
+
+    Deliberately with no exam horizon on it. This is the question "if I keep
+    going at the rate I said I could, what day do I stop on?" and an answer that
+    stopped at the exam would only restate the problem back at the student.
+
+    The days come from the same walk the plan is built from, so the projected
+    finish is the last day of a plan shaped like this one and not a separate
+    guess that can drift from it. The exam date is deliberately not passed on:
+    this walk is the one place in the module with no horizon.
+    """
+    weeks = _study_weeks(
+        Availability(plan.days_per_week, plan.hours_per_week), today(), count
+    )
+    # The walk fills a whole week before it checks how much it has already
+    # placed, so the last week comes back with a day or two more than were
+    # asked for. Those days are not part of this projection.
+    return [day for week in weeks for day in week][:count]
+
+
+def behind(plan: Plan, topics: Sequence[Topic]) -> Behind | None:
+    """Whether the work left finishes before the exam, and what to do if not.
+
+    Nothing in open mode: with no deadline there is nothing to be late against,
+    and inventing one would be pressure the student did not ask for.
+
+    The projection lifts the exam horizon off and counts only the work the
+    student has not recorded, so a fortnight spent doing nothing moves the date
+    by a fortnight's worth of sessions rather than by nothing at all. The topics
+    on offer to cut are the same ones, costed in the minutes they take out of
+    the week and the day the student would stop.
+    """
+    ahead = _ahead(topics)
+    if plan.exam_date is None or not ahead:
+        return None
+    days = _pace_days(plan, len(ahead))
+    if not days or days[-1] <= plan.exam_date:
+        return None
+    minutes = _split_week(plan.hours_per_week * 60, [topic.weight for topic in ahead])
+    # Cutting any one topic frees exactly one session and the rest keep their
+    # order, so every option lands on the same day. That is not a shortcut, it
+    # is the arithmetic: saying it eight times with eight dates would be eight
+    # claims to check and one answer.
+    after = days[-2] if len(days) > 1 else None
+    return Behind(
+        projected_on=days[-1],
+        late_by=(days[-1] - plan.exam_date).days,
+        sessions_left=len(ahead),
+        cuts=tuple(
+            Cut(topic=topic, minutes=length, finishes_on=after)
+            for topic, length in zip(ahead, minutes, strict=True)
+        ),
+        kept_out=tuple(topic for topic in topics if topic.cut),
+    )
+
+
 def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     """Everything the plan page shows, read off the plan's sessions once.
 
@@ -258,9 +454,11 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     answering three questions about the same plan is a page that can disagree
     with itself.
 
-    A topic with no session only happens when the exam arrives first. They are
-    listed rather than dropped, because a topic silently missing from the plan
-    is a topic the student has been told to study and cannot find.
+    A topic with no session only happens when the exam arrives first, or when
+    the student has cut it. Cut topics are left out of that list deliberately:
+    they are not topics that missed out, they are ones the student put there on
+    purpose, and listing them next to the ones they cannot reach would read as
+    a problem rather than a decision.
     """
     sessions = list(owned(plan.sessions.all()))
     current = next(
@@ -272,10 +470,13 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
         sessions=tuple(sessions),
         weeks=_weeks(sessions, this_week=today()),
         current=current,
-        unplaced=tuple(topic for topic in topics if topic.pk not in scheduled),
+        unplaced=tuple(
+            topic for topic in topics if topic.pk not in scheduled and not topic.cut
+        ),
         days_left=days_until_exam(plan),
         budget=plan.hours_per_week * 60,
         study_days=_named_days(plan.days_per_week),
+        behind=behind(plan, topics),
     )
 
 
@@ -345,6 +546,9 @@ def _write(
     topics: Sequence[Topic],
     availability: Availability,
     weeks_of_days: Sequence[Sequence[date]],
+    *,
+    done: Sequence[Topic] = (),
+    held: Mapping[int, tuple[date, int]] | None = None,
 ) -> None:
     """One session per topic that fits, in the student's order, weighted.
 
@@ -352,7 +556,26 @@ def _write(
     the student's weekly budget to divide between them. Topics that did not fit
     before the exam are the ones at the end, and the page names them rather
     than leaving the student to notice they are not on it.
+
+    ``done`` is the work the student has already recorded and ``held`` says
+    where each of those sessions sat before the rebuild. They keep that day and
+    those minutes, because the week a finished topic took up is spent: the
+    remaining topics divide the budget that is left, not a budget shared with
+    work already out of the way.
+
+    Everything is written in one pass ordered by the day it falls on, so a
+    session that shifted later sits after the ones that did not move and the
+    plan reads down the calendar rather than down two lists stitched together.
     """
+    kept = held or {}
+    rows: list[tuple[Topic, date, int]] = []
+    for topic in done:
+        # A recorded topic always has a session to have come from. Falling back
+        # to the shortest session worth offering rather than to zero is what
+        # keeps a session off the page claiming it is nothing long.
+        day, length = kept.get(topic.pk, (topic.recorded_on, MIN_SESSION_MINUTES))
+        if day is not None:
+            rows.append((topic, day, length))
     taken = 0
     for week_of_days in weeks_of_days:
         chunk = topics[taken : taken + len(week_of_days)]
@@ -363,18 +586,19 @@ def _write(
         minutes = _split_week(
             availability.minutes_per_week, [topic.weight for topic in chunk]
         )
-        for offset, (topic, day, length) in enumerate(
-            zip(chunk, days, minutes, strict=True)
-        ):
-            Session.objects.create(
-                user_id=current_user_id(),
-                plan=plan,
-                topic=topic,
-                position=taken + offset + 1,
-                minutes=length,
-                scheduled_on=day,
-            )
+        rows.extend(zip(chunk, days, minutes, strict=True))
         taken += len(chunk)
+    for position, (topic, day, length) in enumerate(
+        sorted(rows, key=lambda row: row[1]), start=1
+    ):
+        Session.objects.create(
+            user_id=current_user_id(),
+            plan=plan,
+            topic=topic,
+            position=position,
+            minutes=length,
+            scheduled_on=day,
+        )
 
 
 def _split_week(budget: int, weights: Sequence[int]) -> list[int]:

@@ -355,21 +355,30 @@ class RebuildingKeepsTheRecordTests(SessionLogTestCase):
         self.assertEqual(self.log_entries(html)[0]["state"], "skipped")
 
     def test_the_record_survives_a_rebuild_that_leaves_a_topic_off_the_week(self) -> None:
-        """An exam two days out leaves one session and drops the other two. What
-        the student had already finished is not the plan's to throw away."""
+        """An exam two days out leaves room for one session. What the student
+        had already finished keeps its session and its day rather than being
+        dropped off the plan by the rebuild.
+
+        This is the shift-never-compress rule read from the other end: the work
+        still waiting is what moves, and work already done is not moved, not
+        hidden, and not thrown away by a plan that has run out of days.
+        """
         self.set_availability()
         self.mark("Eigenvalues", "done")
         self.mark("Eigenspaces", "done")
         with a_week_of(A_MONDAY):
             self.set_availability(days=1, hours=6, exam="2026-11-04")
             html = self.plan_page()
-        self.assertIn("You have done 1 of 1 session", self.completion(html))
-        self.assertEqual(len(self.log_entries(html)), 1)
-        self.assertEqual(self.log_entries(html)[0]["state"], "done")
+        self.assertIn("You have done 2 of 3 sessions", self.completion(html))
+        self.assertEqual(len(self.log_entries(html)), 2)
+        self.assertEqual(
+            {entry["state"] for entry in self.log_entries(html)}, {"done"}
+        )
 
     def test_a_topic_that_left_the_week_is_not_forgotten_in_the_database(self) -> None:
-        """The visible share counts this week's sessions, so a topic the plan no
-        longer holds drops off it. Its record is still the student's own."""
+        """The visible share counts this week's sessions, and a finished one is
+        on the week whatever the exam leaves room for. Its record is the
+        student's own and outlives any rebuild."""
         self.set_availability()
         self.mark("Eigenvalues", "done")
         self.mark("Eigenspaces", "done")

@@ -173,6 +173,51 @@
     </section>
   {% endif %}
 
+  {% if overview.behind %}
+    <section class="panel behind">
+      <h2>You are behind, and this is the honest date</h2>
+      <p class="behind-line">
+        Your {{ overview.behind.sessions_left }} session{{ overview.behind.sessions_left|pluralize }}
+        still to do, on {{ overview.study_days }} a week, reach
+        <strong class="projected-on">{{ overview.behind.projected_on|date:"l j F" }}</strong>
+        &mdash; {{ overview.behind.late_by }} day{{ overview.behind.late_by|pluralize }}
+        after your exam on {{ plan.exam_date|date:"j F Y" }}.
+      </p>
+      <p class="muted">
+        The days you missed are not squeezed back in. Your remaining work has
+        moved to the next study days and taken the finish date with it, which
+        is a worse number than the one you had and a plan you can still keep.
+        The other answer is to stop spending your week on something, and here is
+        what each topic costs you so the choice is yours with the numbers in
+        front of you.
+      </p>
+      <ul class="cut-list">
+        {% for cut in overview.behind.cuts %}
+          <li class="cut-option">
+            <p class="cut-topic">{{ cut.topic.title }}</p>
+            <p class="cut-cost">
+              {{ cut.minutes }} min a week{% if cut.finishes_on %}, and you would finish on {{ cut.finishes_on|date:"l j F" }}{% endif %}
+            </p>
+            <form method="post" action="{% url 'plan-cut' course.pk cut.topic.pk %}">
+              {% csrf_token %}
+              <button type="submit">Cut this topic</button>
+            </form>
+          </li>
+        {% endfor %}
+        {% for topic in overview.behind.kept_out %}
+          <li class="cut-option kept-out">
+            <p class="cut-topic">{{ topic.title }}</p>
+            <p class="cut-cost">Not on your week since {{ topic.cut_on|date:"j F" }}</p>
+            <form method="post" action="{% url 'plan-cut' course.pk topic.pk %}">
+              {% csrf_token %}
+              <button type="submit">Put this back</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   {% if overview.unplaced %}
     <section class="panel">
       <h2>{% if plan.exam_date %}Not before your exam{% else %}Not on this week{% endif %}</h2>
@@ -228,7 +273,7 @@
 
       <button type="submit">{% if plan %}Build this week again{% else %}Build my week{% endif %}</button>
       {% if plan %}
-        <p class="muted small">This replaces the sessions on your week and starts again from today. The sessions you have already marked stay marked.</p>
+        <p class="muted small">This replaces the sessions still waiting and starts them again from today. Sessions you missed move to the next days you study rather than being squeezed into the days you have left, and the sessions you have already marked stay on the day they were.</p>
       {% endif %}
     </form>
   </section>
