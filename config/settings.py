@@ -61,14 +61,17 @@ DATABASES = {
     )
 }
 
-if not DATABASE_URL:  # pragma: no cover - operator warning
-    import warnings
+if not DATABASE_URL:  # pragma: no cover - operator note
+    # Said through the log rather than through ``warnings``: settings are
+    # imported more than once per process, so a warning prints itself twice per
+    # command with an importlib stack frame under it, which reads like a crash
+    # rather than the note it is. This is a note to whoever is running the
+    # server, not a fault in the code.
+    import logging
 
-    warnings.warn(
+    logging.getLogger("config").warning(
         "DATABASE_URL is unset: falling back to local SQLite. "
-        "Mastory is built for Postgres.",
-        RuntimeWarning,
-        stacklevel=2,
+        "Mastory is built for Postgres."
     )
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = []

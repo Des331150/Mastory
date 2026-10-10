@@ -132,11 +132,6 @@ class Overview:
         return self.weeks[0].minutes if self.weeks else 0
 
     @property
-    def passed(self) -> bool:
-        """Whether every date on this plan is behind the student."""
-        return self.current is None
-
-    @property
     def empty(self) -> bool:
         """Whether the plan never managed to hold a session at all.
 

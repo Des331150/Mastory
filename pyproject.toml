@@ -16,6 +16,12 @@ dev = [
     "django-stubs[compatible-mypy]>=5.0",
 ]
 
+# Named rather than discovered. The repository root is flat and also holds
+# ``specs`` and ``media``, neither of which is a package, and setuptools refuses
+# to guess between them - so `pip install -e .` fails outright until it is told.
+[tool.setuptools]
+packages = ["config", "material"]
+
 [tool.mypy]
 python_version = "3.12"
 plugins = ["mypy_django_plugin.main"]
