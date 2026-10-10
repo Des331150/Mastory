@@ -37,11 +37,12 @@ Without it, the local SQLite file is used.
 
 ```
 material/
-  models.py    Course -> SourceFile -> Slide -> Span, and the plan Course -> Plan -> Session
+  models.py    Course -> SourceFile -> Slide -> Span, and the plan Course -> Plan -> Session, and the student's record on Topic
   ingest.py    deterministic PDF -> Markdown conversion, images extracted inline
   model.py     the only place a model is called, and the grounding contract it enforces
   topics.py    inferring the topic path, and every edit the student makes to it
   planning.py  the week of sessions: weighting, the weekly budget, and the two modes
+  progress.py  what the student has done: the share of their plan, the log, and quiz attempts
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
   views.py     the student-facing HTTP surface
@@ -50,7 +51,11 @@ material/
 
 There is one test seam: HTTP. `material/tests/` drives the real application
 through the Django test client against a real database, and asserts only on what
-the student sees.
+the student sees. The two exceptions both come from work that has no HTTP
+surface yet: per-topic quiz attempts are driven through `progress.record_attempt`
+until a quiz exists to serve them, and the no-gamification claim reads the
+templates and the schema rather than a page, because a word nobody renders is
+exactly the one worth forbidding.
 
 ## The model
 
@@ -124,9 +129,52 @@ topic path in the student's order with no countdown and no claim about when
 they will finish — which is what makes the app worth opening in week three of
 semester.
 
-Rebuilding replaces every session. That is right while a schedule is a function
-of the topics and the time available; completion tracking and shifting missed
-sessions come later and will make it incremental.
+Rebuilding replaces every session, which is right while a schedule is a function
+of the topics and the time available. What the student has recorded is not on
+the session at all — it is on the topic, because a session is the plan's row and
+the plan is replaced whenever the hours change. A topic is the thing the student
+finished; the plan moves it around and the record stays put.
+
+## Keeping track
+
+The same page shows how much of the plan the student has done, and the log of
+what they actually did. Deliberately not a streak: a streak breaks on one missed
+day and punishes exactly the student the shift-never-compress model exists to
+protect. There is no streak counter, no points and no leaderboard anywhere in
+the product, and `material/tests/test_session_log.py` asserts that against every
+template and against the schema.
+
+- **A share of the sessions planned.** The denominator is what the student typed
+  into the planner, not the sessions still ahead, because "done a third of my
+  plan" has to mean the same thing on the first day as on the last.
+- **One press, and it is a toggle.** Each session carries a button for done and
+  one for skipped; pressing the button for the state it is already in puts it
+  back. Done and skipped are mutually exclusive and set together, so the log can
+  answer "what happened on the fourth" with one answer.
+- **Skipping costs nothing.** It leaves the numerator where it was, so it takes
+  nothing off what the student has done, and it leaves the denominator where it
+  was too, so it cannot be used to flatter the share by pretending the session
+  was never planned. It is named on the page as a choice, which is the
+  difference between "not doing this" and "failing at this".
+- **The log is what happened, not what is waiting.** Only sessions the student
+  marked appear in it, in the order of the days they marked them. A session
+  nobody has marked is simply not history yet, and a day nobody marked is not
+  called a miss.
+
+The share and the log are counted off the same read of the plan in
+`planning.overview`, so the number and the ledger underneath it cannot tell
+different stories.
+
+### Attempts
+
+`Attempt` records a sitting of a topic's quiz: when it was taken, the score as a
+fraction, and how many times its citations verified. It is recorded from the
+first quiz onwards because none of it can be backfilled — mastery will be weighed
+out of these rows later, and a table invented after the fact starts empty and
+stays wrong. `progress.record_attempt()` refuses a score outside zero to one
+rather than storing it, so nothing downstream inherits a mark counted out of the
+wrong number. There is no quiz yet, so nothing reaches `progress` over HTTP
+today; that is a fact about the ticket order, not about the design.
 
 ## Uploads
 

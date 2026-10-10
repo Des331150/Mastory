@@ -115,10 +115,13 @@ class Overview:
     """Everything the plan page shows, read off the plan in one pass.
 
     One query rather than one per question: the weeks, the session the student
-    starts now and the topics that missed out are all the same rows, and a page
-    that asks three times is a page that can disagree with itself.
+    starts now, the topics that missed out and the sessions they have already
+    recorded are all the same rows, and a page that asks three times is a page
+    that can disagree with itself. The flat list is on here for that reason -
+    ``material.progress`` counts it without a second query.
     """
 
+    sessions: tuple[Session, ...]
     weeks: tuple[Week, ...]
     current: Session | None
     unplaced: tuple[Topic, ...]
@@ -214,11 +217,15 @@ def study_weekdays(days_per_week: int) -> list[int]:
 def generate(course: Course, availability: Availability) -> Plan:
     """Rebuild the course's week of sessions from its confirmed topics.
 
-    Replaces what is there rather than adjusting it: a schedule is a function of
+Replaces what is there rather than adjusting it: a schedule is a function of
     the topics, the order, and the time the student said they have, and changing
     any of those changes every minute and day it produced. The topic path is
     gated on confirmation, so nothing here can build a plan on topics the
     student has not checked.
+
+    Nothing the student has recorded is touched. That lives on the topic, not
+    on the session, precisely so that a rebuild cannot lose it - see
+    ``material.models.Topic``.
     """
     topics = require_confirmation(course)
     plan, _ = Plan.objects.get_or_create(
@@ -262,6 +269,7 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     )
     scheduled = {session.topic_id for session in sessions}
     return Overview(
+        sessions=tuple(sessions),
         weeks=_weeks(sessions, this_week=today()),
         current=current,
         unplaced=tuple(topic for topic in topics if topic.pk not in scheduled),

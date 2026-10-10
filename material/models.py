@@ -1,10 +1,12 @@
 """The extraction layer: Course -> File -> Slide -> Span, the pointer map
-Course -> Topic -> TopicSlide, and the plan Course -> Plan -> Session.
+Course -> Topic -> TopicSlide, the plan Course -> Plan -> Session, and the record
+the student keeps on a topic: ``Topic.completed_on`` and the per-topic ``Attempt``.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
 """
 
+from datetime import date
 from pathlib import Path
 
 from django.conf import settings
@@ -195,7 +197,18 @@ class Topic(models.Model):
     it has to be able to point at several slides that are not next to each
     other. That pointer map is the core asset: ``weight`` is derived from it and
     a question generated later is cited back through it.
+
+    The student's own record of a topic - done, or deliberately skipped, and on
+    what day - lives here rather than on the session that sat in front of them.
+    That is deliberate: a session is the plan's row, and the plan is rebuilt
+    whenever the student changes their hours or their exam date, so anything
+    stored on a session is destroyed by a rebuild. A topic is the thing the
+    student finished, the plan moves it around, and the record stays put.
     """
+
+    DONE = "done"
+    SKIPPED = "skipped"
+    PLANNED = "planned"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topics"
@@ -206,6 +219,8 @@ class Topic(models.Model):
     weight = models.PositiveIntegerField(default=1)
     flagged = models.BooleanField(default=False)
     flag_note = models.TextField(blank=True)
+    completed_on = models.DateField(null=True, blank=True)
+    skipped_on = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ["position", "id"]
@@ -214,6 +229,26 @@ class Topic(models.Model):
                 fields=["course", "position"], name="unique_topic_position_per_course"
             )
         ]
+
+    @property
+    def state(self) -> str:
+        """Where this topic stands in the student's record.
+
+        Three answers and no others. There is deliberately no state for "the
+        student missed this": a day that went by unmarked is the ordinary case
+        for a student with a life, and naming it as a failure is the streak
+        mechanic this product turned down.
+        """
+        if self.completed_on is not None:
+            return self.DONE
+        if self.skipped_on is not None:
+            return self.SKIPPED
+        return self.PLANNED
+
+    @property
+    def recorded_on(self) -> date | None:
+        """The day this topic entered the log, whichever way it entered it."""
+        return self.completed_on or self.skipped_on
 
     def __str__(self) -> str:
         return self.title
@@ -285,6 +320,10 @@ class Session(models.Model):
     when the plan is shown, because a week is a property of a calendar and not
     of a position in a list, and storing it would mean a plan whose first week
     spanned two real ones.
+
+    What the student has done about it is not stored here either: it belongs to
+    the topic, because rebuilding the plan replaces every row on this page and
+    the student's record of having finished something is not theirs to lose.
     """
 
     user = models.ForeignKey(
@@ -309,6 +348,51 @@ class Session(models.Model):
 
     def __str__(self) -> str:
         return f"day {self.position}: {self.topic.title} ({self.minutes} min)"
+
+    @property
+    def state(self) -> str:
+        """Where this session stands in the student's record.
+
+        A plan holds one session per topic, so this is the topic's answer said
+        through the row the student reads it on.
+        """
+        return self.topic.state
+
+    @property
+    def recorded_on(self) -> date | None:
+        """The day this session entered the log, whichever way it entered it."""
+        return self.topic.recorded_on
+
+
+class Attempt(models.Model):
+    """One time the student took a topic's quiz, and how it went.
+
+    An event log rather than a running score on the topic, because nothing can
+    be backfilled: the whole of what mastery is later computed from is the shape
+    of these rows over time, and a table invented after the first hundred
+    attempts have been taken is a table that starts empty and stays wrong.
+
+    ``score`` is a fraction between zero and one rather than a mark out of any
+    number, so that two attempts on two differently sized quizzes can be weighed
+    against each other. ``passes`` is how many times the citations the answer
+    gave were verified - a second signal from the same sitting, kept because
+    separating "knew it" from "got the right answer for the wrong reason" is
+    what mastery is later for.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="attempts"
+    )
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="attempts")
+    score = models.FloatField()
+    passes = models.PositiveIntegerField(default=0)
+    taken_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["taken_at", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.topic.title}: {self.score:.0%} ({self.passes} verified)"
 
 
 class TopicSlide(models.Model):

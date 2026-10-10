@@ -37,6 +37,11 @@ urlpatterns = [
         name="plan-settings",
     ),
     path(
+        "courses/<int:course_id>/plan/sessions/<int:session_id>/",
+        views.session_mark,
+        name="session-mark",
+    ),
+    path(
         "courses/<int:course_id>/topics/add/",
         views.topic_add,
         name="topic-add",

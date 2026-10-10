@@ -34,6 +34,35 @@
     {% endif %}
   </header>
 
+  {% if summary %}
+    <section class="panel completion">
+      <h2>How far you are</h2>
+      {% if summary.planned %}
+        <p class="completion-line">
+          You have done {{ summary.completed }} of {{ summary.planned }}
+          session{{ summary.planned|pluralize }} &middot;
+          {{ summary.percent }}% of your plan
+        </p>
+        <div class="meter">
+          <span class="meter-fill" style="width: {{ summary.percent }}%"></span>
+        </div>
+        {% if summary.skipped %}
+          <p class="skipped-note">
+            {{ summary.skipped }} session{{ summary.skipped|pluralize }} you chose
+            to skip, which costs you nothing. They stay in the count so that what
+            you finished still says what it is worth.
+          </p>
+        {% endif %}
+        <p class="muted small">
+          This is how much of what you set out to do you have done. There is
+          nothing to keep up with here but the days you meant to.
+        </p>
+      {% else %}
+        <p class="muted">No sessions on your plan yet.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
   {% if overview.current %}
     <section class="panel next-session">
       <p class="next-label">
@@ -54,6 +83,7 @@
           </p>
         {% endif %}
       {% endwith %}
+      {% include "material/_session_actions.html" with session=overview.current %}
     </section>
   {% elif plan %}
     <section class="panel">
@@ -98,6 +128,7 @@
             </p>
             <h3 class="session-topic">{{ session.topic.title }}</h3>
             <p class="session-length">{{ session.minutes }} min</p>
+            <p class="session-state" data-state="{{ session.state }}">{% if session.state == "done" %}done{% elif session.state == "skipped" %}skipped{% elif session.scheduled_on < today %}not marked{% else %}not yet{% endif %}</p>
             {% with slides=session.topic.slides %}
               {% if slides %}
                 <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
@@ -107,11 +138,40 @@
                    >No slides pointed at yet</a>
               {% endif %}
             {% endwith %}
+            {% include "material/_session_actions.html" %}
           </li>
         {% endfor %}
       </ol>
     </section>
   {% endfor %}
+
+  {% if summary %}
+    <section class="panel session-log">
+      <h2>Your session log</h2>
+      <p class="muted">
+        Every session you have marked done or skipped, in the order the days
+        happened. Sessions you have not marked yet are not in here: this is what
+        you did, not what is still waiting.
+      </p>
+      {% if summary.log %}
+        <ol class="log">
+          {% for entry in summary.log %}
+            <li class="log-entry" data-state="{{ entry.state }}" data-date="{{ entry.on|date:"Y-m-d" }}">
+              <p class="log-when">{{ entry.on|date:"D j M Y" }}</p>
+              <p class="log-topic">{{ entry.topic.title }}</p>
+              <p class="log-length">{{ entry.minutes }} min</p>
+              <p class="log-state">{{ entry.state }}</p>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="log-empty">
+          Nothing in your log yet. Mark a session done or skipped above and it
+          appears here with the day you did it.
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
 
   {% if overview.unplaced %}
     <section class="panel">
@@ -168,7 +228,7 @@
 
       <button type="submit">{% if plan %}Build this week again{% else %}Build my week{% endif %}</button>
       {% if plan %}
-        <p class="muted small">This replaces the sessions on your week and starts again from today.</p>
+        <p class="muted small">This replaces the sessions on your week and starts again from today. The sessions you have already marked stay marked.</p>
       {% endif %}
     </form>
   </section>

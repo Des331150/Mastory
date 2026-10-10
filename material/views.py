@@ -15,8 +15,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from material import model, planning, topics as topic_service
-from material.models import Course, Plan, Slide, SourceFile, Topic
+from material import model, planning, progress, topics as topic_service
+from material.models import Course, Plan, Session, Slide, SourceFile, Topic
 from material.render import Section, build_sections
 from material.services import (
     StageOutcome,
@@ -52,6 +52,21 @@ def _topic(course_id: int, topic_id: int) -> Topic:
         course.topics.all(), pk=topic_id, what="topic"
     )
     return topic
+
+
+def _session(course_id: int, session_id: int) -> Session:
+    """One of this course's sessions, and nothing belonging to any other course.
+
+    Resolved through the plan rather than by primary key alone, so that a
+    session id from one course cannot be used to mark a session on another -
+    the plan is the only thing that puts a session inside a course.
+    """
+    course = _course(course_id)
+    plan = planning.plan_for(course)
+    if plan is None:
+        raise Http404("No such session")
+    session: Session = _owned_or_404(plan.sessions.all(), pk=session_id, what="session")
+    return session
 
 
 def _documents(course: Course, query: str) -> list[Document]:
@@ -391,6 +406,26 @@ def plan_settings(request: HttpRequest, course_id: int) -> HttpResponse:
     return redirect("plan", course_id=course.pk)
 
 
+@require_POST
+def session_mark(request: HttpRequest, course_id: int, session_id: int) -> HttpResponse:
+    """Put one session into the student's record, or take it back out of it.
+
+    One POST and back to the same page: a student marking a session done is not
+    on a form, and the button they pressed is the whole of the action.
+    """
+    session = _session(course_id, session_id)
+    course = session.plan.course
+    try:
+        topics = topic_service.require_confirmation(course)
+    except topic_service.Unconfirmed as exc:
+        return _schedule_blocked(request, course, exc.reason)
+    try:
+        progress.mark(session, request.POST.get("state", ""), on=planning.today())
+    except topic_service.Rejected as exc:
+        return _plan_page(request, course, topics=topics, error=exc.reason)
+    return redirect("plan", course_id=course.pk)
+
+
 def _schedule_blocked(request: HttpRequest, course: Course, reason: str) -> HttpResponse:
     return render(
         request,
@@ -412,13 +447,16 @@ def _plan_page(
 
     The plan is read in one pass by ``planning.overview`` so that the weeks, the
     next session and the countdown on this page are all answers about the same
-    read of the plan rather than three reads that could disagree.
+    read of the plan rather than three reads that could disagree. How far the
+    student has got is counted off that same read by ``material.progress``, so
+    the share on this page and the log under it cannot tell different stories.
 
     A form that came back with an error shows what the student typed rather
     than what was last saved. Being told your own hours are impossible and then
     finding them silently replaced is how a student stops trusting the form.
     """
     plan = planning.plan_for(course)
+    overview = planning.overview(plan, topics) if plan is not None else None
     return render(
         request,
         "material/plan.html",
@@ -426,7 +464,8 @@ def _plan_page(
             "course": course,
             "plan": plan,
             "today": planning.today(),
-            "overview": planning.overview(plan, topics) if plan is not None else None,
+            "overview": overview,
+            "summary": progress.summarise(overview.sessions) if overview else None,
             "entered": entered or _saved_settings(plan),
             "error": error,
         },

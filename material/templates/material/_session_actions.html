@@ -1,0 +1,26 @@
+{% comment %}
+The two buttons that put one session's topic into the student's record, or take
+it back out of it. Marking is a toggle rather than a switch: pressing the button
+for the state a topic is already in returns it to untouched, so one control per
+answer means the student can undo a mark without hunting for a separate control.
+
+Neither button says "fail" and neither is styled as one. Skipping is a decision
+the student is entitled to make and it costs them nothing, so the word on the
+button is the word they will have to read again tomorrow.
+{% endcomment %}
+<div class="session-actions">
+  <form method="post" action="{% url 'session-mark' course.pk session.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="state" value="done" />
+    <button type="submit" class="session-action{% if session.topic.completed_on %} on{% endif %}">
+      {% if session.topic.completed_on %}Done{% else %}Mark done{% endif %}
+    </button>
+  </form>
+  <form method="post" action="{% url 'session-mark' course.pk session.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="state" value="skipped" />
+    <button type="submit" class="session-action{% if session.topic.skipped_on %} on{% endif %}">
+      {% if session.topic.skipped_on %}Skipped{% else %}Mark skipped{% endif %}
+    </button>
+  </form>
+</div>
