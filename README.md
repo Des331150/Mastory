@@ -240,25 +240,36 @@ writes the quiz again, from the same paragraphs, and the questions are new.
   below half right — the line is `models.PASS_MARK`, kept beside the table so
   the word cannot mean two things — and the rule is read off `Attempt.failed`,
   so the page counting attempts and the row that recorded one cannot disagree.
+  Both asking for different questions and marking the quiz again are held, or
+  the block would be a speed bump past the other button. A quiz that has been
+  sat is also not one the student may answer twice: the next attempt is a new
+  set, and retaking is free.
 - **It waits for the material, not for a decision.** The refused attempt is a
   server answer, not a panel a student can dismiss, and it names the paragraphs
   the wrong answers in their last failing sitting came from along with what
   opening them does. The sitting they already have is left alone and no model
   call is made while they are held.
+- **Since they were sent, not ever.** The paragraph has to have been opened
+  *after* the sitting that sent them to it. Reading the topic is what this
+  product asks a student to do before the quiz, so an all-time record of what
+  they have read would have discharged every hold before it applied — a
+  mechanic that cannot fire is not a mechanic.
 - **Presence is enough.** Every paragraph on the reading surface carries the
-  event that reports it being opened, fired as it scrolls into view, and the
-  citation links record it too for a student reading without JavaScript.
-  Scrolling to the end is not required: a rule that can be satisfied without
-  understanding still works, and one that requires understanding cannot be
-  checked by a server at all.
+  event that reports it being opened as it scrolls into view, and the refusal
+  offers the same thing as a button for a student without JavaScript. Both are
+  POSTs carrying the page's CSRF token: nothing here writes on a GET, because a
+  page any site can make a browser fetch is not a record of the student having
+  read anything. Scrolling to the end is not required — a rule that can be
+  satisfied without understanding still works, and one that requires
+  understanding cannot be checked by a server at all.
 - **Unlocking is immediate.** Opening the last paragraph the refusal names is
   the moment the next press is allowed; nothing is queued and nothing is waiting
-  to be recalculated. The same rule covers submitting the same quiz again, or
-  the block would be a speed bump past the other button.
+  to be recalculated.
 
-`SectionOpen` is one row per paragraph, kept however many times it is opened:
-what it records is that the student has been there, and a paragraph read after
-two failures stays read for the third.
+`SectionOpen` is one row per paragraph, stamped with the moment they were *last*
+there. The rule asks whether they have been back since they were sent, and a
+first-visit timestamp would let a paragraph they read before the quiz count as
+read after it.
 
 ## Uploads
 

@@ -4,11 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Mastory{% endblock %}</title>
+    {% comment %}
+      The token the page's own events carry. Every paragraph of the reading
+      surface reports itself being opened over HTTP, and Django refuses a post
+      without it - so the page that fires the event has to hand one out, or the
+      event is a 403 the student never sees.
+    {% endcomment %}
+    <meta name="csrf-token" content="{{ csrf_token }}" />
     <link rel="stylesheet" href="{% static 'material/reading.css' %}" />
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
   </head>
-  <body>
+  <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <header class="masthead">
       <a class="wordmark" href="{% url 'course-list' %}">Mastory</a>
       <span class="tagline">Your course material, readable</span>

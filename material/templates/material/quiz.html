@@ -21,11 +21,18 @@
       <ul class="to-read">
         {% for span in reread.owed %}
           <li>
-            <a href="{% url 'course-read' course.pk %}?paragraph={{ span.pk }}#{{ span.anchor }}"
-               >Open {{ span.citation }}</a>
+            <form method="post" action="{% url 'section-open' course.pk span.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'course-read' course.pk %}#{{ span.anchor }}" />
+              <button type="submit" class="quiet">Open {{ span.citation }}</button>
+            </form>
           </li>
         {% endfor %}
       </ul>
+      <p class="muted small">
+        Opening one is all it takes to record that you have been there; it does
+        not check that you stayed.
+      </p>
     </section>
   {% endif %}
 
@@ -62,44 +69,54 @@
       </p>
     </section>
   {% elif not result %}
-    <form method="post" action="{% url 'topic-quiz-submit' course.pk topic.pk %}" class="quiz-form">
-      {% csrf_token %}
-      <input type="hidden" name="quiz" value="{{ quiz.pk }}" />
-      <ol class="questions">
-        {% for question in questions %}
-          <li class="question" id="question-{{ question.pk }}">
-            <p class="question-citation">
-              From {{ question.span.citation }}
-              &middot;
-              <a href="{% url 'course-read' course.pk %}#{{ question.anchor }}"
-                 >open that paragraph</a>
-            </p>
-            <p class="question-prompt">{{ question.prompt }}</p>
-            {% if question.kind == "multiple_choice" %}
-              <ul class="choices">
-                {% for choice in question.choices %}
-                  <li>
-                    <label>
-                      <input type="radio" name="q-{{ question.pk }}" value="{{ choice }}" />
-                      {{ choice }}
-                    </label>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <label class="visually-hidden" for="answer-{{ question.pk }}">Your answer</label>
-              <input id="answer-{{ question.pk }}" type="text" name="q-{{ question.pk }}"
-                     autocomplete="off" />
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ol>
-      {% if not reread.required %}
-        <button type="submit">Mark my answers</button>
-      {% endif %}
-    </form>
-
+    {% comment %}
+      Nothing to answer while the attempt is held. Four questions on the page
+      with no way to mark them reads as a broken form rather than as a rule the
+      panel above is explaining.
+    {% endcomment %}
     {% if not reread.required %}
+      <form method="post" action="{% url 'topic-quiz-submit' course.pk topic.pk %}" class="quiz-form">
+        {% csrf_token %}
+        <input type="hidden" name="quiz" value="{{ quiz.pk }}" />
+        <ol class="questions">
+          {% for question in questions %}
+            <li class="question" id="question-{{ question.pk }}">
+              <p class="question-citation">
+                From {{ question.span.citation }}
+                &middot;
+                <a href="{% url 'course-read' course.pk %}#{{ question.anchor }}"
+                   >open that paragraph</a>
+              </p>
+              <p class="question-prompt">{{ question.prompt }}</p>
+              {% if question.kind == "multiple_choice" %}
+                <ul class="choices">
+                  {% for choice in question.choices %}
+                    <li>
+                      <label>
+                        <input type="radio" name="q-{{ question.pk }}" value="{{ choice }}" />
+                        {{ choice }}
+                      </label>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <label class="visually-hidden" for="answer-{{ question.pk }}">Your answer</label>
+                <input id="answer-{{ question.pk }}" type="text" name="q-{{ question.pk }}"
+                       autocomplete="off" />
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+        {% if spent %}
+          <p class="muted">
+            You have sat these questions. A retake of them would be the same
+            questions again, so the next attempt is a new set.
+          </p>
+        {% else %}
+          <button type="submit">Mark my answers</button>
+        {% endif %}
+      </form>
+
       <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
         {% csrf_token %}
         <button type="submit" class="quiet">Write different questions</button>

@@ -38,6 +38,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Sequence
 
+from django.db import transaction
+
 from material.models import Attempt, Session, Span, Topic
 from material.topics import Rejected
 from material.users import owned
@@ -158,16 +160,20 @@ def record_attempt(
     ``missed`` is the paragraphs the wrong answers in this sitting came from, and
     is part of what the sitting is rather than a note attached to it afterwards:
     it is what the retry rule asks about when it decides whether the next
-    attempt waits for the student to go back to their material.
+    attempt waits for the student to go back to their material. Both halves are
+    written together, because a sitting whose score is stored and whose
+    paragraphs are not is a failed sitting that owes nothing, and the hold the
+    rule puts on it quietly stops existing.
     """
     if not 0.0 <= score <= 1.0:
         raise Rejected("A score is a fraction of the quiz, between nothing and all of it.")
     if passes < 0:
         raise Rejected("A quiz cannot have been verified a negative number of times.")
-    attempt = Attempt.objects.create(
-        user_id=topic.user_id, topic=topic, score=score, passes=passes
-    )
-    attempt.missed.add(*missed, through_defaults={"user_id": topic.user_id})
+    with transaction.atomic():
+        attempt = Attempt.objects.create(
+            user_id=topic.user_id, topic=topic, score=score, passes=passes
+        )
+        attempt.missed.add(*missed, through_defaults={"user_id": topic.user_id})
     return attempt
 
 

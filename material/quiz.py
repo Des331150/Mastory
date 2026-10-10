@@ -62,10 +62,11 @@ class Reread:
     Read rather than returned as a boolean, because the refusal has to name the
     paragraphs or it is not a refusal a student can act on - and because the
     page that shows the block and the rule that raises it must be counting the
-    same failures off the same rows.
+    same sittings off the same rows.
     """
 
     failures: int
+    sittings: int = 0
     owed: tuple[Span, ...] = ()
 
     @property
@@ -77,18 +78,23 @@ class Reread:
     def reason(self) -> str:
         """What the student is told, in one sentence they can act on.
 
+        Says how many times they have sat it and how many of those did not
+        stick, rather than only the second number: a student who failed twice,
+        passed twice and failed again has sat it five times, and telling them
+        they have sat it three is a page arguing with its own database.
+
         Names what unlocks them and says there is no limit afterwards, because a
         block with no way out of it reads as a punishment and one with a limit
         reads as a quota.
         """
-        paragraphs = "this paragraph" if len(self.owed) == 1 else "these paragraphs"
+        one = len(self.owed) == 1
         return (
-            f"You have sat this quiz {self.failures} times without getting past "
-            f"{PASS_MARK:.0%}, so the next attempt waits until you have opened "
-            f"{paragraphs} your wrong answers came from. Open "
-            f"{'it' if len(self.owed) == 1 else 'them'} and you can sit the quiz "
-            f"again straight away, as many times as you like: nothing is spent "
-            f"on a retake."
+            f"You have sat this quiz {self.sittings} times and not got past "
+            f"{PASS_MARK:.0%} in {self.failures} of them, so the next one waits "
+            f"until you have been back to "
+            f"{'this paragraph' if one else 'these paragraphs'} since then. Open "
+            f"{'it' if one else 'them'} and you can sit the quiz again straight "
+            f"away, as many times as you like: nothing is spent on a retake."
         )
 
 
@@ -190,25 +196,50 @@ def find(topic: Topic, pk: int) -> Quiz | None:
     return owned(topic.quizzes.all()).filter(pk=pk).first()
 
 
+def spent(topic: Topic, quiz: Quiz) -> bool:
+    """Whether this quiz has already been sat, and so cannot be sat again.
+
+    A quiz is written once and sat once. Sitting it a second time is a retake of
+    the same four questions with the answers still on the page they were just
+    marked on, which is the thing regeneration exists to stop - and after a hold
+    it is the one route left to a student who would rather not be sent back to
+    the material. Refusing it costs nothing: the next attempt is a new quiz, and
+    retaking is unlimited.
+    """
+    taken = progress.attempts(topic)
+    return bool(taken) and taken[-1].taken_at > quiz.created_at
+
+
 def reread(topic: Topic) -> Reread:
     """What this topic's next attempt is waiting for, if anything.
 
     Free until the student has failed twice. After that it names the paragraphs
     the wrong answers in their last failing sitting came from, less the ones
-    they have since opened. A paragraph opened before the second failure still
-    counts, because they had been to it and nothing about failing again makes
-    that untrue.
+    they have opened *since that sitting*. The since is the whole rule: reading
+    the topic is what this product asks a student to do before sitting the quiz,
+    so an all-time record of what they have read would have discharged every hold
+    before it applied, and a mechanic that cannot fire is not a mechanic.
 
     The latest failing sitting is the one that counts rather than every wrong
     answer the topic has ever collected. A student whose last sitting went well
     has already been shown the rest of what they got wrong, and sending them
     back through the whole history is work with nothing at the end of it.
+
+    If the material behind those paragraphs has since been re-uploaded the rows
+    are gone with it, and nothing is owed: a hold over a paragraph that no
+    longer exists is a hold with no way out of it.
     """
-    failures = [attempt for attempt in progress.attempts(topic) if attempt.failed]
+    taken = progress.attempts(topic)
+    failures = [attempt for attempt in taken if attempt.failed]
     if len(failures) < FAILED_ATTEMPTS_BEFORE_REREAD:
-        return Reread(failures=len(failures))
-    owed = reading.unopened(current_user_id(), owned(failures[-1].missed.all()))
-    return Reread(failures=len(failures), owed=owed)
+        return Reread(failures=len(failures), sittings=len(taken))
+    holding = failures[-1]
+    owed = reading.unopened_since(
+        current_user_id(),
+        owned(holding.missed.all()),
+        since=holding.taken_at,
+    )
+    return Reread(failures=len(failures), sittings=len(taken), owed=owed)
 
 
 def build(topic: Topic) -> Quiz:

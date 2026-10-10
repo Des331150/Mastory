@@ -14,6 +14,7 @@ from django.db.models import Field, QuerySet
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from material import (
@@ -190,21 +191,16 @@ def course_detail(request: HttpRequest, course_id: int) -> HttpResponse:
 
 @require_GET
 def read_course(request: HttpRequest, course_id: int) -> HttpResponse:
-    """The material itself, and the record that the student got to a paragraph.
+    """The material itself, the paragraphs addressable one at a time.
 
-    Arriving at a cited paragraph by its link records the opening here rather
-    than only in the page's own event, so that a student reading without
-    JavaScript is not left with a quiz they have answered wrongly and can never
-    retake. The record is one row either way; only the door it comes through
-    differs.
+    Nothing here records an opening. A page that writes on a GET is a page any
+    page on the internet can make a student's browser fetch - an image tag, a
+    link preview, a prefetcher - and recording that the student has been back to
+    their material is not something another origin gets to do on their behalf.
+    The event is a POST, whether the page sends it itself or the student presses
+    the button.
     """
     course = _course(course_id)
-    paragraph = request.GET.get("paragraph", "").strip()
-    if paragraph:
-        span: Span = _owned_or_404(
-            _course_spans(course), pk=_int_or_none(paragraph), what="paragraph"
-        )
-        reading.record_open(current_user_id(), span)
     query = _query_from(request)
     documents = _documents(course, query)
     sections = [section for d in documents for section in d.sections]
@@ -227,18 +223,39 @@ def read_course(request: HttpRequest, course_id: int) -> HttpResponse:
 
 @require_POST
 def section_open(request: HttpRequest, course_id: int, span_id: int) -> HttpResponse:
-    """One paragraph has been opened, said by the reading surface as it appears.
+    """One paragraph has been opened, and the student asked for it to be said.
 
-    The event the retry rule is waiting on, arriving from the page itself rather
-    than from a button a student has to find. Empty response and no swap: opening
-    a paragraph is not a thing the page needs to say anything about.
+    Two callers, one record. The reading surface posts this itself as a
+    paragraph scrolls into view, and answers 204 with nothing in it, because
+    opening a paragraph is not something the page needs to say anything about.
+    A student without JavaScript presses the button the refusal offers instead
+    and is sent back to the paragraph they asked for.
+
+    Posted rather than linked to, for the reason on ``read_course``: this writes,
+    and a write any page can trigger by loading an image is not a record of the
+    student having read anything.
     """
     course = _course(course_id)
     span: Span = _owned_or_404(
         _course_spans(course), pk=span_id, what="paragraph"
     )
     reading.record_open(current_user_id(), span)
-    return HttpResponse(status=204)
+    if request.headers.get("hx-request"):
+        return HttpResponse(status=204)
+    return redirect(_safe_next(request, course, span))
+
+
+def _safe_next(request: HttpRequest, course: Course, span: Span) -> str:
+    """Where a student is sent after pressing the button that records an opening.
+
+    The paragraph they asked for, unless the form said otherwise and the place it
+    said is this site: a redirect a form can be pointed at is an open door, and
+    this one sits directly after a write.
+    """
+    asked = request.POST.get("next", "")
+    if asked and url_has_allowed_host_and_scheme(asked, allowed_hosts=None):
+        return asked
+    return f"{reverse('course-read', args=[course.pk])}#{span.anchor}"
 
 
 @require_GET
@@ -471,7 +488,7 @@ def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> H
     course = topic.course
     reread = quiz_service.reread(topic)
     if reread.required:
-        return _quiz_page(request, course, topic, quiz_service.latest(topic))
+        return _quiz_page(request, course, topic, quiz_service.latest(topic), reread=reread)
     try:
         written = quiz_service.build(topic)
     except (topic_service.Rejected, model.ModelUnavailable) as exc:
@@ -500,8 +517,9 @@ def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> Ht
     """
     topic = _topic(course_id, topic_id)
     course = topic.course
-    if quiz_service.reread(topic).required:
-        return _quiz_page(request, course, topic, quiz_service.latest(topic))
+    held = quiz_service.reread(topic)
+    if held.required:
+        return _quiz_page(request, course, topic, quiz_service.latest(topic), reread=held)
     current = quiz_service.find(topic, _int_or_none(request.POST.get("quiz")))
     if current is None:
         return _quiz_page(
@@ -513,6 +531,18 @@ def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> Ht
                 "This page of questions has been replaced by a newer one, so "
                 "there is nothing here to mark. The quiz below is the current "
                 "one; take it again to record a sitting."
+            ),
+        )
+    if quiz_service.spent(topic, current):
+        return _quiz_page(
+            request,
+            course,
+            topic,
+            current,
+            error=(
+                "You have sat these questions already, and a retake of them "
+                "would be the same questions with the answers still on the "
+                "page. Write a new set and take that instead."
             ),
         )
     given = {
@@ -537,6 +567,7 @@ def _quiz_page(
     *,
     result: quiz_service.Result | None = None,
     error: str = "",
+    reread: quiz_service.Reread | None = None,
 ) -> HttpResponse:
     """The quiz, or the result of marking it, in one template.
 
@@ -544,9 +575,10 @@ def _quiz_page(
     thing: a question is answered or not, and the citation beside it is the same
     citation either way.
 
-    What the next attempt is waiting for is read here rather than passed in, so
-    that every state of this page - arriving, sitting, marked, held - says the
-    same thing about it and no caller can render a state that forgets.
+    What the next attempt is waiting for is read here unless the caller has
+    already asked - the held paths ask in order to decide whether to hold at all,
+    and a page that asked the same question twice could be about to show two
+    different answers to the same student.
     """
     return render(
         request,
@@ -558,7 +590,10 @@ def _quiz_page(
             "questions": quiz_service.questions(current) if current else [],
             "limit": quiz_service.QUESTION_LIMIT,
             "result": result,
-            "reread": quiz_service.reread(topic),
+            "reread": quiz_service.reread(topic) if reread is None else reread,
+            # A quiz that has been sat is not one the student may answer again,
+            # so the page does not offer them a button for it.
+            "spent": current is not None and quiz_service.spent(topic, current),
             "error": error,
         },
     )

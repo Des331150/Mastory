@@ -104,10 +104,13 @@ def render_spaned_markdown(
             parts.append(f'<div class="block">{html}</div>')
             continue
         ordinal += 1
+        url = open_url(ordinal)
+        # No stored paragraph means nothing to record an opening against, and an
+        # event pointed at the page itself would have htmx posting the reader's
+        # own url on every scroll.
+        event = f' hx-post="{url}" hx-trigger="revealed" hx-swap="none"' if url else ""
         parts.append(
-            f'<div class="span" id="{slide.span_anchor(ordinal)}"'
-            f' hx-post="{open_url(ordinal)}" hx-trigger="revealed" hx-swap="none"'
-            f">{html}</div>"
+            f'<div class="span" id="{slide.span_anchor(ordinal)}"{event}>{html}</div>'
         )
     return "\n".join(parts)
 

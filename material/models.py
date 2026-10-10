@@ -540,9 +540,10 @@ class SectionOpen(models.Model):
     the retry rule needs to know the student went back to the material, and that
     is the whole of what it is entitled to ask.
 
-    One row per paragraph, kept however many times it is opened, because what it
-    records is that the student has been there rather than how often - a
-    paragraph read twice is not twice the evidence that it was read once.
+    One row per paragraph, holding the moment they were *last* there. The retry
+    rule asks whether they have been back since they were sent, and a first-visit
+    timestamp would answer a question nobody asked: it would let a paragraph
+    they read before the quiz, and were sent back to after, count as read.
 
     Kept apart from ``Attempt`` on purpose. An attempt is what the student sat;
     this is what they have looked at since, and it outlives every quiz written
