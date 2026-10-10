@@ -43,6 +43,7 @@ material/
   topics.py    inferring the topic path, and every edit the student makes to it
   planning.py  the week of sessions: weighting, the weekly budget, and the two modes
   progress.py  what the student has done: the share of their plan, the log, and quiz attempts
+  quiz.py      a topic's quiz: written from spans, cited to them, and marked against them
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
   views.py     the student-facing HTTP surface
@@ -51,11 +52,9 @@ material/
 
 There is one test seam: HTTP. `material/tests/` drives the real application
 through the Django test client against a real database, and asserts only on what
-the student sees. The two exceptions both come from work that has no HTTP
-surface yet: per-topic quiz attempts are driven through `progress.record_attempt`
-until a quiz exists to serve them, and the no-gamification claim reads the
-templates and the schema rather than a page, because a word nobody renders is
-exactly the one worth forbidding.
+the student sees. The one exception comes from work that has no HTTP surface
+yet: the no-gamification claim reads the templates and the schema rather than a
+page, because a word nobody renders is exactly the one worth forbidding.
 
 ## The model
 
@@ -205,8 +204,25 @@ first quiz onwards because none of it can be backfilled — mastery will be weig
 out of these rows later, and a table invented after the fact starts empty and
 stays wrong. `progress.record_attempt()` refuses a score outside zero to one
 rather than storing it, so nothing downstream inherits a mark counted out of the
-wrong number. There is no quiz yet, so nothing reaches `progress` over HTTP
-today; that is a fact about the ticket order, not about the design.
+wrong number. `material/quiz.py` calls it once a sitting has been marked, and
+`/courses/<id>/topics/<id>/quiz/` is where a student reaches it.
+
+## Quizzes
+
+A topic quiz is written from the student's own paragraphs, one paragraph at a
+time. Each question cites the paragraph it came from, is put back to the model
+against that paragraph, and is dropped if the paragraph does not state the
+answer — so a topic whose material supports one verified question gets one
+question and a low-confidence flag rather than four invented ones. The count of
+dropped questions is shown rather than hidden, because a quiz that silently got
+smaller reads as a fault rather than as a decision.
+
+Grading is multiple choice and short answer, and is a string comparison against
+the answers stored with each question, which were themselves checked against the
+cited paragraph. That is what makes grading unable to contradict its source: the
+same normalisation checks an answer against the span and marks it against the
+student. A wrong answer sends the student to the exact paragraph, via an anchor
+the reading page renders per paragraph rather than per slide.
 
 ## Uploads
 

@@ -26,6 +26,8 @@
             {{ topic.weight }} unit{{ topic.weight|pluralize }} &middot;
             {{ topic.pointers.count }} slide{{ topic.pointers.count|pluralize }}
             {% if topic.pointers.count > 1 %}from {{ topic.pointers.count }} different places{% endif %}
+            &middot;
+            <a href="{% url 'topic-quiz' course.pk topic.pk %}">Quiz for this topic</a>
           </p>
 
           {% if topic.flagged %}

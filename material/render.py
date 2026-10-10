@@ -39,6 +39,26 @@ def plain_text(markdown: str) -> str:
     return re.sub(r"\s+", " ", without_marks).strip()
 
 
+def blocks(markdown: str) -> list[str]:
+    """A slide's paragraphs, in order, with the ones holding nothing dropped.
+
+    One definition of what a paragraph is, shared with extraction: a span is
+    stored at ingest time by this split and cited at quiz time by the ordinal it
+    lands on, so if the two ever split a slide differently every citation would
+    point at the wrong paragraph and nothing would say so. ``Span`` rows are
+    numbered over exactly this list.
+
+    A block holding nothing is dropped, unless it holds a picture. A page whose
+    only content is a diagram has a paragraph the student reads and a question
+    could cite, and dropping it here would also drop the image off the page.
+    """
+    return [
+        block
+        for block in markdown.split("\n\n")
+        if plain_text(block) or _MD_IMAGE.search(block)
+    ]
+
+
 def render_slide_markdown(
     markdown: str, *, image_url: Callable[[str], str]
 ) -> str:
@@ -48,6 +68,22 @@ def render_slide_markdown(
     )
     html: str = markdown_lib.markdown(prepared, extensions=_MARKDOWN_EXTENSIONS)
     return html
+
+
+def render_spaned_markdown(
+    slide: Slide, *, image_url: Callable[[str], str]
+) -> str:
+    """A slide as HTML, with every paragraph addressable on its own.
+
+    The citation target a wrong answer jumps to. Rendering the whole slide as
+    one block would leave a link that lands at the top of the page, which is the
+    hunting the citation is meant to end.
+    """
+    return "\n".join(
+        f'<div class="span" id="{slide.span_anchor(ordinal)}">'
+        f"{render_slide_markdown(block, image_url=image_url)}</div>"
+        for ordinal, block in enumerate(blocks(slide.markdown))
+    )
 
 
 def mark_term(html: str, term: str) -> str:
@@ -89,9 +125,7 @@ def build_sections(
     """The reading surface: one section per slide, filtered by the query."""
     sections: list[Section] = []
     for slide in slides:
-        html = render_slide_markdown(
-            slide.markdown, image_url=partial(image_url, slide)
-        )
+        html = render_spaned_markdown(slide, image_url=partial(image_url, slide))
         if query:
             html = mark_term(html, query)
         sections.append(

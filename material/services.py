@@ -29,7 +29,7 @@ from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 
-from material import ingest
+from material import ingest, render
 from material.models import Course, Slide, SourceFile, Span
 from material.render import plain_text
 
@@ -364,11 +364,12 @@ def _spans(markdown: str) -> list[str]:
     """The slide's paragraphs, as plain text.
 
     A span is what a later question is generated from and cited back to, so it
-    holds the text a student reads rather than Markdown syntax. Paragraphs are a
-    coarse split for now; the topic path work will decide the real boundaries.
+    holds the text a student reads rather than Markdown syntax. The split is
+    ``render.blocks``, the same one the reading page wraps in citation anchors:
+    a span numbered over one set of paragraphs and cited over another would
+    point every question at the wrong place.
     """
-    spans = (plain_text(block) for block in markdown.split("\n\n"))
-    return [span for span in spans if span]
+    return [plain_text(block) for block in render.blocks(markdown)]
 
 
 def _file_image_dir(source_file: SourceFile) -> Path:

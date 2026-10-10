@@ -267,6 +267,55 @@ button[disabled] { opacity: 0.5; cursor: default; }
 .cut-option.kept-out .cut-topic { color: var(--muted); }
 .cut-option form { grid-column: 2; grid-row: 1; }
 
+/* The quiz. One question, then the paragraph it came from: the citation is
+   shown before the student answers, not only after they are wrong. */
+.quiz-page { max-width: 780px; margin: 0 auto; padding: 32px 24px 48px; }
+.quiz-head h1 { margin: 0 0 6px; font-size: 30px; }
+.quiz-head .muted { margin: 0; max-width: 60ch; }
+.quiz-count { margin: 0; font-size: 18px; }
+.dropped-note,
+.low-confidence {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 4px solid var(--accent);
+  background: var(--wash);
+  font-size: 14px;
+}
+.questions { margin: 16px 0 0; padding: 0; list-style: none; counter-reset: question; }
+.question {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  counter-increment: question;
+}
+.question::before {
+  content: "Question " counter(question);
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.question-citation { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.question-prompt { margin: 0 0 10px; font-size: 18px; }
+.choices { margin: 0; padding: 0; list-style: none; }
+.choices label { display: block; padding: 6px 0; cursor: pointer; }
+.question.right { border-color: var(--accent); }
+.question.wrong { border-color: #a4243b; }
+.mark { margin: 0 0 4px; font-weight: 600; }
+.question.right .mark { color: var(--accent); }
+.question.wrong .mark { color: #a4243b; }
+.given, .expected { margin: 0; font-size: 14px; color: var(--muted); }
+.quiz-form button, .quiz-page form button { margin-top: 10px; }
+.quiz-page form + form { margin-top: 4px; }
+
+/* A paragraph a question came from, when a citation lands on it. */
+.reading .span { scroll-margin-top: 20px; }
+.reading .span:target { background: var(--wash); border-radius: 6px; }
+
 @media (max-width: 900px) {
   .reader { grid-template-columns: minmax(0, 1fr); }
   .nav-toggle { display: inline-block; margin-bottom: 12px; }

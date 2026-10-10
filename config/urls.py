@@ -77,6 +77,21 @@ urlpatterns = [
         name="topic-merge",
     ),
     path(
+        "courses/<int:course_id>/topics/<int:topic_id>/quiz/",
+        views.topic_quiz,
+        name="topic-quiz",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/quiz/rewrite/",
+        views.topic_quiz_rewrite,
+        name="topic-quiz-rewrite",
+    ),
+    path(
+        "courses/<int:course_id>/topics/<int:topic_id>/quiz/submit/",
+        views.topic_quiz_submit,
+        name="topic-quiz-submit",
+    ),
+    path(
         "courses/<int:course_id>/topics/<int:topic_id>/move/",
         views.topic_move,
         name="topic-move",

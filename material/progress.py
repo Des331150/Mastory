@@ -26,9 +26,9 @@ Three decisions earn their place here:
   exists to protect.
 
 Attempts are recorded from the first quiz onwards, because none of it can be
-backfilled. There is no quiz yet, so nothing here is reachable over HTTP today;
-that is a fact about the ticket order rather than about the design, and it is why
-the recorder exists now rather than with the quiz.
+backfilled. The recorder is reached over HTTP by the quiz that marks a sitting,
+which calls it once the answers are in; nothing here folds an attempt into a
+running total, because mastery is computed from the shape of these rows later.
 """
 
 from dataclasses import dataclass

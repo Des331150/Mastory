@@ -10,9 +10,10 @@ The contract is enforced here rather than asked for in a prompt. A reply that
 cites a slide the caller never supplied loses that citation, and a reply with
 nothing left to point at is dropped rather than shown. A reply that is unsure
 about itself comes back flagged, so the student is asked to check it instead of
-being handed a confident guess. Later features need more from a model -
-questions, verification - and they ask here too, so there is exactly one place
-where "grounded in this student's slides" is decided.
+being handed a confident guess. Quiz questions came the same way rather than
+through a second seam, which is why ``generate_questions`` asks one paragraph at
+a time and then verifies every answer against that paragraph before returning
+it: a citation is only worth showing if what it points at supports the question.
 
 Nothing above this module knows how a model is reached, and nothing in it knows
 what a topic is.
@@ -33,6 +34,9 @@ logger = logging.getLogger(__name__)
 #: Below this confidence the student is told the topic needs checking against
 #: their own slides. Above it, the topic is shown as inferred and unremarkable.
 CONFIDENCE_FLOOR = 0.6
+
+MULTIPLE_CHOICE = "multiple_choice"
+SHORT_ANSWER = "short_answer"
 
 #: What the student is told about a topic the model was unsure of.
 UNSURE = "The model was not sure of this topic. Check it against your slides."
@@ -56,6 +60,37 @@ _INSTRUCTION = (
     "extent; the student is shown that low confidence and asked to check it.\n"
     'Reply with JSON only: {"topics": [{"title": "...", "slides": [1, 2], '
     '"confidence": 0.0}]}'
+)
+
+#: How much of one span the model is shown. A span is a paragraph, so this only
+#: bites on a wall of text, and trimming rather than dropping keeps a long
+#: paragraph able to produce a question instead of silently producing none.
+_SPAN_TEXT_LIMIT = 1200
+
+_QUESTION_INSTRUCTION = (
+    "You are writing quiz questions from one paragraph of one student's own "
+    "course material. Use only the paragraph the question names; do not use "
+    "outside knowledge, do not use another paragraph, and do not invent "
+    "detail.\n"
+    "Write at most one question per paragraph, and only where the paragraph "
+    "actually states an answer that is not a heading. A paragraph you cannot "
+    "ask about is left out of your reply rather than filled in.\n"
+    'Two kinds only. "multiple_choice" needs "choices" as three or four '
+    'options with exactly one of them right, and "answer" naming that option '
+    'verbatim. "short_answer" needs "answers" as the word or phrase the '
+    'paragraph itself uses, and nothing else.\n'
+    'Reply with JSON only: {"questions": [{"span": 1, "kind": '
+    '"multiple_choice", "prompt": "...", "choices": ["...", "..."], '
+    '"answer": "..."}]}'
+)
+
+_VERIFY_INSTRUCTION = (
+    "You are checking one answer against the paragraph it came from. Read only "
+    "the paragraph and the question below. Say whether the paragraph itself "
+    "states the answer to the question - not whether it is true, not whether "
+    "you agree with it, and not whether you can guess it. If the paragraph does "
+    "not state it, say no.\n"
+    'Reply with JSON only: {"supported": true}'
 )
 
 
@@ -236,6 +271,279 @@ def _confidence(value: Any) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return 0.0
     return min(1.0, max(0.0, float(value)))
+
+
+@dataclass(frozen=True)
+class SpanExcerpt:
+    """One span as the model is allowed to see it, and as it is cited back.
+
+    ``index`` is the span's place in the paragraphs handed over, which is both
+    what the model cites and what the application turns back into the span it
+    came from. Nothing else about the slide is shown: a question generated from
+    a whole topic is a question generated from material the model was not shown,
+    which is the failure this call is shaped to avoid.
+    """
+
+    index: int
+    text: str
+
+
+@dataclass(frozen=True)
+class QuestionProposal:
+    """One question the model wrote from one span, after the contract has been applied.
+
+    ``answers`` is what counts as right, as text. For a multiple choice question
+    that is exactly one entry and it is one of ``choices``, which is what lets
+    the same grader mark both kinds and what stops a right answer from existing
+    outside the options the student was offered.
+    """
+
+    span_index: int
+    kind: str
+    prompt: str
+    choices: tuple[str, ...]
+    answers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class QuestionSet:
+    """The questions that survived verification, and how many did not.
+
+    ``dropped`` is counted rather than thrown away: the product promises an
+    honest short quiz over a padded one, and a student told their quiz is two
+    questions long needs to be told that two were left out rather than finding
+    out by wondering.
+    """
+
+    questions: tuple[QuestionProposal, ...]
+    dropped: int
+
+
+def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> QuestionSet:
+    """Questions written from these spans alone, and checked against them.
+
+    Span-first, in the order the contract demands: the model is shown one
+    paragraph at a time and asked for a question about that paragraph, each
+    answer is then put back to the model against the paragraph it came from,
+    and only the answers that survive are returned. A question the paragraph
+    does not support is dropped here and never reaches the student, because a
+    question with a citation the citation does not support is worse than no
+    question: it looks grounded and is not.
+    """
+    candidates = _grounded_questions(
+        complete(_question_prompt(topic_title=topic_title, spans=spans)), spans=spans
+    )
+    by_index = {span.index: span for span in spans}
+    verified: list[QuestionProposal] = []
+    dropped = 0
+    for candidate in candidates:
+        span = by_index[candidate.span_index]
+        if not _answer_is_supported(span, candidate):
+            logger.info(
+                "dropped a question the span does not support: span %d %r",
+                candidate.span_index,
+                candidate.prompt,
+            )
+            dropped += 1
+            continue
+        verified.append(candidate)
+    return QuestionSet(questions=tuple(verified), dropped=dropped)
+
+
+def _question_prompt(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> str:
+    """The generation request as JSON: the paragraphs, numbered, and the rules.
+
+    Sent as a document for the same reason the topic request is: a fake at
+    ``complete`` reads the material exactly as a model does, so a test can drive
+    the whole quiz through the seam and answer the way a model would.
+    """
+    return json.dumps(
+        {
+            "instruction": _QUESTION_INSTRUCTION,
+            "topic": topic_title,
+            "spans": [
+                {"span": span.index, "text": span.text[:_SPAN_TEXT_LIMIT]}
+                for span in spans
+            ],
+        }
+    )
+
+
+def _verification_prompt(*, span: SpanExcerpt, question: QuestionProposal) -> str:
+    """The check one answer gets against the one paragraph it came from."""
+    return json.dumps(
+        {
+            "instruction": _VERIFY_INSTRUCTION,
+            "span": {"span": span.index, "text": span.text[:_SPAN_TEXT_LIMIT]},
+            "question": {
+                "kind": question.kind,
+                "prompt": question.prompt,
+                "answers": list(question.answers),
+            },
+        }
+    )
+
+
+def _answer_is_supported(span: SpanExcerpt, question: QuestionProposal) -> bool:
+    """Whether the paragraph itself says this is the answer.
+
+    A reply that cannot be read as a yes is a no. The default of dropping is
+    the whole point: a verification call that fails, answers something else, or
+    times out leaves the student with a shorter quiz rather than with an
+    unverified question wearing a citation.
+    """
+    try:
+        reply = complete(_verification_prompt(span=span, question=question))
+    except ModelUnavailable as failure:
+        logger.info("verification call failed, dropping the question: %s", failure)
+        return False
+    return _supported(reply)
+
+
+def _supported(reply: str) -> bool:
+    """The yes or no out of a verification reply."""
+    try:
+        parsed = json.loads(reply)
+    except json.JSONDecodeError:
+        logger.warning("verification reply was not JSON; the question is dropped")
+        return False
+    return isinstance(parsed, dict) and parsed.get("supported") is True
+
+
+def _grounded_questions(reply: str, *, spans: Sequence[SpanExcerpt]) -> list[QuestionProposal]:
+    """The questions a reply claims, kept only where they could be graded.
+
+    The same contract as ``_grounded_topics`` applied to questions: a question
+    citing a paragraph that was never supplied is dropped, a multiple choice
+    question whose answer is not one of the options it offers is dropped
+    because it cannot be marked without contradicting what the student saw, and
+    a short answer the paragraph does not contain is dropped for the same
+    reason - a grader comparing an answer against a phrase the material never
+    used is not checking the student against their slides.
+    """
+    supplied = {span.index: span for span in spans}
+    proposals: list[QuestionProposal] = []
+    for claim in _claimed_questions(reply):
+        index = _span_index(claim.get("span"))
+        prompt = _text(claim.get("prompt"))
+        if index is None or index not in supplied or not prompt:
+            logger.info("dropped an ungrounded question claim: %r on span %r", prompt, index)
+            continue
+        proposal = _graded_question(claim, prompt, index=index)
+        if proposal is None:
+            continue
+        span = supplied[index]
+        if proposal.kind == SHORT_ANSWER and not all(
+            normalise(answer) in normalise(span.text) for answer in proposal.answers
+        ):
+            logger.info("dropped a question whose answer is not in its span: %r", prompt)
+            continue
+        proposals.append(proposal)
+    return proposals
+
+
+def _graded_question(
+    claim: dict[str, Any], prompt: str, *, index: int
+) -> QuestionProposal | None:
+    """A claim as a question that can be marked automatically, or nothing.
+
+    Only the two kinds the product grades are read. Anything else is refused
+    rather than coerced: grading is multiple choice and short answer, and a
+    third kind arriving from a model is not something to guess at here.
+    """
+    kind = claim.get("kind")
+    if kind == MULTIPLE_CHOICE:
+        choices = _distinct_texts(claim.get("choices"))
+        answer = _text(claim.get("answer"))
+        if len(choices) < 2 or not any(
+            normalise(choice) == normalise(answer) for choice in choices
+        ):
+            logger.info("dropped a multiple choice question with no answer in it: %r", prompt)
+            return None
+        return QuestionProposal(
+            span_index=index,
+            kind=MULTIPLE_CHOICE,
+            prompt=prompt,
+            choices=choices,
+            answers=(answer,),
+        )
+    if kind == SHORT_ANSWER:
+        answers = _distinct_texts(claim.get("answers"))
+        if not answers:
+            logger.info("dropped a short answer question with no answer: %r", prompt)
+            return None
+        return QuestionProposal(
+            span_index=index,
+            kind=SHORT_ANSWER,
+            prompt=prompt,
+            choices=(),
+            answers=answers,
+        )
+    logger.info("dropped a question of an unknown kind %r: %r", kind, prompt)
+    return None
+
+
+def _claimed_questions(reply: str) -> list[dict[str, Any]]:
+    """The question objects in a reply, or none at all if it is not one."""
+    try:
+        parsed = json.loads(reply)
+    except json.JSONDecodeError:
+        logger.warning("model reply was not JSON; no questions taken from it")
+        return []
+    if not isinstance(parsed, dict):
+        logger.warning("model reply was not an object; no questions taken from it")
+        return []
+    claimed = parsed.get("questions")
+    if not isinstance(claimed, list):
+        logger.warning("model reply named no questions; no questions taken from it")
+        return []
+    return [claim for claim in claimed if isinstance(claim, dict)]
+
+
+def _span_index(value: Any) -> int | None:
+    """The span a claim cites, or nothing if it did not cite one properly."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def _distinct_texts(value: Any) -> tuple[str, ...]:
+    """The strings a claim offers, in the order given, with blanks and repeats out.
+
+    Duplicates are dropped rather than kept: a multiple choice question with the
+    right answer written twice is a question whose answer the student can pick
+    wrongly and still be told they are right.
+    """
+    if not isinstance(value, list):
+        return ()
+    seen: set[str] = set()
+    kept: list[str] = []
+    for item in value:
+        text = _text(item)
+        key = normalise(text)
+        if text and key not in seen:
+            seen.add(key)
+            kept.append(text)
+    return tuple(kept)
+
+
+def _text(value: Any) -> str:
+    """A string the model wrote, trimmed, or nothing at all."""
+    return value.strip() if isinstance(value, str) else ""
+
+
+def normalise(text: str) -> str:
+    """Two strings written the same way, compared without case or punctuation.
+
+    Used both to check an answer against the span it cites and to mark a
+    student's answer, so that the answer a question was verified against and
+    the answer that counts as right are compared the same way. Without that,
+    grading could contradict the very text the question was checked against -
+    a verified answer written ``2.`` in the span and typed ``2`` by the student
+    would be marked wrong.
+    """
+    spaced = [char if char.isalnum() else " " for char in text.casefold()]
+    return " ".join("".join(spaced).split())
 
 
 def complete(prompt: str) -> str:

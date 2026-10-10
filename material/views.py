@@ -15,8 +15,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from material import model, planning, progress, topics as topic_service
-from material.models import Course, Plan, Session, Slide, SourceFile, Topic
+from material import model, planning, progress, quiz as quiz_service, topics as topic_service
+from material.models import Course, Plan, Quiz, Session, Slide, SourceFile, Topic
 from material.render import Section, build_sections
 from material.services import (
     StageOutcome,
@@ -371,6 +371,107 @@ def topic_confirm(request: HttpRequest, course_id: int) -> HttpResponse:
         request,
         course,
         notice="Topic path confirmed. You can now plan your revision.",
+    )
+
+
+@require_GET
+def topic_quiz(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
+    """The quiz for one topic: the questions that survived verification.
+
+    Built on first use and kept afterwards, because the student has to be able
+    to come back to the same questions and mark what they gave. A topic with
+    nothing pointed at it says so rather than writing an empty quiz.
+    """
+    topic = _topic(course_id, topic_id)
+    course = topic.course
+    existing = quiz_service.latest(topic)
+    if existing is not None:
+        return _quiz_page(request, course, topic, existing)
+    try:
+        written = quiz_service.build(topic)
+    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+        return _quiz_page(request, course, topic, None, error=_reason(exc))
+    return _quiz_page(request, course, topic, written)
+
+
+@require_POST
+def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
+    """Write the quiz again, so the questions are not the ones just memorised."""
+    topic = _topic(course_id, topic_id)
+    course = topic.course
+    try:
+        written = quiz_service.build(topic)
+    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+        return _quiz_page(
+            request,
+            course,
+            topic,
+            quiz_service.latest(topic),
+            error=_reason(exc),
+        )
+    return _quiz_page(request, course, topic, written)
+
+
+@require_POST
+def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
+    """Mark one sitting, and send every wrong answer back to its paragraph.
+
+    The result page is the only place grading is shown, and it shows the
+    paragraph as well as the mark: the citation is not decoration on the
+    question, it is what makes a wrong answer actionable.
+    """
+    topic = _topic(course_id, topic_id)
+    course = topic.course
+    current = quiz_service.latest(topic)
+    if current is None:
+        return _quiz_page(
+            request,
+            course,
+            topic,
+            None,
+            error="This topic has no quiz to mark yet. Write one first.",
+        )
+    given = {
+        # The form names every field ``q-<question>`` so one form can carry a
+        # whole quiz; the grader is handed the bare question ids.
+        key.removeprefix("q-"): request.POST.get(key, "")
+        for key in request.POST
+        if key.startswith("q-")
+    }
+    try:
+        result = quiz_service.grade(current, given)
+    except topic_service.Rejected as exc:
+        return _quiz_page(request, course, topic, current, error=exc.reason)
+    return _quiz_page(request, course, topic, current, result=result)
+
+
+def _quiz_page(
+    request: HttpRequest,
+    course: Course,
+    topic: Topic,
+    current: Quiz | None,
+    *,
+    result: quiz_service.Result | None = None,
+    error: str = "",
+) -> HttpResponse:
+    """The quiz, or the result of marking it, in one template.
+
+    One template for both states because the student reads them as the same
+    thing: a question is answered or not, and the citation beside it is the same
+    citation either way.
+    """
+    return render(
+        request,
+        "material/quiz.html",
+        {
+            "course": course,
+            "topic": topic,
+            "quiz": current,
+            "questions": quiz_service.questions(current) if current else [],
+            "limit": quiz_service.QUESTION_LIMIT,
+            "result": result,
+            "error": error,
+        },
     )
 
 

@@ -14,6 +14,15 @@ from django.db import models
 
 from material.users import owned
 
+#: What a student is told about a quiz with too few verified questions to mean
+#: much. Kept beside the table because it is the flag's meaning, and the flag is
+#: read in three places that must not each phrase it differently.
+LOW_CONFIDENCE = (
+    "Only a little of this topic could be checked against your own slides, so "
+    "this score says less than a longer one would. Read the paragraphs it "
+    "cites."
+)
+
 
 class Course(models.Model):
     """Material for one course the student is studying."""
@@ -131,6 +140,18 @@ class Slide(models.Model):
         """A link target that stays the same across requests and searches."""
         return f"{self.source_file.slug}-p{self.number}"
 
+    def span_anchor(self, ordinal: int) -> str:
+        """A link target for one paragraph of this slide.
+
+        A citation points at a span rather than at the slide it sits on: a
+        wrong answer has to send the student to the paragraph the question came
+        from, not to the top of a page they then have to search. The paragraph's
+        place on the slide is its ``Span.ordinal``, so the target is derived
+        here, in one place, and every reader of the slide - the reading page,
+        the quiz, a later exam - builds the same string from it.
+        """
+        return f"{self.anchor}-s{ordinal}"
+
 
 class Span(models.Model):
     """A contiguous run of text within a slide.
@@ -158,6 +179,24 @@ class Span(models.Model):
 
     def __str__(self) -> str:
         return f"{self.slide.anchor}#{self.ordinal}"
+
+    @property
+    def anchor(self) -> str:
+        """Where a question citing this span sends the student."""
+        return self.slide.span_anchor(self.ordinal)
+
+    @property
+    def citation(self) -> str:
+        """How the span is named on the page: which slide, which paragraph.
+
+        The student is shown this before they answer, because the promise this
+        product makes - every question came from your own material - is only
+        worth anything if the student can see which part is being claimed.
+        """
+        return (
+            f"{self.slide.source_file.original_name}, page {self.slide.number}, "
+            f"paragraph {self.ordinal + 1}"
+        )
 
 
 class TopicPath(models.Model):
@@ -427,6 +466,113 @@ class Attempt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.topic.title}: {self.score:.0%} ({self.passes} verified)"
+
+
+class Quiz(models.Model):
+    """One topic's quiz: the questions that survived, and what was left out.
+
+    A quiz is a row rather than something recomputed on every request, because
+    the student has to be able to come back to the same quiz, sit it, and have
+    every answer graded against the question they actually read. Generating a
+    fresh one is what taking it again does.
+
+    ``dropped`` is kept because a short quiz is the honest outcome rather than a
+    failure of the run: the student is told how many questions could not be
+    verified against the span they came from and were left out, because a quiz
+    that silently got smaller looks like a bug.
+
+    ``low_confidence`` is that same fact judged against the size of the quiz.
+    A topic whose material supports one verified question gets one question and
+    a flag saying the student cannot treat the score as a measure of what they
+    know.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quizzes"
+    )
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="quizzes")
+    dropped = models.PositiveIntegerField(default=0)
+    low_confidence = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.topic.title}: {len(self.questions.all())} questions"
+
+    @property
+    def count(self) -> int:
+        """How many questions this quiz actually has.
+
+        A property because the count is read on the page, in the attempt and
+        in the score, and three readings of a number the student is looking at
+        are three chances for them to disagree.
+        """
+        return self.questions.count()
+
+    @property
+    def note(self) -> str:
+        """What the student is told about a quiz they should not fully trust."""
+        return LOW_CONFIDENCE
+
+
+class Question(models.Model):
+    """One question, and the span it was generated from and cites.
+
+    The span is a foreign key rather than a copy of the paragraph's text,
+    because a citation that stores its own text is a citation that can fall out
+    of step with the slide it claims to come from. Following the key is the
+    whole of what "go and check" means.
+
+    ``answers`` is what counts as right, as text, rather than an index: multiple
+    choice keeps exactly one entry and it is one of ``choices``, so the same
+    question is graded the same way whichever kind it is, and a short answer can
+    accept more than one wording of the same thing. Every entry was checked
+    against the span before the question was kept, which is what makes grading
+    unable to contradict the source it cites.
+    """
+
+    class Kind(models.TextChoices):
+        #: The two kinds, and no others. A quiz that needed the student to write
+        #: an essay, or to rank, or to draw, could not be graded against a
+        #: paragraph without becoming a second opinion about the material rather
+        #: than a check on it. These are the strings ``material.model`` is
+        #: understood to produce.
+        MULTIPLE_CHOICE = "multiple_choice", "Multiple choice"
+        SHORT_ANSWER = "short_answer", "Short answer"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="questions"
+    )
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    span = models.ForeignKey(Span, on_delete=models.CASCADE, related_name="questions")
+    ordinal = models.PositiveIntegerField()
+    kind = models.CharField(max_length=16, choices=Kind)
+    prompt = models.TextField()
+    choices = models.JSONField(default=list)
+    answers = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ["ordinal", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["quiz", "ordinal"], name="unique_question_ordinal_per_quiz"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.quiz_id} q{self.ordinal}: {self.prompt[:40]}"
+
+    @property
+    def slide(self) -> Slide:
+        """The slide this question came from, named on the page before answering."""
+        return self.span.slide
+
+    @property
+    def anchor(self) -> str:
+        """The exact paragraph a wrong answer sends the student to."""
+        return self.span.anchor
 
 
 class TopicSlide(models.Model):

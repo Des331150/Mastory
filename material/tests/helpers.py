@@ -121,6 +121,130 @@ def use_fake_model(*topics: Claim, reply: str | None = None) -> Any:
     return patcher
 
 
+def fake_question(
+    span: int,
+    prompt: str,
+    *,
+    kind: str = "multiple_choice",
+    choices: list[str] | None = None,
+    answer: str = "",
+    answers: list[str] | None = None,
+) -> dict[str, Any]:
+    """One question the fake model writes from the span it cites.
+
+    ``span`` is the span's position in the paragraphs the application handed
+    over, which is what a real reply cites; the application is responsible for
+    turning it back into the paragraph, and a test that cites a span that was
+    never supplied is testing that it does not.
+    """
+    claim: dict[str, Any] = {"span": span, "kind": kind, "prompt": prompt}
+    if kind == "multiple_choice":
+        claim["choices"] = choices or [answer, "None of these"]
+        claim["answer"] = answer
+    else:
+        claim["answers"] = answers or [answer]
+    return claim
+
+
+class QuizModel:
+    """A fake model that answers a quiz the way a model would.
+
+    It reads the request rather than replaying a canned string, because a quiz
+    takes two kinds of call: one asking for questions from the paragraphs, and
+    one per question asking whether the paragraph supports the answer. The fake
+    parses the JSON it is handed, quotes the paragraphs it was given, and
+    supports an answer only when that answer really is in the paragraph it was
+    written from - which is what lets a test drive the verification step
+    through the seam rather than stubbing it out.
+    """
+
+    def __init__(
+        self,
+        *questions: dict[str, Any],
+        verified: tuple[int, ...] | None = None,
+    ) -> None:
+        self.prompts: list[str] = []
+        self.verified = None if verified is None else set(verified)
+        self._questions = list(questions)
+
+    def __call__(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        request = json.loads(prompt)
+        if "supported" in request["instruction"]:
+            return json.dumps({"supported": self._verify(request)})
+        return json.dumps({"questions": self._write(request)})
+
+    def _write(self, request: dict[str, Any]) -> list[dict[str, Any]]:
+        """One question per span the fake was asked about, citing that span."""
+        written = []
+        for position, span in enumerate(request["spans"], start=1):
+            source = self._questions[(position - 1) % len(self._questions)]
+            claim = dict(source)
+            claim["span"] = span["span"]
+            if claim.get("answers"):
+                claim["answers"] = self._first_in(span["text"], claim["answers"])
+            if claim.get("choices"):
+                claim["choices"], claim["answer"] = self._choice_in(
+                    span["text"], claim["choices"], claim.get("answer", "")
+                )
+            written.append(claim)
+        return written
+
+    def _choice_in(
+        self, text: str, choices: list[str], answer: str
+    ) -> tuple[list[str], str]:
+        """The right option the paragraph actually contains, and its distractors.
+
+        Drawn from the paragraph's own sentences so that the options a student
+        is offered are words that appear in the material they are being asked
+        about, which is the case a real model has to get right.
+        """
+        sentences = [s.strip(" .") for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+        words = sentences or [text.strip(" .")]
+        right = next((w for w in words if answer and answer in w), None)
+        if right is None:
+            right = words[0]
+        distractors = [w for w in words if w != right][: max(0, len(choices) - 1)]
+        while len(distractors) < len(choices) - 1:
+            distractors.append(f"Not stated in the paragraph {len(distractors) + 1}")
+        return [right, *distractors[: len(choices) - 1]], right
+
+    def _first_in(self, text: str, answers: list[str]) -> list[str]:
+        """The first offered answer the paragraph contains, or the first one.
+
+        A short answer the paragraph never uses is left as the model wrote it,
+        so the application's own grounding check is what refuses it.
+        """
+        return [next((a for a in answers if a in text), answers[0])]
+
+    def _verify(self, request: dict[str, Any]) -> bool:
+        """Whether the paragraph really states the answer, unless told otherwise.
+
+        ``verified`` names the spans this fake will agree about; a test sets it
+        to make the model vouch for a paragraph that does not say the answer,
+        which is the only way to see the drop from the student's side.
+        """
+        number = request["span"]["span"]
+        if self.verified is not None and number not in self.verified:
+            return False
+        return all(a in request["span"]["text"] for a in request["question"]["answers"])
+
+    @property
+    def questions_written(self) -> list[dict[str, Any]]:
+        """The generation request, as the fake model read it."""
+        for prompt in self.prompts:
+            request = json.loads(prompt)
+            if "questions" in request["instruction"]:
+                spans: list[dict[str, Any]] = request["spans"]
+                return spans
+        raise AssertionError("the model was never asked for questions")
+
+    def use(self, test_case: TestCase) -> None:
+        patcher = mock.patch.object(model, "complete", new=self)
+        patcher.start()
+        test_case.addCleanup(patcher.stop)
+
+
 class RecordingModel:
     """A fake model that remembers what it was asked.
 

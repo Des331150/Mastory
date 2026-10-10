@@ -76,6 +76,7 @@
       {% with slides=overview.current.topic.slides %}
         {% if slides %}
           <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
+          <a class="quiet-link" href="{% url 'topic-quiz' course.pk overview.current.topic.pk %}">Take this topic&rsquo;s quiz</a>
         {% else %}
           <p class="muted">
             This topic points at no slides yet, so there is nothing to open for
@@ -133,6 +134,8 @@
               {% if slides %}
                 <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
                    >Read {{ session.topic.title }}</a>
+                <a class="session-link" href="{% url 'topic-quiz' course.pk session.topic.pk }}"
+                   >Quiz for {{ session.topic.title }}</a>
               {% else %}
                 <a class="session-link" href="{% url 'topic-path' course.pk %}"
                    >No slides pointed at yet</a>
