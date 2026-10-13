@@ -28,10 +28,15 @@ Three decisions earn their place here:
 Attempts are recorded from the first quiz onwards, because none of it can be
 backfilled. The recorder is reached over HTTP by the quiz that marks a sitting,
 which calls it once the answers are in; nothing here folds an attempt into a
-running total, because mastery is computed from the shape of these rows later.
-Each row carries the paragraphs its wrong answers came from, which is the one
-thing about an attempt that cannot be worked out later: a quiz written again
-leaves nothing behind to work it out from.
+running total, because mastery is computed from the shape of these rows in
+``material.mastery``. Each row carries the paragraphs its wrong answers came
+from, which is the one thing about an attempt that cannot be worked out later: a
+quiz written again leaves nothing behind to work it out from.
+
+Sitting a sitting also finishes the topic, at any score. That is the one thing
+``complete`` is for, and it is deliberately not the same thing as mastery: a
+student who failed the quiz has worked through the topic, and the week's
+outstanding work should say so.
 """
 
 from dataclasses import dataclass
@@ -144,6 +149,37 @@ def mark(session: Session, state: str, *, on: date) -> Session:
         raise Rejected("Mark a session done or skipped.")
     topic.save()
     return session
+
+
+def complete(topic: Topic, *, on: date) -> Topic:
+    """Put a topic in the student's record because they have worked through it.
+
+    Finishing is not passing. This is called when the student sits a topic's quiz,
+    at any score, because a topic they have been quizzed on has been worked
+    through whether or not the answers were right - and completion is what takes a
+    topic off the outstanding work and off the week's projection. Tying it to a
+    passing score would hand the student a week still full of topics they have
+    already finished, and would make the one hard topic of the course the one
+    they can never get past.
+
+    How much of the topic they actually know is ``material.mastery``, which is a
+    separate number read off the sittings. Nothing here reads the score.
+
+    The first day is the one kept. Sitting a quiz again is a student going back
+    over a topic they finished last week, and the day they finished it is the day
+    the log should say they did it.
+
+    Done and skipped cannot both be true, and a cut cannot survive a finish: a cut
+    said they were not spending a week on this topic, and a topic they have since
+    finished is not one the week is waiting on. Leaving the cut standing would
+    leave the plan page listing the same topic as finished and as not on their
+    week, which is the sort of pair of answers this module exists to prevent.
+    """
+    topic.completed_on = topic.completed_on or on
+    topic.skipped_on = None
+    topic.cut_on = None
+    topic.save(update_fields=["completed_on", "skipped_on", "cut_on"])
+    return topic
 
 
 def record_attempt(

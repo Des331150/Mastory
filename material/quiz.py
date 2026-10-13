@@ -25,16 +25,24 @@ attempt is charged for, and the only thing a retake changes is what they are
 asked. After two failed sittings the third attempt waits until they have been
 back to the paragraphs their wrong answers came from, and it says so rather
 than refusing silently.
+
+A sitting finishes the topic it was sat on, at any score. That is
+``progress.complete``, and it is not the same thing as knowing the topic: how
+much of it the student knows is weighed separately in ``material.mastery`` from
+the same sittings. The two are kept apart because a threshold on completion
+would make the one hard topic of a course the one they can never get past, and
+would leave the week full of topics they have already finished.
 """
 
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from django.db import transaction
 
 from material import model, progress, reading
-from material.models import PASS_MARK, Question, Quiz, Span, Topic
+from material.models import PASS_MARK, Question, Quiz, Span, Topic, is_failure
 from material.topics import Rejected
 from material.users import current_user_id, owned
 
@@ -160,6 +168,16 @@ class Result:
     @property
     def wrong(self) -> tuple[Answered, ...]:
         return tuple(answer for answer in self.answers if not answer.correct)
+
+    @property
+    def failed(self) -> bool:
+        """Whether this sitting went below the pass mark.
+
+        Read off the score through the same function the recorded row uses, so the
+        result page cannot call a sitting a pass which the attempt it just wrote
+        calls a failure.
+        """
+        return is_failure(self.score)
 
 
 def topic_spans(topic: Topic) -> list[Span]:
@@ -305,8 +323,8 @@ def questions(quiz: Quiz) -> list[Question]:
     return list(owned(quiz.questions.all()).select_related("span__slide__source_file"))
 
 
-def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
-    """Mark one sitting and record it against the topic.
+def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
+    """Mark one sitting, record it against the topic, and finish the topic.
 
     Marking is string comparison against the answers stored with the question,
     which were checked against the cited paragraph when the question was made.
@@ -314,6 +332,16 @@ def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
     says - a student who writes "the cell membrane is selectively permeable"
     answered the question - while a multiple choice answer counts only when it
     is the option the question was written with.
+
+    A sitting finishes the topic whatever it scored, because finishing is not
+    passing. The two are read separately from here on: this writes the day into
+    the student's record, and ``material.mastery`` weighs the sitting into a
+    number saying how much of the topic they know. A student who got everything
+    wrong is a topic off the outstanding work with a low mastery, not a topic
+    they are still expected to sit.
+
+    ``on`` is passed in rather than read from the clock, because this module does
+    not reach for it: one answer to "what day is it" in one place.
     """
     marked = tuple(
         _answer(question, given.get(str(question.pk), ""))
@@ -341,6 +369,7 @@ def grade(quiz: Quiz, given: Mapping[str, str]) -> Result:
         # written again.
         missed=[answer.question.span for answer in result.wrong],
     )
+    progress.complete(quiz.topic, on=on)
     return result
 
 

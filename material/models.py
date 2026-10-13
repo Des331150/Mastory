@@ -35,6 +35,18 @@ LOW_CONFIDENCE = (
 PASS_MARK = 0.5
 
 
+def is_failure(score: float) -> bool:
+    """Whether a score is short of ``PASS_MARK``.
+
+    One function, so that "failed" has a single answer in the codebase. It is read
+    on the row that recorded a sitting, on the result the student is shown before
+    any row is written, and on the table of where each topic stands, and two of
+    those answering differently is how a student gets told one thing about a quiz
+    and another about its own score.
+    """
+    return score < PASS_MARK
+
+
 class Course(models.Model):
     """Material for one course the student is studying."""
 
@@ -497,7 +509,7 @@ class Attempt(models.Model):
         attempts and the row that recorded one cannot answer "was that a
         failure?" differently.
         """
-        return self.score < PASS_MARK
+        return is_failure(self.score)
 
 
 class AttemptMissed(models.Model):

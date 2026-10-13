@@ -176,6 +176,43 @@
     </section>
   {% endif %}
 
+  {% if standing %}
+    {% comment %}
+      Completion and mastery are shown as two columns rather than as one state,
+      because they answer two different questions. The week above counts sessions;
+      this says which topics are finished and, separately, how much of each one
+      the student knows - so a week of finished topics they half know is visible
+      as what it is rather than as a finished plan.
+    {% endcomment %}
+    <section class="panel standing">
+      <h2>Where each topic stands</h2>
+      <p class="muted">
+        Finishing a topic says you worked through it, at whatever score. Mastery
+        says how much of it you know, and is weighed from the sittings you have
+        taken on it, counting the later ones for more. The two are separate on
+        purpose, and neither one stands in for the other.
+      </p>
+      <ul class="standing-list">
+        {% for row in standing %}
+          <li class="standing-row" data-complete="{{ row.complete|yesno:'yes,no' }}"
+              data-mastery="{% if row.mastery.measured %}{{ row.mastery.percent }}{% else %}unmeasured{% endif %}">
+            <p class="standing-topic">{{ row.topic.title }}</p>
+            <p class="standing-complete">
+              {% if row.complete %}finished{% else %}not finished{% endif %}
+            </p>
+            <p class="standing-mastery">
+              {% if row.mastery.measured %}
+                mastery {{ row.mastery.percent }}% from {{ row.mastery.sittings }} sitting{{ row.mastery.sittings|pluralize }}
+              {% else %}
+                mastery not measured yet
+              {% endif %}
+            </p>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
   {% if overview.behind %}
     <section class="panel behind">
       <h2>You are behind, and this is the honest date</h2>

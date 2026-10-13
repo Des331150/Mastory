@@ -522,6 +522,11 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
     they are not topics that missed out, they are ones the student put there on
     purpose, and listing them next to the ones they cannot reach would read as
     a problem rather than a decision.
+
+    So are the topics already in the student's record. A topic finishes either on
+    a session they marked or by sitting its quiz, and one finished by its quiz
+    before a week was ever built has never had a session - listing it beside the
+    topics that missed out would call a finished topic a shortfall.
     """
     sessions = list(owned(plan.sessions.all()).select_related("topic"))
     current = next(
@@ -534,7 +539,9 @@ def overview(plan: Plan, topics: Sequence[Topic]) -> Overview:
         weeks=_weeks(sessions, this_week=today()),
         current=current,
         unplaced=tuple(
-            topic for topic in topics if topic.pk not in minutes and not topic.cut
+            topic
+            for topic in topics
+            if topic.pk not in minutes and not topic.cut and topic.recorded_on is None
         ),
         cut_topics=tuple(topic for topic in topics if topic.cut),
         days_left=days_until_exam(plan),

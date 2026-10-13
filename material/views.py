@@ -18,6 +18,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from material import (
+    mastery,
     model,
     planning,
     progress,
@@ -553,7 +554,7 @@ def topic_quiz_submit(request: HttpRequest, course_id: int, topic_id: int) -> Ht
         if key.startswith("q-")
     }
     try:
-        result = quiz_service.grade(current, given)
+        result = quiz_service.grade(current, given, on=planning.today())
     except topic_service.Rejected as exc:
         return _quiz_page(request, course, topic, current, error=exc.reason)
     return _quiz_page(request, course, topic, current, result=result)
@@ -579,6 +580,12 @@ def _quiz_page(
     already asked - the held paths ask in order to decide whether to hold at all,
     and a page that asked the same question twice could be about to show two
     different answers to the same student.
+
+    The topic's completion and its mastery are read here too, and after marking as
+    much as before it, so that the sitting the student has just been given and
+    the topic it finished are on the same page: a result page showing a score
+    without saying the topic is finished leaves them to work out which of the two
+    things the number meant.
     """
     return render(
         request,
@@ -591,6 +598,9 @@ def _quiz_page(
             "limit": quiz_service.QUESTION_LIMIT,
             "result": result,
             "reread": quiz_service.reread(topic) if reread is None else reread,
+            "standing": mastery.Standing(
+                topic=topic, mastery=mastery.for_topic(topic)
+            ),
             # A quiz that has been sat is not one the student may answer again,
             # so the page does not offer them a button for it.
             "spent": current is not None and quiz_service.spent(topic, current),
@@ -700,6 +710,13 @@ def _plan_page(
     A form that came back with an error shows what the student typed rather
     than what was last saved. Being told your own hours are impossible and then
     finding them silently replaced is how a student stops trusting the form.
+
+    Every topic's standing is on this page beside the week, so that "which topics
+    have I finished" and "which of them do I actually know" are one table rather
+    than a button on one page and a number on another. It is read in one pass by
+    ``material.mastery.standing`` because it is every topic, and a row per topic
+    asking for its own sittings would be a query per topic on the page the
+    student opens most.
     """
     plan = planning.plan_for(course)
     overview = planning.overview(plan, topics) if plan is not None else None
@@ -712,6 +729,7 @@ def _plan_page(
             "today": planning.today(),
             "overview": overview,
             "summary": progress.summarise(overview.sessions) if overview else None,
+            "standing": mastery.standing(topics),
             "entered": entered or _saved_settings(plan),
             "error": error,
         },

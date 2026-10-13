@@ -250,6 +250,24 @@ button[disabled] { opacity: 0.5; cursor: default; }
 
 .unplaced-list { padding-left: 18px; margin: 8px 0 0; }
 
+/* Completion and mastery: two columns, because they are two questions. */
+.standing-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.standing-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.standing-topic { margin: 0; }
+.standing-complete,
+.standing-mastery { margin: 0; font-size: 14px; color: var(--muted); }
+.standing-row[data-complete="yes"] .standing-complete { color: var(--accent); }
+.topic-standing .standing-complete { font-size: 16px; color: var(--ink); }
+.topic-standing .standing-mastery { font-size: 16px; color: var(--ink); }
+.topic-standing .meter { margin-top: 10px; }
+
 /* Falling behind: the honest date, then the choice, priced. */
 .behind-line { margin: 0 0 12px; font-size: 18px; }
 .projected-on { font-variant-numeric: tabular-nums; }

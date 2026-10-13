@@ -43,6 +43,7 @@ material/
   topics.py    inferring the topic path, and every edit the student makes to it
   planning.py  the week of sessions: weighting, the weekly budget, and the two modes
   progress.py  what the student has done: the share of their plan, the log, and quiz attempts
+  mastery.py   how much of a topic the student knows, weighed from its sittings
   quiz.py      a topic's quiz: written from spans, cited to them, marked against them, and retaken
   reading.py   whether the student has opened a cited paragraph
   services.py  what an upload does: hash, cache, convert, store, retain the original
@@ -201,15 +202,51 @@ must not lose.
 
 `Attempt` records a sitting of a topic's quiz: when it was taken, the score as a
 fraction, and how many times its citations verified. It is recorded from the
-first quiz onwards because none of it can be backfilled — mastery will be weighed
-out of these rows later, and a table invented after the fact starts empty and
-stays wrong. `progress.record_attempt()` refuses a score outside zero to one
-rather than storing it, so nothing downstream inherits a mark counted out of the
-wrong number. Each row also keeps the paragraphs its wrong answers came from,
+first quiz onwards because none of it can be backfilled — mastery is weighed out
+of these rows, and a table invented after the fact starts empty and stays wrong.
+`progress.record_attempt()` refuses a score outside zero to one rather than
+storing it, so nothing downstream inherits a mark counted out of the wrong
+number. Each row also keeps the paragraphs its wrong answers came from,
 as `AttemptMissed` rows rather than ids in a column: they are what the retry
 rule asks about, and a quiz written again leaves nothing behind to work them out
 from. `material/quiz.py` calls it once a sitting has been marked, and
 `/courses/<id>/topics/<id>/quiz/` is where a student reaches it.
+
+### Finished and known
+
+Finishing a topic and knowing a topic are two different questions, and the app
+answers both rather than one.
+
+- **Completion is binary and passes at any score.** Sitting a topic's quiz is the
+  student saying they have worked through it, and `progress.complete` writes that
+  down whatever they scored. It is what takes a topic off the outstanding work and
+  off the week's projection, so tying it to a threshold would make the one hard
+  topic of a course the one a student can never get past — and would leave their
+  week full of topics they had already finished.
+- **The first day is the one kept.** A retake is a student going back over a topic
+  they finished last week, and the log should say the day they finished it.
+- **Finishing clears a skip and a cut.** Both are decisions the week is built
+  around, and a topic the student has since finished is not one it is waiting on;
+  leaving either standing would list the same topic as finished and as off the
+  week.
+- **Mastery is a separate number, from zero to one.** It is read off the sittings
+  rather than stored, so it cannot drift from them: the best-scored attempt on the
+  topic, discounted once for every sitting that came after it. One sitting reads
+  as exactly that score, a later sitting can overtake an earlier one, and a lucky
+  early guess is worth less than the same score earned now.
+- **A topic nobody has sat is unmeasured, not zero.** Zero would be a claim — that
+  the student knows nothing — which is not what the absence of a sitting says. The
+  same goes for a topic finished on a marked session, where there is nothing to
+  weigh.
+- **Both numbers are on the page, as two columns.** The plan carries a row per
+  topic and the quiz page says where that topic stands, so "which topics have I
+  done" and "which of them do I know" are never answered one at a time. A topic
+  finished by its quiz before any week was built has no session, and is not
+  listed beside the topics that missed out.
+
+`Attempt.passes` is deliberately not folded into mastery. A right answer the cited
+paragraph does not word that way is a different signal, and weighing the two is
+what the readiness report is for.
 
 ## Quizzes
 

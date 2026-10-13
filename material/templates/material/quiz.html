@@ -36,6 +36,46 @@
     </section>
   {% endif %}
 
+  {% comment %}
+    Completion and mastery are two different questions about the same topic, so
+    they are named as two things rather than as one number. A topic finished at
+    25% is finished: nothing here holds that against the student, and nothing
+    here lets 25% stand in for having finished it either.
+  {% endcomment %}
+  <section class="panel topic-standing">
+    <h2>Where you are on this topic</h2>
+    <p class="standing-complete" data-complete="{{ topic.recorded_on|yesno:'yes,no' }}">
+      {% if topic.completed_on %}
+        Finished, on {{ topic.completed_on|date:"j F Y" }}.
+      {% elif topic.skipped_on %}
+        Skipped on {{ topic.skipped_on|date:"j F Y" }}. Skipping is not failing at
+        it, and it costs you nothing.
+      {% elif topic.cut %}
+        Off your week since {{ topic.cut_on|date:"j F" }}. It is still here
+        whenever you want it.
+      {% else %}
+        Not finished yet.
+      {% endif %}
+    </p>
+    {% if standing.mastery.measured %}
+      <p class="standing-mastery" data-mastery="{{ standing.mastery.percent }}">
+        Mastery {{ standing.mastery.percent }}%, from {{ standing.mastery.sittings }} sitting{{ standing.mastery.sittings|pluralize }}
+        on this topic &mdash; the best of them, counting the later ones for more.
+      </p>
+      <div class="meter">
+        <span class="meter-fill" style="width: {{ standing.mastery.percent }}%"></span>
+      </div>
+      <p class="muted small">
+        Finishing says you have worked through it. This says how much of it you
+        know, and the two do not have to agree.
+      </p>
+    {% else %}
+      <p class="standing-mastery" data-mastery="unmeasured">
+        {{ standing.note }}
+      </p>
+    {% endif %}
+  </section>
+
   {% if quiz %}
     <section class="panel quiz-shape">
       <h2>What this quiz is</h2>
@@ -135,6 +175,17 @@
         {{ result.passes }} of those {{ result.correct }} right answer{{ result.correct|pluralize }}
         {{ result.passes|pluralize:"is,are" }} worded the way the paragraph they came from
         words {{ result.passes|pluralize:"it,them" }}.
+      </p>
+      <p class="standing-finished">
+        {% if result.failed %}
+          That is a failing sitting, and it has still finished this topic: you
+          worked through it, so it is off your outstanding work either way. What
+          you know about it is the mastery figure above, which is a different
+          number and can go up.
+        {% else %}
+          That has finished this topic, which is what takes it off your
+          outstanding work.
+        {% endif %}
       </p>
     </section>
 
