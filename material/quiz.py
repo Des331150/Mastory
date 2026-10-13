@@ -342,6 +342,11 @@ def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
 
     ``on`` is passed in rather than read from the clock, because this module does
     not reach for it: one answer to "what day is it" in one place.
+
+    The sitting and the completion are written together. A sitting recorded
+    against a topic that was not finished by it would leave mastery weighed on a
+    topic the week still calls outstanding, with nothing on the page saying the
+    two ever disagreed.
     """
     marked = tuple(
         _answer(question, given.get(str(question.pk), ""))
@@ -358,18 +363,19 @@ def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
         correct=sum(1 for answer in marked if answer.correct),
         passes=sum(1 for answer in marked if answer.correct and answer.supported),
     )
-    progress.record_attempt(
-        quiz.topic,
-        score=result.score,
-        passes=result.passes,
-        # The paragraphs this sitting sent the student back to, kept with the
-        # sitting itself: they are what the retry rule reads when it decides
-        # whether to hold the next attempt, and a rule that had to guess them
-        # from the quiz would be guessing from a quiz that may since have been
-        # written again.
-        missed=[answer.question.span for answer in result.wrong],
-    )
-    progress.complete(quiz.topic, on=on)
+    with transaction.atomic():
+        progress.record_attempt(
+            quiz.topic,
+            score=result.score,
+            passes=result.passes,
+            # The paragraphs this sitting sent the student back to, kept with the
+            # sitting itself: they are what the retry rule reads when it decides
+            # whether to hold the next attempt, and a rule that had to guess them
+            # from the quiz would be guessing from a quiz that may since have been
+            # written again.
+            missed=[answer.question.span for answer in result.wrong],
+        )
+        progress.complete(quiz.topic, on=on)
     return result
 
 

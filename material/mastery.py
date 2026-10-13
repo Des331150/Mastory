@@ -61,7 +61,6 @@ class Mastery:
 
     value: float | None
     sittings: int
-    best: float | None
 
     @property
     def measured(self) -> bool:
@@ -74,14 +73,18 @@ class Mastery:
 
         Zero rather than an error when nothing has been measured, for the same
         reason the meter is empty there: the page says it is unmeasured, and a bar
-        has to be given some width.
+        has to be given some width. A weighed topic is never rounded down to that
+        zero in practice - the most recent sitting always counts its whole score,
+        and a sitting has to be sat to be weighed - so the zero printed here and
+        the zero printed for an unmeasured topic cannot be reached by the same
+        history.
         """
         return round(self.value * 100) if self.value is not None else 0
 
 
 #: What a topic nobody has sat reads as. Shared rather than rebuilt per topic so
 #: that "unmeasured" is one thing the whole application agrees on.
-UNMEASURED = Mastery(value=None, sittings=0, best=None)
+UNMEASURED = Mastery(value=None, sittings=0)
 
 
 @dataclass(frozen=True)
@@ -104,27 +107,20 @@ class Standing:
 
     @property
     def note(self) -> str:
-        """One line saying which of the two is true, in the order they matter.
+        """One line saying why there is no number to show.
 
-        Finished first, because finishing is what took the topic off the week's
-        outstanding work, and mastery second because it is what the student still
-        has to come back to. A topic that is finished and unweighed says so
-        rather than printing a zero, and a topic that is neither says the second
-        is because of the first rather than a thing that went wrong.
+        Only ever shown where there is no number, so both branches are the
+        absence of one: the student finished the topic without sitting its quiz,
+        or has not sat it yet. A topic that is weighed needs no note saying so.
         """
-        if not self.complete:
-            return (
-                "Still to do, so nothing has been weighed on it yet. Take the "
-                "quiz and this becomes a number."
-            )
-        if not self.mastery.measured:
+        if self.complete:
             return (
                 "Finished without sitting the quiz, so how much of it you know "
                 "has not been weighed. Take the quiz and this becomes a number."
             )
         return (
-            "Finished, and how much of it you know is a separate number from "
-            "finishing it."
+            "Still to do, so nothing has been weighed on it yet. Take the quiz "
+            "and this becomes a number."
         )
 
 
@@ -137,18 +133,31 @@ def for_topic(topic: Topic) -> Mastery:
     return _measure(progress.attempts(topic))
 
 
+def one(topic: Topic) -> Standing:
+    """One topic beside its completion and its mastery.
+
+    The single-topic half of ``standing``, so that the quiz page and the plan page
+    build that row in the same place and a change to one is a change to both.
+    """
+    return Standing(topic=topic, mastery=for_topic(topic))
+
+
 def for_topics(topics: Sequence[Topic]) -> dict[int, Mastery]:
     """Every topic's mastery, from one read of the sittings.
 
     The plan page shows a row per topic, and a row that asked for its own
     sittings would be one query per topic on the page the student opens most.
-    Ordering is read off ``Attempt.Meta`` rather than sorted here, so the order
-    the weighting reads is the order the table promises.
+
+    Ordered nowhere on purpose: the order the weighting reads is ``Attempt``'s
+    own, the same one ``progress.attempts`` hands ``for_topic``. Naming it here
+    too would be a second answer to "which sitting is the latest", and the day the
+    two disagreed the quiz page and the plan page would print two different
+    mastery figures for one topic.
     """
     grouped: dict[int, list[Attempt]] = defaultdict(list)
     for attempt in owned(
         Attempt.objects.filter(topic_id__in=[topic.pk for topic in topics])
-    ).order_by("taken_at", "id"):
+    ):
         grouped[attempt.topic_id].append(attempt)
     return {topic.pk: _measure(grouped[topic.pk]) for topic in topics}
 
@@ -184,8 +193,4 @@ def _measure(taken: Sequence[Attempt]) -> Mastery:
         attempt.score * RECENCY ** (latest - index)
         for index, attempt in enumerate(taken)
     )
-    return Mastery(
-        value=min(1.0, max(0.0, value)),
-        sittings=len(taken),
-        best=max(attempt.score for attempt in taken),
-    )
+    return Mastery(value=min(1.0, max(0.0, value)), sittings=len(taken))

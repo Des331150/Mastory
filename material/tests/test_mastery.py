@@ -337,6 +337,26 @@ class CompletionTests(StandingTestCase):
             self.assertIn('data-complete="no"', self.standing_row(title))
             self.assertIn('data-mastery="unmeasured"', self.standing_row(title))
 
+    def test_rebuilding_the_week_does_not_invent_a_session_for_a_finished_topic(
+        self,
+    ) -> None:
+        """A topic finished by its quiz was never scheduled, and a rebuild has no
+        business putting one on the calendar for it: the session would land on a
+        day the student never planned to study, would spend their weekly budget
+        on work they are not going to do, and would add one to the denominator of
+        the share they are shown.
+        """
+        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat())
+        finished = self.unplaced_titles()[0]
+        self.sit(n_right=0, title=finished)
+        self.assertIn("You have done 0 of 1 session", self.plan())
+
+        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat())
+
+        self.assertEqual(len(self.planned_titles()), 1)
+        self.assertNotIn(finished, self.planned_titles())
+        self.assertIn("You have done 0 of 1 session", self.plan())
+
 
 class MasteryTests(StandingTestCase):
     """Mastery is a separate number, from the sittings, counting the later ones more."""
@@ -410,6 +430,19 @@ class MasteryTests(StandingTestCase):
         value = int(self.mastery(self.page()))
         self.assertGreaterEqual(value, 0)
         self.assertLessEqual(value, 100)
+
+    def test_the_most_recent_sitting_always_counts_its_whole_score(self) -> None:
+        """The discount applies to sitting back, never to the latest one, so a
+        long history cannot quietly walk a topic the student is getting right
+        down towards zero - and the figure stays distinguishable from the zero
+        this page prints for a topic nobody has sat.
+        """
+        self.sit(n_right=2)
+        for _ in range(15):
+            self.sit_again(n_right=2)
+
+        self.assertEqual(self.mastery(self.page()), "50")
+        self.assertNotEqual(self.mastery(self.page()), "unmeasured")
 
     def test_completion_and_mastery_are_two_numbers_on_the_same_page(self) -> None:
         """The acceptance criterion in one test: a topic finished at half marks is

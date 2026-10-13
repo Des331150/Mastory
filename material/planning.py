@@ -635,12 +635,16 @@ def _write(
     than leaving the student to notice they are not on it.
 
     ``done`` is the work the student has already recorded and ``held`` says
-    where each of those session�� sat and how long they were. They keep that
+    where each of those sessions sat and how long they were. They keep that
     day and those minutes, and the week a finished topic took up is spent: the
     remaining topics divide what is left of the budget, not a budget shared with
     work already out of the way. Without that, a student who finishes a session
     and presses the button again is handed a week twice the size they said they
     had.
+
+    A recorded topic with no session in ``held`` is left off the week entirely
+    rather than given one: a topic can be finished by sitting its quiz before any
+    week was built, and there is nothing to put on the calendar for it.
 
     Everything is written in one pass ordered by the day it falls on, so a
     session that shifted later sits after the ones that did not move and the
@@ -649,12 +653,17 @@ def _write(
     kept = held or {}
     rows: list[tuple[Topic, date, int]] = []
     for topic in done:
-        # A recorded topic always has a session to have come from. Falling back
-        # to the shortest session worth offering rather than to zero is what
-        # keeps a session off the page claiming it is nothing long.
-        day, length = kept.get(topic.pk) or (topic.recorded_on, MIN_SESSION_MINUTES)
-        if day is not None:
-            rows.append((topic, day, length))
+        # Only the sessions this plan already had are put back. A topic can be
+        # finished without ever having been scheduled - by sitting its quiz
+        # before any week was built - and inventing a session for it here would
+        # put work the student is not going to do on their calendar, spend their
+        # weekly budget on it, and add a session to the denominator of the share
+        # they are shown. A topic finished that way stays off the week, and the
+        # standing table names it as finished.
+        held_for = kept.get(topic.pk)
+        if held_for is None:
+            continue
+        rows.append((topic, *held_for))
     taken = 0
     for week_of_days in weeks_of_days:
         chunk = topics[taken : taken + len(week_of_days)]

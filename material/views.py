@@ -598,9 +598,7 @@ def _quiz_page(
             "limit": quiz_service.QUESTION_LIMIT,
             "result": result,
             "reread": quiz_service.reread(topic) if reread is None else reread,
-            "standing": mastery.Standing(
-                topic=topic, mastery=mastery.for_topic(topic)
-            ),
+            "standing": mastery.one(topic),
             # A quiz that has been sat is not one the student may answer again,
             # so the page does not offer them a button for it.
             "spent": current is not None and quiz_service.spent(topic, current),
