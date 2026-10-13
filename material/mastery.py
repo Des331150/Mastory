@@ -12,13 +12,17 @@ almost every decision here follows from that:
   would hand them a week built out of topics they have already finished.
 - **Mastery is the separate number.** Zero to one, read off the sittings, and
   shown next to completion rather than instead of it.
-- **The best sitting is the one mastery is built from.** A student who once knew
-  this and has not forgotten still knows it, and a running average would spend
-  that knowledge on the sittings they have since muddled through.
+- **The best sitting is the one mastery is built from, discounted for time.** A
+  student who once knew this and has not forgotten still knows it, and a running
+  average would spend that knowledge on the sittings they have since muddled
+  through. The discount is what makes it an honest reading rather than a flattering
+  one: the figure is the best sitting scaled down once per sitting since, which is
+  why a student who scored everything right once and has sat it five times since is
+  not shown at 100%.
 - **Later sittings count for more.** Each sitting is weighted by how many sittings
   came after it, so a lucky early guess is worth less than the same score earned
-  now. Without this, one good afternoon on day one would outrank real progress
-  made six weeks later.
+  later. Without this, one good afternoon on day one would outrank real progress
+  made since.
 
 `Attempt.passes` is deliberately not folded in here. A right answer the cited
 paragraph does not word that way is a different signal from a right answer, and
@@ -43,9 +47,16 @@ from material.users import owned
 #: one before that this much squared.
 #:
 #: Seven tenths because it is the number at which real progress overtakes a lucky
-#: guess: a student who scored 70% now outranks the same 70% earned six weeks ago,
-#: and one who has fallen to 40% has not lost the topic, they have lost ground on
-#: it - which is a different thing and should not read as zero.
+#: guess: a student who scored 75% in their latest sitting outranks the same 75%
+#: earned in an earlier one, and one who has fallen to 40% has not lost the topic,
+#: they have lost ground on it - which is a different thing and should not read as
+#: zero.
+#:
+#: Counted in sittings and not in days. The rule the product states is that later
+#: attempts count for more, and attempt order is the whole of it: five sittings in
+#: one evening are not five weeks of forgetting, but they are five pieces of
+#: evidence, and weighting them by the calendar would make the figure depend on
+#: how often a student opens the quiz page rather than on what they know.
 RECENCY = 0.7
 
 
@@ -102,21 +113,57 @@ class Standing:
 
     @property
     def complete(self) -> bool:
-        """Whether this topic is in the student's record, however it got there."""
-        return self.topic.recorded_on is not None
+        """Whether this topic has been worked through, however well.
+
+        ``completed_on`` and not ``recorded_on``, because a skipped topic and a cut
+        topic are out of the outstanding work too and are not one the student
+        worked through. Reading the record's whole answer here would print
+        "finished" beside a session whose own state says skipped - on the same
+        page, two answers to the same question, which is the thing this row exists
+        to prevent. How much of a skipped topic they know is mastery's business and
+        is a separate column.
+        """
+        return self.topic.completed_on is not None
+
+    @property
+    def state(self) -> str:
+        """What the plan calls this topic, said in the word the plan uses.
+
+        The standing column's word, so that this table and the sessions above it
+        cannot name one topic two ways.
+        """
+        if self.complete:
+            return Topic.DONE
+        if self.topic.skipped_on is not None:
+            return Topic.SKIPPED
+        if self.topic.cut:
+            return Topic.CUT
+        return Topic.PLANNED
 
     @property
     def note(self) -> str:
         """One line saying why there is no number to show.
 
-        Only ever shown where there is no number, so both branches are the
-        absence of one: the student finished the topic without sitting its quiz,
-        or has not sat it yet. A topic that is weighed needs no note saying so.
+        Only ever shown where there is no number, so every branch is the absence of
+        one. A skipped topic is called a skip rather than "still to do", which it
+        is not: the student decided, and that decision is not a gap for them to be
+        nagged about.
         """
         if self.complete:
             return (
                 "Finished without sitting the quiz, so how much of it you know "
                 "has not been weighed. Take the quiz and this becomes a number."
+            )
+        if self.topic.skipped_on is not None:
+            return (
+                "Skipped, so nothing has been weighed on it. Skipping costs you "
+                "nothing and is not failing at it; take the quiz whenever you "
+                "want this to become a number."
+            )
+        if self.topic.cut:
+            return (
+                "Off your week, so nothing has been weighed on it. It is still "
+                "here, and taking the quiz makes this a number."
             )
         return (
             "Still to do, so nothing has been weighed on it yet. Take the quiz "
@@ -182,9 +229,10 @@ def _measure(taken: Sequence[Attempt]) -> Mastery:
     "mastery comes from the best scored attempt" true rather than approximate, and
     a later sitting can overtake an earlier one of the same score outright.
 
-    Clamped, because the weight is arithmetic on a number the grader produced and
-    a fraction outside zero to one is not a thing this product is entitled to
-    print as a share of what the student knows.
+    Not clamped, because it cannot leave zero to one: ``progress.record_attempt``
+    refuses a score outside that range before it is ever written, and every weight
+    this multiplies by is at most one. A guard here would be a claim that
+    something is defended which nothing actually tests.
     """
     if not taken:
         return UNMEASURED
@@ -193,4 +241,4 @@ def _measure(taken: Sequence[Attempt]) -> Mastery:
         attempt.score * RECENCY ** (latest - index)
         for index, attempt in enumerate(taken)
     )
-    return Mastery(value=min(1.0, max(0.0, value)), sittings=len(taken))
+    return Mastery(value=value, sittings=len(taken))

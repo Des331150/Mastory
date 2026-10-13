@@ -19,7 +19,7 @@ history, read by a student through the same page.
 
 import re
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from typing import Iterator
 from unittest import mock
 
@@ -48,8 +48,13 @@ A_MONDAY = date(2026, 11, 2)
 
 #: The Monday after it. An exam on a study day that is also the last day leaves
 #: room for one session, which is how a test gets a topic with no session on the
-#: week without inventing a course.
-THE_EXAM = date(2026, 11, 9)
+#: week without inventing a course. Stated as a relation rather than a literal so
+#: that moving one cannot silently stop being a Monday or stop being the next one.
+THE_EXAM = A_MONDAY + timedelta(days=7)
+
+#: A fortnight after the first sitting: a retake a student takes when they have
+#: been getting on with something else, rather than one taken the same minute.
+LATER = A_MONDAY + timedelta(weeks=2)
 
 #: A question and an answer this fixture's paragraphs really contain, so the fake
 #: model has something true to write about.
@@ -84,8 +89,16 @@ class StandingTestCase(TestCase):
 
     # -- the week, when a test needs one --------------------------------------
 
-    def build_week(self, *, days: str = "3", hours: str = "6", exam: str = "") -> None:
-        """Build the week the way the student does, from the three numbers."""
+    def build_week(
+        self, *, days: str = "3", hours: str = "6", exam: str = "", sessions: int = 0
+    ) -> None:
+        """Build the week the way the student does, from the three numbers.
+
+        ``sessions`` is how many sessions the week should end up with, asserted
+        straight away: a rejected plan renders the page too, with an error on it
+        and no week, so a test that only checked the status code would carry on
+        through a plan that was never built.
+        """
         with on_a_monday():
             response = self.client.post(
                 "/courses/1/plan/settings/",
@@ -93,6 +106,10 @@ class StandingTestCase(TestCase):
                 follow=True,
             )
         self.assertEqual(response.status_code, 200)
+        page = flat(response.content.decode())
+        self.assertNotIn('class="error"', page, f"the week was refused: {page}")
+        if sessions:
+            self.assertEqual(len(self.planned_titles()), sessions)
 
     def plan(self) -> str:
         with on_a_monday():
@@ -131,14 +148,20 @@ class StandingTestCase(TestCase):
 
         The fake model writes the option the paragraph contains first, so the
         first choice is the right one and the last is not; a test asking for a
-        particular score should not have to know what the model wrote.
+        particular score should not have to know what the model wrote. Two choices
+        at least is asserted, because a question offering one cannot be got wrong
+        and would quietly turn a test asking for a zero into a perfect sitting.
         """
         questions = self.question_ids(html)
         self.assertTrue(questions, "there are no questions on this page to answer")
-        return {
-            question: self.options(html, question)[0 if index < n else -1]
-            for index, question in enumerate(questions)
-        }
+        answers = {}
+        for index, question in enumerate(questions):
+            choices = self.options(html, question)
+            self.assertGreaterEqual(
+                len(choices), 2, f"question {question} offers nothing to get wrong"
+            )
+            answers[question] = choices[0 if index < n else -1]
+        return answers
 
     def mark(self, html: str, answers: dict[str, str]) -> str:
         """Mark a sitting the way the form does: one field per question.
@@ -177,15 +200,26 @@ class StandingTestCase(TestCase):
             html = self.page(title)
             return self.mark(html, self.with_n_right(html, n_right))
 
-    def sit_again(self, n_right: int = 4, *, title: str = "Eigenvalues") -> str:
+    def sit_again(
+        self,
+        n_right: int = 4,
+        *,
+        title: str = "Eigenvalues",
+        moment: date = A_MONDAY,
+    ) -> str:
         """Take the quiz again: write a new set of questions, then sit that one.
 
         A retake has to be a new quiz, or the same four questions are being sat
         twice, which is the thing regeneration exists to stop.
+
+        ``moment`` is the day the retake is sat on, which is what a retake means
+        in the record: pinned to the same Monday as the first sitting unless a
+        test says otherwise, because a retake on the day the topic was finished is
+        not the case the record has to answer.
         """
         model = QuizModel(FROM_THE_MATERIAL)
         model.use(self)
-        with on_a_monday():
+        with on_a_monday(moment):
             rewritten = self.rewrite(title)
             self.assertTrue(
                 self.question_ids(rewritten), "the rewrite produced no questions to sit"
@@ -195,28 +229,43 @@ class StandingTestCase(TestCase):
     # -- reading the two numbers off the page ---------------------------------
 
     def mastery(self, html: str) -> str:
-        """The mastery the page shows, or "unmeasured" where it shows none."""
-        found = re.search(r'data-mastery="([^"]+)"', flat(html))
-        assert found is not None, "the page says nothing about mastery"
+        """The mastery the page shows, or "unmeasured" where it shows none.
+
+        Read out of this topic's own standing block rather than the whole page,
+        because on a page carrying several topics a whole-page search answers with
+        whichever figure came first and a test would be asserting about the wrong
+        topic without ever saying so.
+        """
+        found = re.search(r'data-mastery="([^"]+)"', flat(self.standing_block(html)))
+        assert found is not None, "the page says nothing about this topic's mastery"
         return found.group(1)
 
     def completed(self, html: str) -> bool:
         """Whether the page says this topic is finished."""
-        found = re.search(r'data-complete="(yes|no)"', flat(html))
+        found = re.search(r'data-complete="(yes|no)"', flat(self.standing_block(html)))
         assert found is not None, "the page says nothing about whether this is finished"
         return found.group(1) == "yes"
 
-    def standing_row(self, title: str, plan: str | None = None) -> str:
-        """The plan page's row for one topic, found the way a student finds it."""
-        page = flat(plan if plan is not None else self.plan())
+    def standing_block(self, html: str) -> str:
+        """The panel on a quiz page that reports one topic's standing."""
         found = re.search(
-            r'<li class="standing-row"[^>]*>\s*<p class="standing-topic">'
-            rf"{re.escape(title)}.*?</li>",
-            page,
-            flags=re.S,
+            r'<section class="panel topic-standing">(.*?)</section>', flat(html), re.S
         )
-        assert found is not None, f"no standing row for {title!r} on the plan"
-        return found.group(0)
+        assert found is not None, "the quiz page reports no standing for this topic"
+        return found.group(1)
+
+    def standing_row(self, title: str, plan: str | None = None) -> str:
+        """The plan page's row for one topic, found the way a student finds it.
+
+        By the row that names the topic, not by where in the row its name sits, so
+        that reordering two lines of markup is not a failure of this test.
+        """
+        page = flat(plan if plan is not None else self.plan())
+        for block in page.split('<li class="standing-row"')[1:]:
+            row = block.split("</li>")[0]
+            if re.search(rf'>{re.escape(title)}</p>', row):
+                return row
+        raise AssertionError(f"no standing row for {title!r} on the plan")
 
     def session_block(self, title: str) -> str:
         """One session as the plan page renders it, cut out of its week.
@@ -237,9 +286,10 @@ class StandingTestCase(TestCase):
         return found.group(1)
 
     def mark_session(self, title: str, state: str) -> None:
-        response = self.client.post(
-            f"/courses/1/plan/sessions/{self.session_id(title)}/", {"state": state}
-        )
+        with on_a_monday():
+            response = self.client.post(
+                f"/courses/1/plan/sessions/{self.session_id(title)}/", {"state": state}
+            )
         self.assertEqual(response.status_code, 302)
 
     # -- the plan's own lists -------------------------------------------------
@@ -247,26 +297,33 @@ class StandingTestCase(TestCase):
     def planned_titles(self) -> list[str]:
         """The topics the week has given a session."""
         page = self.plan()
-        return [title for title in NAMES if f'<h3 class="session-topic">{title}</h3>' in page]
+        return [
+            title
+            for title in NAMES
+            if f'<h3 class="session-topic">{title}</h3>' in page
+        ]
 
     def unplaced_titles(self) -> list[str]:
         """The topics the plan says have no session on it, as it names them.
 
-        Nothing rather than an error when the plan has no such section at all: the
-        page only carries the section when there are topics to name, so an empty
-        list is what a course whose every topic has a session should read as.
+        Cut out by the panel that holds them rather than by the two headings
+        either side of it, so a renamed heading cannot turn this into a silent
+        empty list - which is what would let the unplaced topics disappear from
+        the plan without a single test noticing.
         """
-        page = self.plan()
-        if "Not before your exam" not in page:
-            return []
-        section = page.split("Not before your exam")[1]
-        return re.findall(r"<li>([^<]+)</li>", section.split("Change your week")[0])
+        for section in self.plan().split("<section")[1:]:
+            panel = section.split("</section>")[0]
+            if "Not before your exam" in panel:
+                return re.findall(r"<li>([^<]+)</li>", panel)
+        return []
 
 
 class CompletionTests(StandingTestCase):
     """Finishing is binary, and it happens at any score."""
 
     def test_sitting_a_topic_quiz_finishes_the_topic(self) -> None:
+        """The plainest statement of the rule: a sitting puts the topic in the
+        student's record, with the day it happened."""
         html = self.sit(n_right=4)
         self.assertTrue(self.completed(html))
         self.assertIn("Finished, on 2 November 2026", flat(html))
@@ -286,7 +343,7 @@ class CompletionTests(StandingTestCase):
         """Completion gates the schedule. A topic in the student's record is not
         outstanding work whatever it scored, so the week reads it as done and the
         student is refused a cut on it."""
-        self.build_week()
+        self.build_week(sessions=2)
         self.sit(n_right=0)
 
         self.assertIn('data-state="done"', self.session_block("Eigenvalues"))
@@ -298,17 +355,34 @@ class CompletionTests(StandingTestCase):
         self.assertIn("already in your record", flat(response.content.decode()))
 
     def test_finishing_a_topic_twice_keeps_the_day_it_was_finished(self) -> None:
-        """A retake is a student going back over a topic they finished last week.
-        The day they finished it is the day the record should say they did it."""
+        """A retake is a student going back over a topic they finished a fortnight
+        ago. The day they finished it is the day the record should say they did
+        it, so the retake's date must not overwrite it."""
         self.sit(n_right=4)
-        again = self.sit_again(n_right=4)
+        again = self.sit_again(n_right=4, moment=LATER)
+
         self.assertIn("Finished, on 2 November 2026", flat(again))
+        self.assertNotIn("16 November 2026", flat(again))
+
+    def test_sitting_the_quiz_finishes_a_topic_the_student_had_skipped(self) -> None:
+        """A skip and a finish are one column, not two, so working through a topic
+        after deciding to skip it finishes it. Marking a session done has always
+        overwritten a skip; sitting the quiz must not leave the same topic recorded
+        as two different things at once.
+        """
+        self.build_week(sessions=2)
+        self.mark_session("Eigenvalues", "skipped")
+
+        self.sit(n_right=2)
+
+        self.assertIn('data-state="done"', self.session_block("Eigenvalues"))
+        self.assertIn('data-complete="yes"', self.standing_row("Eigenvalues"))
 
     def test_a_topic_finished_by_its_quiz_is_not_one_that_missed_out(self) -> None:
         """A topic can be finished before a week has ever scheduled it, so it has
         no session at all. Listing it beside the topics that missed out would
         call a finished topic a shortfall."""
-        self.build_week(days="1", hours="1", exam=THE_EXAM.isoformat())
+        self.build_week(days="1", hours="1", exam=THE_EXAM.isoformat(), sessions=1)
         missed_out = self.unplaced_titles()
         self.assertEqual(
             len(missed_out), 1, "the week should leave one topic without a session"
@@ -316,26 +390,34 @@ class CompletionTests(StandingTestCase):
 
         self.sit(n_right=0, title=missed_out[0])
 
-        self.assertNotIn(missed_out[0], self.unplaced_titles())
+        self.assertEqual(
+            self.unplaced_titles(), [], "a finished topic has not missed out"
+        )
         self.assertIn('data-complete="yes"', self.standing_row(missed_out[0]))
 
     def test_topics_not_finished_stay_visible_in_the_plan(self) -> None:
         """Finishing one topic must not thin out the list of the rest: they are
         the plan, and a plan that quietly drops the rest of the course is not a
-        plan a student can keep. Every topic is named either way, with both of
-        its numbers against it.
+        plan a student can keep. The list of topics with no session is read and
+        its length pinned before anything is asserted about it, because a helper
+        that quietly returns nothing when the panel is missing would make this
+        test pass on a plan that had lost the topics entirely.
         """
-        self.build_week(days="1", hours="1", exam=THE_EXAM.isoformat())
-        on_the_week = self.planned_titles()
+        self.build_week(days="1", hours="1", exam=THE_EXAM.isoformat(), sessions=1)
         missed_out = self.unplaced_titles()
-        self.assertEqual(len(on_the_week), 1)
+        self.assertEqual(len(missed_out), 1, "the week should leave one topic off it")
 
-        self.sit(n_right=0, title=on_the_week[0])
+        self.sit(n_right=0, title=self.planned_titles()[0])
 
+        self.assertEqual(
+            self.unplaced_titles(),
+            missed_out,
+            "the topic with no session must still be named on the plan",
+        )
         for title in missed_out:
-            self.assertIn(title, self.plan())
-            self.assertIn('data-complete="no"', self.standing_row(title))
-            self.assertIn('data-mastery="unmeasured"', self.standing_row(title))
+            row = self.standing_row(title)
+            self.assertIn('data-complete="no"', row)
+            self.assertIn('data-mastery="unmeasured"', row)
 
     def test_rebuilding_the_week_does_not_invent_a_session_for_a_finished_topic(
         self,
@@ -346,12 +428,12 @@ class CompletionTests(StandingTestCase):
         on work they are not going to do, and would add one to the denominator of
         the share they are shown.
         """
-        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat())
+        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat(), sessions=1)
         finished = self.unplaced_titles()[0]
         self.sit(n_right=0, title=finished)
         self.assertIn("You have done 0 of 1 session", self.plan())
 
-        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat())
+        self.build_week(days="1", hours="2", exam=THE_EXAM.isoformat(), sessions=1)
 
         self.assertEqual(len(self.planned_titles()), 1)
         self.assertNotIn(finished, self.planned_titles())
@@ -379,25 +461,28 @@ class MasteryTests(StandingTestCase):
         self.assertEqual(self.mastery(marked), "50")
 
     def test_mastery_is_the_best_scored_attempt_on_the_topic(self) -> None:
-        """A student who once knew this and has not forgotten still knows it, so
-        mastery comes from the best sitting rather than from a running average
-        that would spend it on the sittings since.
+        """A student who knew this and has since muddled through still knows some
+        of it, so mastery comes from the best sitting rather than from the latest
+        one or from an average of the two. Staged with the *earlier* sitting
+        scoring higher, which is the only shape in which "best" and "latest" are
+        different questions.
         """
-        self.sit(n_right=2)
-        self.sit_again(n_right=4)
+        self.sit(n_right=4)
+        self.sit_again(n_right=1)
 
-        self.assertEqual(self.mastery(self.page()), "100")
+        self.assertEqual(self.mastery(self.page()), "70")
 
     def test_a_later_attempt_counts_for_more_than_an_earlier_one(self) -> None:
-        """The same score twice, counted twice. The earlier sitting is discounted
-        once and the later one not at all, so the figure is the later score
-        rather than a blend of the two - which is the whole reason there is a
-        discount at all.
+        """Four out of four, then three. The later sitting scored less, and it
+        still wins: 75% counted whole against 100% discounted once. Reading the
+        best sitting at face value would say 100%, and reading the latest would
+        happen to agree with the right answer here - which is why the scores have
+        to differ for the rule to be pinned at all.
         """
-        self.sit(n_right=2)
-        self.sit_again(n_right=2)
+        self.sit(n_right=4)
+        self.sit_again(n_right=3)
 
-        self.assertEqual(self.mastery(self.page()), "50")
+        self.assertEqual(self.mastery(self.page()), "75")
 
     def test_a_lucky_early_guess_is_discounted_rather_than_counted_in_full(self) -> None:
         """A perfect first sitting and a weaker one after it. The later sitting
@@ -411,10 +496,12 @@ class MasteryTests(StandingTestCase):
 
         self.assertEqual(self.mastery(self.page()), "70")
 
-    def test_a_sitting_counts_for_less_each_time_one_comes_after_it(self) -> None:
-        """The discount compounds, so the same lucky perfect sitting is worth
-        less the longer ago it was taken - which is what makes mastery a reading
-        of where the student is now rather than of their best ever afternoon.
+    def test_the_discount_compounds_with_every_sitting_since(self) -> None:
+        """One perfect sitting, then half marks again and again. The best sitting
+        is discounted once for each sitting that has come after it - 100, then 70,
+        then 49 - until a later sitting counts its own score in full and takes the
+        figure. The exponent is pinned at every step, because "discounted once per
+        sitting since" is only true if the counting is.
         """
         self.sit(n_right=4)
         self.assertEqual(self.mastery(self.page()), "100")
@@ -425,17 +512,20 @@ class MasteryTests(StandingTestCase):
         self.sit_again(n_right=1)
         self.assertEqual(self.mastery(self.page()), "49")
 
-    def test_mastery_is_a_share_between_nothing_and_all_of_it(self) -> None:
+    def test_a_tie_is_settled_by_which_sitting_came_last(self) -> None:
+        """The same score twice is the one case where "best" and "latest" could
+        disagree. The later sitting wins, because it is not discounted and the
+        earlier one is."""
         self.sit(n_right=4)
-        value = int(self.mastery(self.page()))
-        self.assertGreaterEqual(value, 0)
-        self.assertLessEqual(value, 100)
+        self.sit_again(n_right=4)
+
+        self.assertEqual(self.mastery(self.page()), "100")
 
     def test_the_most_recent_sitting_always_counts_its_whole_score(self) -> None:
-        """The discount applies to sitting back, never to the latest one, so a
-        long history cannot quietly walk a topic the student is getting right
-        down towards zero - and the figure stays distinguishable from the zero
-        this page prints for a topic nobody has sat.
+        """The discount applies to sittings behind, never to the latest one, so a
+        long history cannot quietly walk a topic the student is getting right down
+        towards nothing - and the figure stays distinguishable from the zero this
+        page prints for a topic nobody has sat.
         """
         self.sit(n_right=2)
         for _ in range(15):
@@ -443,6 +533,26 @@ class MasteryTests(StandingTestCase):
 
         self.assertEqual(self.mastery(self.page()), "50")
         self.assertNotEqual(self.mastery(self.page()), "unmeasured")
+
+    def test_mastery_stays_a_share_across_a_mixed_history(self) -> None:
+        """Criterion 3 as a property rather than a claim. Four sittings whose
+        scores fall away from all of it to a quarter of it, and however the
+        weights land the page prints a share of one topic: never more than all of
+        it, never less than none of it, and never the same number twice in a row
+        by accident.
+        """
+        seen = []
+        self.sit(n_right=4)
+        seen.append(self.mastery(self.page()))
+        for n_right in (3, 2, 1):
+            self.sit_again(n_right=n_right)
+            seen.append(self.mastery(self.page()))
+
+        for value in seen:
+            with self.subTest(mastery=value):
+                self.assertGreaterEqual(int(value), 0)
+                self.assertLessEqual(int(value), 100)
+        self.assertEqual(len(set(seen)), len(seen), f"the history stopped moving: {seen}")
 
     def test_completion_and_mastery_are_two_numbers_on_the_same_page(self) -> None:
         """The acceptance criterion in one test: a topic finished at half marks is
@@ -463,29 +573,68 @@ class MasteryTests(StandingTestCase):
         """Both numbers, for a topic either side of finishing, so that "which
         topics have I done" and "which of them do I know" are answered together
         rather than by two pages that can disagree.
+
+        The finished topic has sat twice with different scores, because the plan
+        reads its sittings on its own path through the code rather than the quiz
+        page's, and a single sitting would leave that path indistinguishable from
+        any weighting at all. The two pages are then held to one number: the same
+        topic, the same figure, whichever page the student opens.
         """
-        self.build_week()
-        self.sit(n_right=2)
+        self.build_week(sessions=2)
+        self.sit(n_right=4)
+        self.sit_again(n_right=3)
 
         finished = self.standing_row("Eigenvalues")
         self.assertIn('data-complete="yes"', finished)
-        self.assertIn('data-mastery="50"', finished)
+        self.assertIn('data-mastery="75"', finished)
+        self.assertEqual(
+            self.mastery(self.page("Eigenvalues")),
+            "75",
+            "the plan and the quiz page must not print two mastery figures",
+        )
 
         ahead = self.standing_row("Eigenspaces")
         self.assertIn('data-complete="no"', ahead)
         self.assertIn('data-mastery="unmeasured"', ahead)
 
+    def test_a_skipped_topic_is_not_reported_as_finished(self) -> None:
+        """Skipping takes a topic off the outstanding work without the student
+        having worked through it, so the standing column must say skipped and not
+        finished - even though the plan has already stopped waiting on it. Reading
+        the whole of the record as "finished" would print one topic two ways on one
+        page, and would tell a student who decided not to do this that they had
+        done it.
+        """
+        self.build_week(sessions=2)
+        self.mark_session("Eigenvalues", "skipped")
+
+        row = self.standing_row("Eigenvalues")
+        self.assertIn('data-state="skipped"', row)
+        self.assertIn('data-complete="no"', row)
+        self.assertNotIn("finished", row)
+
+        html = self.page("Eigenvalues")
+        self.assertFalse(self.completed(html))
+        self.assertIn("Skipped on", flat(html))
+        self.assertIn("Skipping is not failing at it", flat(html))
+        self.assertIn("Skipped, so nothing has been weighed on it", flat(html))
+
     def test_a_topic_finished_without_a_sitting_says_so_rather_than_scoring_zero(
         self,
     ) -> None:
         """Completion can also arrive from a session the student marked, and then
-        there is nothing to weigh. Printing 0% there would claim they know
-        nothing about a topic they finished.
+        there is nothing to weigh. Printing 0% there would claim they know nothing
+        about a topic they finished, and it is the one case where the two columns
+        have to disagree: finished, and unweighed.
         """
-        self.build_week()
+        self.build_week(sessions=2)
         self.mark_session("Eigenvalues", "done")
 
-        html = self.page()
+        html = self.page("Eigenvalues")
         self.assertTrue(self.completed(html))
         self.assertEqual(self.mastery(html), "unmeasured")
         self.assertIn("Finished without sitting the quiz", flat(html))
+
+        row = self.standing_row("Eigenvalues")
+        self.assertIn('data-complete="yes"', row)
+        self.assertIn('data-mastery="unmeasured"', row)

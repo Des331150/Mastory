@@ -229,11 +229,19 @@ answers both rather than one.
   around, and a topic the student has since finished is not one it is waiting on;
   leaving either standing would list the same topic as finished and as off the
   week.
+- **Finishing is not skipping.** Completion reads `completed_on`, not the whole of
+  the record: a topic the student skipped or cut is off the outstanding work too,
+  and is not one they worked through. The standing column names each of those in
+  the word the plan itself uses, so the table and the sessions above it cannot
+  call one topic two ways.
 - **Mastery is a separate number, from zero to one.** It is read off the sittings
   rather than stored, so it cannot drift from them: the best-scored attempt on the
   topic, discounted once for every sitting that came after it. One sitting reads
   as exactly that score, a later sitting can overtake an earlier one, and a lucky
-  early guess is worth less than the same score earned now.
+  early guess is worth less than the same score earned later. The discount is
+  counted in sittings rather than in days, because what the product says is that
+  later attempts count for more, and weighting by the calendar would make the
+  figure depend on how often a student opens the quiz page.
 - **A topic nobody has sat is unmeasured, not zero.** Zero would be a claim — that
   the student knows nothing — which is not what the absence of a sitting says. The
   same goes for a topic finished on a marked session, where there is nothing to

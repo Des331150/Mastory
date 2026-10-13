@@ -44,7 +44,7 @@
   {% endcomment %}
   <section class="panel topic-standing">
     <h2>Where you are on this topic</h2>
-    <p class="standing-complete" data-complete="{{ topic.recorded_on|yesno:'yes,no' }}">
+    <p class="standing-complete" data-complete="{{ standing.complete|yesno:'yes,no' }}">
       {% if topic.completed_on %}
         Finished, on {{ topic.completed_on|date:"j F Y" }}.
       {% elif topic.skipped_on %}
@@ -60,7 +60,8 @@
     {% if standing.mastery.measured %}
       <p class="standing-mastery" data-mastery="{{ standing.mastery.percent }}">
         Mastery {{ standing.mastery.percent }}%, from {{ standing.mastery.sittings }} sitting{{ standing.mastery.sittings|pluralize }}
-        on this topic &mdash; the best of them, counting the later ones for more.
+        on this topic: your best sitting, counted down once for every sitting you
+        have taken since.
       </p>
       <div class="meter">
         <span class="meter-fill" style="width: {{ standing.mastery.percent }}%"></span>

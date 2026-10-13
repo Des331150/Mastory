@@ -187,18 +187,18 @@
     <section class="panel standing">
       <h2>Where each topic stands</h2>
       <p class="muted">
-        Finishing a topic says you worked through it, at whatever score. Mastery
-        says how much of it you know, and is weighed from the sittings you have
-        taken on it, counting the later ones for more. The two are separate on
-        purpose, and neither one stands in for the other.
+        Finishing a topic says you worked through it, at whatever score. Mastery says how
+        much of it you know, and is weighed from the sittings you have taken on it:
+        your best sitting, counted down once for every sitting since. The two are
+        separate on purpose, and neither one stands in for the other.
       </p>
       <ul class="standing-list">
         {% for row in standing %}
           <li class="standing-row" data-complete="{{ row.complete|yesno:'yes,no' }}"
               data-mastery="{% if row.mastery.measured %}{{ row.mastery.percent }}{% else %}unmeasured{% endif %}">
             <p class="standing-topic">{{ row.topic.title }}</p>
-            <p class="standing-complete">
-              {% if row.complete %}finished{% else %}not finished{% endif %}
+            <p class="standing-complete" data-state="{{ row.state }}">
+              {% if row.state == "done" %}finished{% elif row.state == "skipped" %}skipped{% elif row.state == "cut" %}cut{% else %}not finished{% endif %}
             </p>
             <p class="standing-mastery">
               {% if row.mastery.measured %}
