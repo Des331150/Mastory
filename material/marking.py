@@ -53,8 +53,6 @@ class Markable(Protocol):
     span: Span
     pk: int
 
-    def __str__(self) -> str: ...
-
 
 @dataclass(frozen=True)
 class Answered:

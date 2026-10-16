@@ -447,9 +447,18 @@ def topic_move(request: HttpRequest, course_id: int, topic_id: int) -> HttpRespo
 
 @require_POST
 def topic_remove(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
-    """A topic that will not be examined."""
+    """A topic that will not be examined.
+
+    Refused, and said so, when the topic is on a mock exam the student has
+    already written: the path is theirs to edit all semester, but the exam is one
+    attempt, and a topic quietly taken off it would leave the score and the
+    marked paper disagreeing.
+    """
     topic = _topic(course_id, topic_id)
-    topic_service.remove(topic.course, topic)
+    try:
+        topic_service.remove(topic.course, topic)
+    except topic_service.Rejected as exc:
+        return _topics_page(request, topic.course, error=exc.reason)
     return redirect("topic-path", course_id=topic.course.pk)
 
 
@@ -637,20 +646,18 @@ def exam(request: HttpRequest, course_id: int) -> HttpResponse:
     current = exam_service.latest(course)
     if current is None:
         return _exam_page(request, course, None)
-    return _exam_page(
-        request, course, current, result=exam_service.taken(current)
-    )
+    return _exam_page(request, course, current)
 
 
 @require_POST
 def exam_start(request: HttpRequest, course_id: int) -> HttpResponse:
     """Write the mock exam, once.
 
-    Refused once the student has sat one rather than quietly writing a second:
-    the questions a student was told would not regenerate, regenerating them
-    behind their back is the same lie told in a different order. The refusal
-    carries the result they already have, because a page that says no without
-    showing what they sat is not a useful no.
+    Asked for twice before it is sat - a double press, a resubmit, two tabs -
+    this shows the paper again rather than refusing: nothing has been spent yet,
+    and the paper is the same one either way. Refusal is for an exam that has
+    been sat, and it carries the result they already have, because a page that
+    says no without showing what they sat is not a useful no.
     """
     course = _course(course_id)
     existing = exam_service.latest(course)
@@ -659,13 +666,17 @@ def exam_start(request: HttpRequest, course_id: int) -> HttpResponse:
             request,
             course,
             existing,
-            result=exam_service.taken(existing),
-            error=exam_service.ALREADY_SAT,
+            error=exam_service.ALREADY_SAT if existing.sat else "",
         )
     try:
         written = exam_service.build(course)
     except (topic_service.Rejected, model.ModelUnavailable) as exc:
-        return _exam_page(request, course, None, error=_reason(exc))
+        # Whichever way this went wrong, the course's exam is shown in whichever
+        # state it is really in: a refusal that rendered an empty page would take
+        # the student's own paper off the screen.
+        return _exam_page(
+            request, course, exam_service.latest(course), error=_reason(exc)
+        )
     return _exam_page(request, course, written)
 
 
@@ -686,6 +697,9 @@ def exam_submit(request: HttpRequest, course_id: int) -> HttpResponse:
     course = _course(course_id)
     current = exam_service.find(course, _int_or_none(request.POST.get("exam")))
     if current is None:
+        # Nothing here to mark, but whatever this course does have is shown in
+        # whichever state it is in: a refused hand-in that then rendered the
+        # paper again would take the student's own result off the page.
         return _exam_page(
             request,
             course,
@@ -696,13 +710,7 @@ def exam_submit(request: HttpRequest, course_id: int) -> HttpResponse:
             ),
         )
     if exam_service.spent(current):
-        return _exam_page(
-            request,
-            course,
-            current,
-            result=exam_service.taken(current),
-            error=exam_service.ALREADY_SAT,
-        )
+        return _exam_page(request, course, current, error=exam_service.ALREADY_SAT)
     given = {
         # The form names every field ``q-<question>`` so one form can carry a
         # whole paper; the marker is handed the bare question ids.
@@ -711,10 +719,10 @@ def exam_submit(request: HttpRequest, course_id: int) -> HttpResponse:
         if key.startswith("q-")
     }
     try:
-        result = exam_service.grade(current, given, on=planning.today())
+        exam_service.grade(current, given, on=planning.today())
     except topic_service.Rejected as exc:
         return _exam_page(request, course, current, error=exc.reason)
-    return _exam_page(request, course, current, result=result)
+    return _exam_page(request, course, current)
 
 
 def _exam_page(
@@ -722,7 +730,6 @@ def _exam_page(
     course: Course,
     current: MockExam | None,
     *,
-    result: marking.Marked | None = None,
     error: str = "",
 ) -> HttpResponse:
     """The mock exam page: not asked for, waiting to be sat, or sat.
@@ -730,20 +737,27 @@ def _exam_page(
     One template for the three, as with the topic quiz: they are the same page
     at different moments of one sitting.
 
-    The paper is passed whole rather than as a list of questions, because the
-    page also has to say what the exam covers - how many of the course's topics
-    are on it, and which are not - and that is a reading of the questions and
-    the topics together rather than something the template should count.
+    The paper is read once here and the marks are made from that same read
+    whenever the exam has been sat, so there is one reading of the questions on
+    the page and no result carried around as a second copy of it. The result a
+    hand-in just produced is therefore not passed in: the same function marks it
+    either way, and a page that could show one mark or the other is a page with
+    two answers to "what did I get".
     """
+    asked = exam_service.paper(current) if current is not None else None
+    result = exam_service.taken(current, asked) if current is not None else None
     return render(
         request,
         "material/exam.html",
         {
             "course": course,
             "exam": current,
-            "paper": exam_service.paper(current) if current is not None else None,
-            "per_topic": exam_service.QUESTIONS_PER_TOPIC,
+            "paper": asked,
             "result": result,
+            # How many questions a topic contributes, named here rather than left
+            # to the template's arithmetic: the page states it in two places and
+            # they must be the same number.
+            "per_topic": exam_service.QUESTIONS_PER_TOPIC,
             "error": error,
         },
     )

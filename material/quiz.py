@@ -46,7 +46,7 @@ from datetime import date
 from django.db import transaction
 
 from material import marking, model, progress, reading
-from material.models import PASS_MARK, Question, Quiz, Span, Topic, is_failure
+from material.models import PASS_MARK, Question, Quiz, Span, Topic
 from material.topics import Rejected
 from material.users import current_user_id, owned
 

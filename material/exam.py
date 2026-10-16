@@ -15,11 +15,14 @@ sat tells the student nothing true about what they know.
   until they press the button, because a course of twelve topics means twelve
   generation calls and spending them on a page nobody opened is how a product
   bills a student for a sitting they never sat.
-- **It is sat once, and the paper never changes.** ``taken_at`` on the exam row
+- **It is sat once, and the paper never changes.** ``taken_on`` on the exam row
   is the single attempt, and there is no route that writes a second exam or
   regenerates the questions: a retake of the same paper with the answers still
   on the page is a drill, and a student told "you may sit this once" and given a
-  second sitting has been lied to about the thing they came for.
+  second sitting has been lied to about the thing they came for. Nothing about
+  the score is stored beside the attempt either - it is marked again from the
+  answers on the questions whenever it is shown, so there is one verdict and it
+  is made by one function.
 - **Nothing is said about their answers until they submit.** The page shows the
   prompts and the options and nothing else - no citation, no mark, no expected
   answer - and every one of those comes back at once when the paper is handed
@@ -33,7 +36,7 @@ question per topic sampled once at the end of the course is not evidence about a
 topic that four sittings have already said more about.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -46,14 +49,15 @@ from material.users import current_user_id, owned
 
 #: How many questions a topic contributes to the exam. Two, because an exam that
 #: asked one question of each of a dozen topics would measure one fact per topic,
-#: and an exam that asked four would be twenty-four model calls before the
-#: student had opened a page. What was written and not shown is counted and said.
+#: and an exam that asked four of each would put forty-eight model calls in front
+#: of a student who has not opened a page. What was written and not shown is
+#: counted and said.
 QUESTIONS_PER_TOPIC = 2
 
 #: What the student is told when they ask for an exam they have already sat, or
 #: ask the page that holds their paper for a different one. One wording, because
 #: a refusal that says different things on two pages is a page arguing with
-#: itself.
+#: itself, and it is shown with the result they already have.
 ALREADY_SAT = (
     "This is the one attempt your mock exam gets. Your paper and your score are "
     "below, and the questions will not be written again: what is left of the "
@@ -65,20 +69,24 @@ ALREADY_SAT = (
 class Paper:
     """The exam as the student is about to meet it, and as they left it.
 
-    ``covered`` counts the topics the paper actually asked about and ``asked``
-    counts the topics of the course, so the difference names the parts of the
-    syllabus nothing was written from. That is read off the questions rather than
-    stored as a flag on the exam: a stored flag could disagree with the rows it
-    describes, and this product has been burned by exactly that before.
+    ``covered`` counts the topics the paper actually asked about, and ``asked``
+    is how many topics the course had when it was written - read off the exam
+    rather than counted off the course again, because the topic path is still the
+    student's to edit and a topic added this morning must not make a paper
+    written last month read as though it had skipped it.
     """
 
     exam: MockExam
     questions: tuple[MockQuestion, ...]
-    asked: int
+
+    @property
+    def asked(self) -> int:
+        """How many topics of the course the paper was written to cover."""
+        return self.exam.asked_topics
 
     @property
     def covered(self) -> int:
-        """How many of the course's topics this paper asked about."""
+        """How many of those topics this paper asked about."""
         return len({question.topic_id for question in self.questions})
 
     @property
@@ -100,11 +108,6 @@ class Paper:
         lower.
         """
         return bool(self.asked) and self.covered >= self.asked
-
-    @property
-    def per_topic(self) -> int:
-        """How many questions the exam asks about any one topic."""
-        return QUESTIONS_PER_TOPIC
 
 
 def _topics(course: Course) -> list[Topic]:
@@ -165,11 +168,7 @@ def questions(exam: MockExam) -> list[MockQuestion]:
 
 def paper(exam: MockExam) -> Paper:
     """The exam as a whole: its questions, and the topics it is asked about."""
-    return Paper(
-        exam=exam,
-        questions=tuple(questions(exam)),
-        asked=len(_topics(exam.course)),
-    )
+    return Paper(exam=exam, questions=tuple(questions(exam)))
 
 
 def build(course: Course) -> MockExam:
@@ -180,13 +179,19 @@ def build(course: Course) -> MockExam:
     otherwise leave the student holding one attempt of an exam that had been
     quietly replaced, which is the one thing a single attempt is for.
 
+    The check and the write are one transaction, taken under a lock on the
+    course, so two presses of the button in two tabs cannot both be told yes. The
+    one-to-one on the course is the backstop, and it would answer the loser with
+    a database error rather than with a sentence the student can act on. The
+    generation is outside that transaction - a course of twelve topics is twelve
+    model calls, and holding a connection and a lock open across them would make
+    a page wait on work it has not finished reading.
+
     Every topic is asked about. Questions that cannot be verified against their
     paragraph are dropped rather than shown, exactly as in a topic quiz, and what
     was dropped is counted and shown - so a topic whose material supports nothing
     gets nothing and the page says so by name.
     """
-    if latest(course) is not None:
-        raise Rejected(ALREADY_SAT)
     covering = coverage(course)
     if not any(spans for _, spans in covering):
         raise Rejected(
@@ -194,79 +199,107 @@ def build(course: Course) -> MockExam:
             "there is no exam to write. Point the topics at the slides that "
             "cover them first."
         )
-    written: list[MockQuestion] = []
-    dropped = 0
+    if latest(course) is not None:
+        raise Rejected(ALREADY_SAT)
+    asked, dropped = _ask(covering)
     with transaction.atomic():
-        exam = MockExam.objects.create(user_id=current_user_id(), course=course)
-        for topic, spans in covering:
-            if not spans:
-                continue
-            proposals = model.generate_questions(
-                topic_title=topic.title,
-                spans=[
-                    model.SpanExcerpt(index=index, text=span.text)
-                    for index, span in enumerate(spans, start=1)
-                ],
-            )
-            kept = proposals.questions[:QUESTIONS_PER_TOPIC]
-            # Everything written and not asked counts as left out, including the
-            # questions that verified and were dropped only because a topic holds
-            # two. A count covering some of the ways a question goes missing would
-            # let the page claim nothing was.
-            dropped += proposals.dropped + len(proposals.questions) - len(kept)
-            by_index = {index: span for index, span in enumerate(spans, start=1)}
-            written.extend(
+        Course.objects.select_for_update().filter(pk=course.pk).first()
+        if latest(course) is not None:
+            raise Rejected(ALREADY_SAT)
+        exam = MockExam.objects.create(
+            user_id=current_user_id(),
+            course=course,
+            asked_topics=len(covering),
+            dropped=dropped,
+        )
+        MockQuestion.objects.bulk_create(
+            [
                 MockQuestion(
                     user_id=exam.user_id,
                     exam=exam,
                     topic=topic,
-                    span=by_index[proposal.span_index],
-                    ordinal=len(written) + 1,
+                    span=span,
+                    ordinal=ordinal,
                     kind=proposal.kind,
                     prompt=proposal.prompt,
                     choices=list(proposal.choices),
                     answers=list(proposal.answers),
                 )
-                for proposal in kept
-            )
-        MockQuestion.objects.bulk_create(written)
-        exam.dropped = dropped
-        exam.save(update_fields=["dropped"])
+                for ordinal, (topic, span, proposal) in enumerate(asked, start=1)
+            ]
+        )
     return exam
 
 
-def given_answers(exam: MockExam) -> dict[str, str]:
-    """What the student gave, keyed by question id.
+def _ask(
+    covering: Sequence[tuple[Topic, Sequence[Span]]],
+) -> tuple[list[tuple[Topic, Span, model.QuestionProposal]], int]:
+    """Every topic asked about in turn, and how many questions were left out.
 
-    Read back off the stored rows rather than kept in the response that marked
-    them, so that the marked paper a student comes back to is the same marking,
-    not a copy of it.
+    One generation call per topic rather than one over the whole course, because
+    the call is handed at most ``SPAN_LIMIT`` paragraphs: a single call over a
+    course of a hundred paragraphs would be asked about forty of them, and a
+    paper built from it would leave the rest of the course unexamined while
+    claiming to cover it.
     """
-    return {str(question.pk): question.given for question in questions(exam)}
+    asked: list[tuple[Topic, Span, model.QuestionProposal]] = []
+    dropped = 0
+    for topic, spans in covering:
+        if not spans:
+            continue
+        proposals = model.generate_questions(
+            topic_title=topic.title,
+            spans=[
+                model.SpanExcerpt(index=index, text=span.text)
+                for index, span in enumerate(spans, start=1)
+            ],
+        )
+        kept = proposals.questions[:QUESTIONS_PER_TOPIC]
+        # Everything written and not asked counts as left out, including the
+        # questions that verified and were dropped only because a topic holds
+        # two. A count covering some of the ways a question goes missing would
+        # let the page claim nothing was.
+        dropped += proposals.dropped + len(proposals.questions) - len(kept)
+        by_index = {index: span for index, span in enumerate(spans, start=1)}
+        asked.extend(
+            (topic, by_index[proposal.span_index], proposal) for proposal in kept
+        )
+    return asked, dropped
 
 
-def taken(exam: MockExam) -> marking.Marked | None:
+def taken(exam: MockExam, paper: Paper | None = None) -> marking.Marked | None:
     """The marked exam, re-marked from what was written down, or nothing.
 
     Nothing rather than an empty result before submission: a paper that has not
     been sat has no marks to show, and showing a score of zero for a sitting
     nobody has taken is feedback of the wrong kind entirely.
+
+    ``paper`` is the same read the page was built from, offered here so that
+    showing a sat exam does not fetch the same rows twice - once for the page
+    and once for the marks.
     """
     if not spent(exam):
         return None
-    return marking.mark_all(questions(exam), given_answers(exam))
+    asked = paper.questions if paper is not None else questions(exam)
+    return marking.mark_all(
+        asked, {str(question.pk): question.given for question in asked}
+    )
 
 
-def grade(
-    exam: MockExam, given: Mapping[str, str], *, on: date
-) -> marking.Marked:
+def grade(exam: MockExam, given: Mapping[str, str], *, on: date) -> marking.Marked:
     """Mark the one attempt at this exam and record it on the exam itself.
 
-    The answers are written onto the questions with the score beside them, in one
-    transaction, so an exam that says it was sat always has the answers it was
-    sat with. Marking is refused once the exam is spent: there is no second
+    The answers are written onto the questions, and the sitting is stamped on the
+    exam, in one transaction: an exam that says it was sat always has the answers
+    it was sat with, and the marks are made again from those rather than stored
+    beside them. Marking is refused once the exam is spent: there is no second
     sitting, and a mark taken from a second set of answers would overrule the
     only one the student is allowed.
+
+    That refusal is made under a lock on the exam row rather than off the copy
+    the view loaded. Two tabs handed in at once both read an unsat exam from
+    their own request, and whichever wrote last would decide the standing score -
+    so the loser waits, re-reads the row, and is refused.
 
     Nothing here records a topic attempt or finishes a topic. The exam is one
     sample of the whole course at the end of it, and ``material.mastery`` reads a
@@ -288,11 +321,17 @@ def grade(
             "with something to ask about."
         )
     with transaction.atomic():
+        held = (
+            MockExam.objects.select_for_update()
+            .filter(pk=exam.pk, user_id=current_user_id())
+            .first()
+        )
+        if held is None or held.sat:
+            raise Rejected(ALREADY_SAT)
         for question in paper_questions:
             question.given = given.get(str(question.pk), "")
-            question.save(update_fields=["given"])
-        exam.score = result.score
-        exam.passes = result.passes
+        MockQuestion.objects.bulk_update(paper_questions, ["given"])
+        held.taken_on = on
+        held.save(update_fields=["taken_on"])
         exam.taken_on = on
-        exam.save(update_fields=["score", "passes", "taken_on"])
     return result

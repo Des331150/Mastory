@@ -336,10 +336,20 @@ things that make it an exam are facts about the row.
   for opening a browser tab.
 - **It is sat once.** `MockExam.taken_on` is the attempt, written by the view
   that marks the paper and read by the page offering it, so there is one answer
-  to "has this been sat". A second hand-in is refused and shows the first result
-  rather than overwriting it; a second request for an exam is refused and writes
+  to "has this been sat". Both writes take a lock on the row they are about, so
+  two tabs handed in at once cannot both be told yes — the loser waits, re-reads
+  the row, and is refused. A second request for an exam is refused and writes
   nothing, because questions that were said not to regenerate cannot quietly
   regenerate behind a student's back.
+- **No score is stored beside the attempt.** The mark is made again from the
+  answers on `MockQuestion` every time the page is shown, so there is one verdict
+  and one function makes it. A stored score would be a second answer to "what
+  did I get", kept beside the questions that produced it.
+- **The topic path cannot take the paper apart.** `MockQuestion.topic` is
+  `PROTECT`, and `topics.remove`, `topics.merge` and `topics.infer` refuse with a
+  sentence saying why. The path is the student's to edit all semester; the exam
+  is one attempt, and deleting a topic under it would leave the marked paper and
+  the standing score describing two different sittings.
 - **Nothing is said about the answers until the paper is handed in.** No mark, no
   expected answer, and no citation either — naming the paragraph a question came
   from before the student answers is reading ahead to the answer. All of it comes
@@ -350,10 +360,15 @@ things that make it an exam are facts about the row.
   topic's own sittings and two questions sampled once at the end of the course
   would make the number describe the exam rather than the student.
 
-Answers are stored on `MockQuestion.given` and the mark is made again from them
-when the result page is re-read, so a student who comes back to their paper sees
-the same marking rather than a copy of it — and there is no second verdict stored
-anywhere to fall out of step with the questions.
+How much of the course the paper covers is frozen on the row
+(`MockExam.asked_topics`), because the topic path is still the student's to edit:
+a topic added this morning must not make a paper written last month read as
+though it had skipped it.
+
+Answers are stored on `MockQuestion.given` and the marks are made again from them
+when the result page is read, so a student who comes back to their paper sees
+the same marking rather than a copy of it — and there is no second verdict
+stored anywhere to fall out of step with the questions.
 
 Marking is `material/marking.py`, shared with the topic quiz. The two papers
 differ in how many attempts they get and what the student is told while sitting

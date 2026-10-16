@@ -21,7 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from material import model
-from material.models import Course, Slide, Topic, TopicPath, TopicSlide
+from material.models import Course, MockExam, Slide, Topic, TopicPath, TopicSlide
 from material.users import current_user_id, owned
 
 logger = logging.getLogger(__name__)
@@ -99,6 +99,13 @@ def infer(course: Course) -> None:
     slides = course_slides(course)
     if not slides:
         raise Rejected("There is no readable material to work out topics from.")
+    if MockExam.objects.filter(course=course, user_id=current_user_id()).exists():
+        raise Rejected(
+            "You have already written a mock exam for this course, and it is one "
+            "attempt over the topics below. Edit the topics one at a time if "
+            "something is wrong with them: reworking the whole path would leave "
+            "your paper asking about a course that is no longer here."
+        )
     proposals = model.infer_topics(
         course_title=course.title,
         slides=[
@@ -220,6 +227,9 @@ def merge(first: Topic, second: Topic) -> Topic:
         raise Rejected("Pick two different topics to merge.")
     if first.position > second.position:
         first, second = second, first
+    # The survivor keeps its questions; the one that goes has to be free of them,
+    # or the paper would lose a question per delete rather than per merge.
+    _keep_off_the_exam(second)
     seen = {slide.pk for slide in first.slides}
     extra = [slide for slide in second.slides if slide.pk not in seen]
     with transaction.atomic():
@@ -283,8 +293,33 @@ def add(course: Course, title: str, slides: Iterable[Slide] = ()) -> Topic:
     return topic
 
 
+ON_THE_EXAM = (
+    "{title} is on your mock exam, and one of the questions on it came from it. "
+    "The exam is one attempt and cannot be written again, so the topic stays "
+    "until you have sat it."
+)
+
+
+def on_the_exam(topic: Topic) -> bool:
+    """Whether a question on the student's mock exam came from this topic.
+
+    Read before anything deletes a topic, because the exam is the one artefact
+    that cannot be rebuilt: the topic path is the student's to edit all
+    semester, and a delete that quietly took a question off their only attempt
+    would leave the standing score and the marked paper saying different things.
+    """
+    return owned(topic.mock_questions.all()).exists()
+
+
+def _keep_off_the_exam(topic: Topic) -> None:
+    """Refuse a delete that would take a question off a written mock exam."""
+    if on_the_exam(topic):
+        raise Rejected(ON_THE_EXAM.format(title=topic.title))
+
+
 def remove(course: Course, topic: Topic) -> None:
     """A topic that will not be examined, so no session is spent on it."""
+    _keep_off_the_exam(topic)
     with transaction.atomic():
         topic.delete()
         _renumber(course)

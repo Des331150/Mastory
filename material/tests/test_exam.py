@@ -13,10 +13,11 @@ sitting is not an exam, and that can only be seen from the page.
 import re
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from material import progress
-from material.models import MockExam, MockQuestion, Topic
+from material.models import Course, MockExam, MockQuestion, Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
@@ -114,9 +115,13 @@ class ExamTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
+    def the_exam(self) -> MockExam:
+        """This course's exam, which in these tests is the only one this student has."""
+        return MockExam.objects.get(course__pk=1)
+
     def paper(self, model: QuizModel | None = None) -> str:
         """The paper waiting to be sat, written on first ask and never rewritten."""
-        if not MockExam.objects.exists():
+        if not MockExam.objects.filter(course__pk=1).exists():
             self.start(model or QuizModel(FROM_THE_MATERIAL))
         html = self.page()
         self.assertIn("Hand in my exam", flat(html), "the exam page shows no paper")
@@ -202,6 +207,11 @@ class AskedForTests(ExamTestCase):
         page = flat(self.page())
         self.assertIn("one attempt", page)
         self.assertIn("are not written again", page)
+        # The promise is about the row, not the copy: asking again after this
+        # must not spend anything.
+        self.paper()
+        self.client.post("/courses/1/exam/start/")
+        self.assertFalse(self.the_exam().sat)
 
     def test_a_course_with_no_topics_left_says_so_and_writes_nothing(self) -> None:
         """An exam across nothing is not an exam, and a student whose topics are
@@ -255,7 +265,7 @@ class WholeCourseTests(ExamTestCase):
 
     def test_what_was_left_out_of_the_paper_is_said(self) -> None:
         html = flat(self.paper())
-        dropped = MockExam.objects.get().dropped
+        dropped = self.the_exam().dropped
         self.assertGreater(dropped, 0)
         self.assertIn(f"{dropped} questions more were written and not shown", html)
 
@@ -312,12 +322,15 @@ class ScoringTests(ExamTestCase):
         assert width is not None, "no meter on the marked exam"
         self.assertEqual(width.group(1), "100")
 
-    def test_the_score_is_recorded_on_the_exam(self) -> None:
-        self.hand_in(self.paper(), self.right(self.paper()))
-        exam = MockExam.objects.get()
-        self.assertEqual(exam.score, 1.0)
-        self.assertEqual(exam.passes, exam.questions.count())
+    def test_the_sitting_is_recorded_on_the_exam_itself(self) -> None:
+        """The exam says it was sat and the marked paper is on the page. No score
+        is stored beside them: the mark is made again from the answers on the
+        questions, so there is one verdict and one function makes it."""
+        marked = self.hand_in(self.paper(), self.right(self.paper()))
+        exam = self.the_exam()
         self.assertTrue(exam.sat)
+        self.assertIsNotNone(exam.taken_on)
+        self.assertIn(f"You got {exam.questions.count()} of {exam.questions.count()} right", flat(marked))
 
     def test_a_blank_paper_is_a_score_of_nothing_and_not_a_missing_sitting(self) -> None:
         marked = self.hand_in(self.paper(), {})
@@ -345,25 +358,65 @@ class ScoringTests(ExamTestCase):
 
     def test_the_mark_is_the_same_one_a_topic_quiz_would_give(self) -> None:
         """Both kinds of paper are marked by one function, so the same sentence is
-        worth the same mark on either."""
-        html = self.paper()
-        question = self.question_ids(html)[0]
-        marked = flat(self.hand_in(html, {question: self.options(html, question)[0]}))
-        self.assertIn("Right", marked)
+        worth the same mark on either. The two are sat here on the same paragraph
+        with the same answer, and asked the same wrong thing.
+
+        A marking that could be argued into a mark on one paper and not the other
+        is the whole failure this is for: a student revising from the exam and
+        then being marked differently on the topic quiz has been taught the wrong
+        rule twice.
+        """
+        asked = fake_question(
+            1,
+            "What is the vector v called in Av = lambda v?",
+            kind="short_answer",
+            answers=["eigenvector"],
+        )
+        paper = self.paper(QuizModel(asked))
+        question = self.question_ids(paper)[0]
+        right = "eigenvector"
+        wrong = "the set of its eigenvalues"
+        self.assertIn(
+            "Right",
+            flat(self.hand_in(paper, {question: right})),
+            "the exam marked a short answer the paragraph uses as wrong",
+        )
+
+        quiz = QuizModel(asked)
+        quiz.use(self)
+        topics = self.client.get("/courses/1/topics/").content.decode()
+        topic = topic_pk(topics, "Eigenvalues")
+        page = self.client.get(f"/courses/1/topics/{topic}/quiz/").content.decode()
+        quiz_question = re.findall(r'id="question-(\d+)"', page)[0]
+        which = re.search(r'name="quiz" value="(\d+)"', page)
+        assert which is not None, "the topic quiz page offers no form to mark"
+        response = self.client.post(
+            f"/courses/1/topics/{topic}/quiz/submit/",
+            {"quiz": which.group(1), f"q-{quiz_question}": wrong},
+            follow=True,
+        )
+        block = response.content.decode().split('<li class="question')[1]
+        self.assertIn(
+            "Not this one", flat(block), "the topic quiz marked the exam's wrong answer right"
+        )
 
 
 class OneAttemptTests(ExamTestCase):
     def test_a_second_hand_in_is_refused(self) -> None:
         html = self.paper()
         self.hand_in(html, self.right(html))
+        sat_on = self.the_exam().taken_on
         action, which = self.form(html)
         again = flat(
             self.post_to(action, which, {q: "wrong" for q in self.question_ids(html)})
         )
         self.assertIn("one attempt your mock exam gets", again)
-        # The standing score is the first sitting's, not the second's.
+        # The standing score is the first sitting's, not the second's: the score
+        # is marked again from the answers on the questions, so a refused second
+        # hand-in has to leave those answers alone.
         self.assertIn("You got 4 of 4 right", again)
-        self.assertEqual(MockExam.objects.get().score, 1.0)
+        self.assertEqual(self.the_exam().taken_on, sat_on)
+        self.assertEqual(MockQuestion.objects.count(), 4)
 
     def test_a_second_hand_in_leaves_the_answers_the_student_gave(self) -> None:
         """Refusing a second sitting has to mean the paper keeps what was written
@@ -383,8 +436,16 @@ class OneAttemptTests(ExamTestCase):
         self.hand_in(html, self.right(html))
         page = flat(self.client.post("/courses/1/exam/start/", follow=True).content.decode())
         self.assertIn("one attempt your mock exam gets", page)
+        self.assertIn("You got 4 of 4 right", page)
         self.assertEqual(MockExam.objects.count(), 1)
         self.assertEqual(self.question_ids(page), asked)
+
+    def test_the_week_links_to_the_exam(self) -> None:
+        """The student's week is where they are when they decide they are ready,
+        so this is the link that has to be there."""
+        response = self.client.get("/courses/1/plan/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('href="/courses/1/exam/"', response.content.decode())
 
     def test_coming_back_before_sitting_shows_the_same_paper(self) -> None:
         """The student has to be able to come back to the questions they read,
@@ -400,6 +461,20 @@ class OneAttemptTests(ExamTestCase):
         self.assertIn(f"You got 0 of {asked} right", flat(again))
         self.assertNotIn("Hand in my exam", flat(again))
 
+    def test_a_forged_hand_in_after_sitting_still_shows_the_result(self) -> None:
+        """A refused hand-in that then rendered the paper again would take the
+        student's own result off the page and offer a button that cannot work."""
+        html = self.paper()
+        self.hand_in(html, self.right(html))
+        page = flat(
+            self.client.post(
+                "/courses/1/exam/submit/", {"exam": "999"}, follow=True
+            ).content.decode()
+        )
+        self.assertIn("not the mock exam of this course", page)
+        self.assertIn("You got 4 of 4 right", page)
+        self.assertNotIn("Hand in my exam", page)
+
     def test_a_form_naming_another_exam_is_not_marked(self) -> None:
         html = self.paper()
         page = flat(
@@ -411,7 +486,7 @@ class OneAttemptTests(ExamTestCase):
         )
         self.assertIn("not the mock exam of this course", page)
         self.assertNotIn("You got", page)
-        self.assertFalse(MockExam.objects.get().sat)
+        self.assertFalse(self.the_exam().sat)
 
 
 class CitationJumpTests(ExamTestCase):
@@ -458,6 +533,114 @@ class CitationJumpTests(ExamTestCase):
         for title, _ in TOPICS:
             with self.subTest(topic=title):
                 self.assertIn(title, marked)
+
+
+class OwnershipTests(ExamTestCase):
+    """Another student's exam is not this student's exam, by id or otherwise."""
+
+    def a_second_students_exam(self) -> int:
+        """An exam row belonging to somebody else, written straight to the table.
+
+        v0 has one hardcoded user, so the only way to hold another student's rows
+        is to put them there: that is what makes every ``user_id`` filter in the
+        exam code load-bearing rather than decorative.
+        """
+        other = get_user_model().objects.create(username="somebody-else")
+        course = Course.objects.create(user=other, title="Somebody else's course")
+        return MockExam.objects.create(user=other, course=course).pk
+
+    def test_an_exam_id_from_another_student_is_not_marked(self) -> None:
+        html = self.paper()
+        theirs = self.a_second_students_exam()
+        response = self.client.post(
+            "/courses/1/exam/submit/",
+            {
+                "exam": str(theirs),
+                **{f"q-{q}": "wrong" for q in self.question_ids(html)},
+            },
+            follow=True,
+        )
+        page = flat(response.content.decode())
+        self.assertIn("not the mock exam of this course", page)
+        self.assertNotIn("You got", page)
+        self.assertFalse(MockExam.objects.get(pk=theirs).sat)
+
+    def test_another_students_exam_id_is_not_even_on_the_page(self) -> None:
+        """The form names the exam it was drawn from; that has to be this
+        student's own, or a student could hand in somebody else's paper."""
+        theirs = self.a_second_students_exam()
+        html = self.paper()
+        self.assertNotIn(f'value="{theirs}"', html)
+        self.assertIn(f'value="{self.the_exam().pk}"', html)
+
+
+class TopicPathIsNotTheExamsTests(ExamTestCase):
+    """The topic path stays the student's to edit, but not through the exam."""
+
+    def topic_ids(self) -> dict[str, str]:
+        html = self.client.get("/courses/1/topics/").content.decode()
+        return {title: topic_pk(html, title) for title, _ in TOPICS}
+
+    def test_a_topic_the_exam_asks_about_cannot_be_removed(self) -> None:
+        """Deleting a topic would otherwise take its questions off the one paper
+        the student cannot rewrite, and leave the standing score saying one thing
+        and the marked paper another."""
+        html = self.paper()
+        asked = len(self.question_ids(html))
+        topics = self.topic_ids()
+        response = self.client.post(f"/courses/1/topics/{topics['Eigenspaces']}/remove/")
+        page = flat(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("is on your mock exam", page)
+        self.assertEqual(MockQuestion.objects.count(), asked)
+
+    def test_the_paper_is_unchanged_after_a_refused_removal(self) -> None:
+        html = self.paper()
+        asked = self.question_ids(html)
+        topics = self.topic_ids()
+        self.client.post(f"/courses/1/topics/{topics['Eigenspaces']}/remove/")
+        self.assertEqual(self.question_ids(self.page()), asked)
+
+    def test_merging_a_topic_the_exam_asks_about_is_refused(self) -> None:
+        self.paper()
+        asked = MockQuestion.objects.count()
+        topics = self.topic_ids()
+        response = self.client.post(
+            f"/courses/1/topics/{topics['Eigenvalues']}/merge/",
+            {"into": topics["Eigenspaces"]},
+        )
+        self.assertIn("is on your mock exam", flat(response.content.decode()))
+        self.assertEqual(MockQuestion.objects.count(), asked)
+
+    def test_reworking_the_whole_topic_path_is_refused_once_an_exam_exists(self) -> None:
+        """Re-inferring replaces every topic, which would leave the paper asking
+        about a course that is no longer here."""
+        self.paper()
+        response = self.client.post("/courses/1/topics/infer/")
+        page = flat(response.content.decode())
+        self.assertIn("already written a mock exam", page)
+        self.assertEqual(Topic.objects.count(), 2)
+
+    def test_a_topic_added_after_the_exam_does_not_indict_it(self) -> None:
+        """The paper is judged against the topics it was written across, not
+        against a syllabus edited after it."""
+        self.paper()
+        self.client.post("/courses/1/topics/add/", {"title": "Diagonalisation"})
+        page = flat(self.page())
+        self.assertIn("covers the whole course", page)
+        self.assertNotIn("which is not the whole course", page)
+
+    def test_asking_for_the_exam_twice_before_sitting_shows_the_same_paper(self) -> None:
+        """A double press, a resubmit or a second tab is not a second attempt, and
+        must not be answered as though the one attempt had been spent."""
+        html = self.paper()
+        again = flat(
+            self.client.post("/courses/1/exam/start/", follow=True).content.decode()
+        )
+        self.assertNotIn("one attempt your mock exam gets", again)
+        self.assertIn("Hand in my exam", again)
+        self.assertEqual(self.question_ids(self.page()), self.question_ids(html))
+        self.assertFalse(self.the_exam().sat)
 
 
 class TopicQuizIsNotSpentTests(ExamTestCase):

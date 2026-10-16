@@ -22,8 +22,8 @@
       <h2>One exam, one attempt</h2>
       <p>
         This is the whole course in one paper: questions written from your own
-        slides, up to {{ per_topic }} of them for every topic, in the order the
-        course teaches them. Any question that cannot be checked against the
+        slides, up to {{ per_topic }} of them for every topic, in the order
+        the course teaches them. Any question that cannot be checked against the
         paragraph it came from is left out rather than shown.
       </p>
       <p>
@@ -67,7 +67,7 @@
             {{ per_topic }} for a topic. Nothing has been made up to fill the gap.
           </p>
         {% endif %}
-        {% if not paper.whole_course %}
+        {% if not paper.whole_course and paper.missed_topics %}
           <p class="low-confidence" role="status">
             No question on this paper could be checked against these topics, so
             they are not really being examined:

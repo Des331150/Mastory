@@ -703,17 +703,24 @@ class MockExam(models.Model):
     ``material.exam`` refuses to write a second rather than trusting the page not
     to ask twice.
 
-    ``taken_on`` is the single attempt. It is the answer to "has this been sat",
-    read by the page that offers the paper and by the view that marks it, so
-    there is one clock and nothing to disagree with it, and the day is passed in
-    rather than read from the clock so that this table has one clock in it too.
-    ``score`` and ``passes`` are written with it and read back by marking the
-    stored answers again, rather than kept as a second verdict beside the rows
-    that produced them.
+    ``taken_on`` is the single attempt, and it is all this row records about it.
+    The day is passed in rather than read from the clock so that this table has
+    one clock in it too, and it is read by the page offering the paper and by the
+    view marking it, so there is one answer to "has this been sat".
+
+    No score is stored beside it. The standing score is marked again from the
+    answers on ``MockQuestion`` every time it is shown, so there is no second
+    verdict anywhere to fall out of step with the questions it came from.
 
     ``dropped`` is kept for the same reason a topic quiz keeps it: questions
     written and not shown, which the student is told about rather than left to
     discover.
+
+    ``asked_topics`` is how many topics the course had when the paper was
+    written, kept rather than counted off the topics again because the topic
+    path is the student's to edit: a topic added this morning would make a paper
+    written last month read as though it had left that topic out, and the page
+    would be indicting an exam for something it never saw.
     """
 
     user = models.ForeignKey(
@@ -721,8 +728,7 @@ class MockExam(models.Model):
     )
     course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="exam")
     dropped = models.PositiveIntegerField(default=0)
-    score = models.FloatField(null=True, blank=True)
-    passes = models.PositiveIntegerField(default=0)
+    asked_topics = models.PositiveIntegerField(default=0)
     taken_on = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -730,7 +736,7 @@ class MockExam(models.Model):
         ordering = ["-created_at", "-id"]
 
     def __str__(self) -> str:
-        state = f"{self.score:.0%}" if self.sat else "not sat"
+        state = "sat" if self.sat else "not sat"
         return f"{self.course.title}: {len(self.questions.all())} questions, {state}"
 
     @property
@@ -757,13 +763,22 @@ class MockQuestion(models.Model):
     marked it. The mark itself is not stored: it is made again by
     ``material.marking`` from these words, so there is no second verdict to fall
     out of step with the questions.
+
+    ``topic`` is protected rather than cascading. This row is the student's one
+    attempt, and deleting a topic from the path they are still allowed to edit
+    would otherwise take their paper apart. ``material.topics`` refuses that
+    delete and says why.
     """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mock_questions"
     )
     exam = models.ForeignKey(MockExam, on_delete=models.CASCADE, related_name="questions")
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="mock_questions")
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.PROTECT,
+        related_name="mock_questions",
+    )
     span = models.ForeignKey(Span, on_delete=models.CASCADE, related_name="mock_questions")
     ordinal = models.PositiveIntegerField()
     kind = models.CharField(max_length=16, choices=Question.Kind.choices)
@@ -782,11 +797,6 @@ class MockQuestion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.exam_id} q{self.ordinal}: {self.prompt[:40]}"
-
-    @property
-    def slide(self) -> Slide:
-        """The slide this question came from, named once the exam has been sat."""
-        return self.span.slide
 
     @property
     def anchor(self) -> str:
