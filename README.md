@@ -1,7 +1,9 @@
 # Mastory
 
-Upload a course PDF, read it as Markdown with its images, search inside it, and
-keep the original one click away.
+Upload a course's slides, check the topic path they give you, get a week built
+against your exam date, quiz yourself on each topic and be sent back to the exact
+paragraph you got wrong, then sit one mock exam across the whole course and find
+out whether you are ready.
 
 See `specs/0001-v0-personalised-learning-path.md` for the product this serves.
 
@@ -37,7 +39,7 @@ Without it, the local SQLite file is used.
 
 ```
 material/
-  models.py    Course -> SourceFile -> Slide -> Span, and the plan Course -> Plan -> Session, and the student's record on Topic
+  models.py    Course -> SourceFile -> Slide -> Span, the pointer map Course -> Topic -> TopicSlide, the plan, the record on Topic, and the exam Course -> MockExam -> MockQuestion
   ingest.py    deterministic PDF -> Markdown conversion, images extracted inline
   model.py     the only place a model is called, and the grounding contract it enforces
   topics.py    inferring the topic path, and every edit the student makes to it
@@ -89,6 +91,12 @@ weighting.
 The student can rename, split, merge, reorder, re-weight, add and remove, and
 every edit persists. Any edit clears the confirmation, because a path edited
 since is not the path the student said was right.
+
+Every edit is theirs to make except three. Once a course has a mock exam written
+against its topic path, removing a topic, merging one away and re-inferring the
+whole path are refused with a sentence saying why: the exam is one attempt and is
+the one thing here that cannot be written again, so the path bends around it
+rather than the other way round. See [the mock exam](#the-mock-exam).
 
 No schedule is generated until the student confirms. The gate is
 `topics.require_confirmation()`, which raises rather than returning a boolean,
@@ -260,6 +268,16 @@ what the readiness report is for.
 
 ## Quizzes
 
+There are two kinds of paper in this product and they are deliberately not the
+same thing. A **topic quiz** is short, retaken as often as the student likes,
+written again every time, and finishes and weighs the topic it is on. The
+**mock exam** covers the whole course, is sat once, is never rewritten, and says
+nothing about the answers until it is handed in. What an answer is worth is the
+same on both: `material/marking.py` marks them, and `material/quiz.py` and
+`material/exam.py` decide what may be asked of the student rather than how a
+sentence is judged. This section is the topic quiz; the mock exam is
+[below](#the-mock-exam).
+
 A topic quiz is written from the student's own paragraphs, one paragraph at a
 time. Each question cites the paragraph it came from, is put back to the model
 against that paragraph, and is dropped if the paragraph does not state the
@@ -321,9 +339,11 @@ read after it.
 ## The mock exam
 
 The second kind of paper, and the only output that tells a student whether they
-are ready. `material/exam.py` holds it; `MockExam` and `MockQuestion` are its
-own tables rather than a quiz hung off an invented topic, because the three
-things that make it an exam are facts about the row.
+are ready. `/courses/<id>/exam/`, linked from their week; the paper is written by
+posting to it and handed in at `/courses/<id>/exam/submit/`. `material/exam.py`
+holds it; `MockExam` and `MockQuestion` are their own tables rather than a quiz
+hung off an invented topic, because the things that make it an exam are facts
+about the row.
 
 - **It covers the whole course.** Questions are written topic by topic, in the
   order the course teaches them, up to `QUESTIONS_PER_TOPIC` (2) each, so a
@@ -365,14 +385,10 @@ How much of the course the paper covers is frozen on the row
 a topic added this morning must not make a paper written last month read as
 though it had skipped it.
 
-Answers are stored on `MockQuestion.given` and the marks are made again from them
-when the result page is read, so a student who comes back to their paper sees
-the same marking rather than a copy of it — and there is no second verdict
-stored anywhere to fall out of step with the questions.
-
-Marking is `material/marking.py`, shared with the topic quiz. The two papers
-differ in how many attempts they get and what the student is told while sitting
-them; they do not differ in how a sentence is judged.
+What the student wrote lives on `MockQuestion.given`, which is the only place a
+sitting is kept: the marks are made from those words every time the page is
+shown, so a student who comes back to their paper sees the same marking rather
+than a copy of it.
 
 ## Uploads
 
