@@ -32,16 +32,20 @@ much of it the student knows is weighed separately in ``material.mastery`` from
 the same sittings. The two are kept apart because a threshold on completion
 would make the one hard topic of a course the one they can never get past, and
 would leave the week full of topics they have already finished.
+
+What an answer is worth is not decided here. Marking lives in
+``material.marking``, which the mock exam marks with too: the two kinds of paper
+differ in how many attempts they get and what the student is told before they
+answer, not in how a sentence is judged.
 """
 
-import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
 from django.db import transaction
 
-from material import model, progress, reading
+from material import marking, model, progress, reading
 from material.models import PASS_MARK, Question, Quiz, Span, Topic, is_failure
 from material.topics import Rejected
 from material.users import current_user_id, owned
@@ -104,80 +108,6 @@ class Reread:
             f"{'it' if one else 'them'} and you can sit the quiz again straight "
             f"away, as many times as you like: nothing is spent on a retake."
         )
-
-
-@dataclass(frozen=True)
-class Answered:
-    """One question, what the student gave, and where a wrong one came from."""
-
-    question: Question
-    given: str
-    correct: bool
-    supported: bool
-
-    @property
-    def citation(self) -> str:
-        """Which slide and paragraph this question came from."""
-        return self.question.span.citation
-
-    @property
-    def anchor(self) -> str:
-        """The exact paragraph a wrong answer sends the student to."""
-        return self.question.anchor
-
-
-@dataclass(frozen=True)
-class Result:
-    """A graded sitting: the answers, the share right, and the quiz it was on.
-
-    ``passes`` counts the right answers the cited paragraph itself supports,
-    which is kept apart from the score because "knew it" and "got it right for
-    some other reason" are different things and mastery is later computed from
-    the difference.
-    """
-
-    quiz: Quiz
-    answers: tuple[Answered, ...]
-    correct: int
-    passes: int
-
-    @property
-    def total(self) -> int:
-        return len(self.answers)
-
-    @property
-    def percent(self) -> int:
-        """The share right, as the whole number the meter is drawn with.
-
-        A property rather than a format filter: a fraction of one rendered as a
-        percentage is a bar one percent wide for a perfect score, and nothing in
-        a test that only reads the heading would notice.
-        """
-        return round(self.score * 100)
-
-    @property
-    def score(self) -> float:
-        """The share right, as a fraction of the questions actually asked.
-
-        Zero rather than an error when nothing was asked, so a quiz whose every
-        question failed verification records nothing rather than recording a
-        division by zero.
-        """
-        return self.correct / self.total if self.total else 0.0
-
-    @property
-    def wrong(self) -> tuple[Answered, ...]:
-        return tuple(answer for answer in self.answers if not answer.correct)
-
-    @property
-    def failed(self) -> bool:
-        """Whether this sitting went below the pass mark.
-
-        Read off the score through the same function the recorded row uses, so the
-        result page cannot call a sitting a pass which the attempt it just wrote
-        calls a failure.
-        """
-        return is_failure(self.score)
 
 
 def topic_spans(topic: Topic) -> list[Span]:
@@ -323,15 +253,18 @@ def questions(quiz: Quiz) -> list[Question]:
     return list(owned(quiz.questions.all()).select_related("span__slide__source_file"))
 
 
-def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
+def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> marking.Marked:
     """Mark one sitting, record it against the topic, and finish the topic.
 
-    Marking is string comparison against the answers stored with the question,
-    which were checked against the cited paragraph when the question was made.
-    A short answer also counts as right when it contains what the paragraph
-    says - a student who writes "the cell membrane is selectively permeable"
-    answered the question - while a multiple choice answer counts only when it
-    is the option the question was written with.
+    Marking itself is ``material.marking``, shared with the mock exam: what an
+    answer is worth does not depend on which kind of paper it was written on.
+    This is what happens around it - the sitting is recorded, and the topic is
+    finished.
+
+    A short answer counts as right when it contains what the paragraph says - a
+    student who writes "the cell membrane is selectively permeable" answered the
+    question - while a multiple choice answer counts only when it is the option
+    the question was written with.
 
     A sitting finishes the topic whatever it scored, because finishing is not
     passing. The two are read separately from here on: this writes the day into
@@ -348,21 +281,12 @@ def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
     topic the week still calls outstanding, with nothing on the page saying the
     two ever disagreed.
     """
-    marked = tuple(
-        _answer(question, given.get(str(question.pk), ""))
-        for question in questions(quiz)
-    )
-    if not marked:
+    result = marking.mark_all(questions(quiz), given)
+    if not result.answers:
         raise Rejected(
             "There are no questions on this quiz to mark. Write another one from "
             "a topic with more of your material behind it."
         )
-    result = Result(
-        quiz=quiz,
-        answers=marked,
-        correct=sum(1 for answer in marked if answer.correct),
-        passes=sum(1 for answer in marked if answer.correct and answer.supported),
-    )
     with transaction.atomic():
         progress.record_attempt(
             quiz.topic,
@@ -377,57 +301,3 @@ def grade(quiz: Quiz, given: Mapping[str, str], *, on: date) -> Result:
         )
         progress.complete(quiz.topic, on=on)
     return result
-
-
-def _answer(question: Question, given: str) -> Answered:
-    """One student's answer, marked, and whether the span supports it.
-
-    A short answer counts as right when it says the accepted words on their own
-    - whole words, in any order around them - rather than merely containing
-    them somewhere. Containment alone would mark "it is not selective" right on a
-    question whose answer is "selective", and would mark "grate" as an answer of
-    "rate": a grader that can be argued into a mark is not a check on anything.
-    A student who also denies the answer is not credited with it either.
-    """
-    said = model.normalise(given)
-    if question.kind == Question.Kind.MULTIPLE_CHOICE:
-        correct = bool(said) and said in {
-            model.normalise(choice) for choice in question.answers
-        }
-    else:
-        correct = _short_answer_is_right(said, question.answers)
-    return Answered(
-        question=question,
-        given=given.strip(),
-        correct=correct,
-        supported=correct and _span_supports(question, given),
-    )
-
-
-#: Ways a student can say no. A denial is a denial of whatever else the answer
-#: contains, so an answer carrying one cannot be marking the accepted words.
-_DENIAL = frozenset({"not", "no", "never", "none", "neither", "nor", "isnt", "dont", "doesnt"})
-
-
-def _short_answer_is_right(said: str, answers: Sequence[str]) -> bool:
-    """Whether the student wrote one of these answers, word for word or around it."""
-    if not said or _DENIAL.intersection(said.split()):
-        return False
-    for accepted in answers:
-        wanted = model.normalise(accepted)
-        if not wanted:
-            continue
-        if said == wanted or re.search(rf"\b{re.escape(wanted)}\b", said):
-            return True
-    return False
-
-
-def _span_supports(question: Question, given: str) -> bool:
-    """Whether the cited paragraph itself contains the answer the student gave.
-
-    A second signal from the same sitting: an answer the paragraph does not
-    contain is right by the letter of the question and not by the material, and
-    the difference is what mastery is later computed from.
-    """
-    said = model.normalise(given)
-    return bool(said) and said in model.normalise(question.span.text)

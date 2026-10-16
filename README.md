@@ -45,6 +45,8 @@ material/
   progress.py  what the student has done: the share of their plan, the log, and quiz attempts
   mastery.py   how much of a topic the student knows, weighed from its sittings
   quiz.py      a topic's quiz: written from spans, cited to them, marked against them, and retaken
+  exam.py      the mock exam: one paper over the whole course, written once and sat once
+  marking.py   what an answer is worth, shared by both kinds of paper
   reading.py   whether the student has opened a cited paragraph
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
@@ -315,6 +317,47 @@ writes the quiz again, from the same paragraphs, and the questions are new.
 there. The rule asks whether they have been back since they were sent, and a
 first-visit timestamp would let a paragraph they read before the quiz count as
 read after it.
+
+## The mock exam
+
+The second kind of paper, and the only output that tells a student whether they
+are ready. `material/exam.py` holds it; `MockExam` and `MockQuestion` are its
+own tables rather than a quiz hung off an invented topic, because the three
+things that make it an exam are facts about the row.
+
+- **It covers the whole course.** Questions are written topic by topic, in the
+  order the course teaches them, up to `QUESTIONS_PER_TOPIC` (2) each, so a
+  course of twelve topics means twelve generation calls through the same seam a
+  topic quiz uses. A topic whose paragraphs support no verifiable question is
+  named on the page by title, because an exam that quietly left out a fifth of
+  the syllabus would read as a result.
+- **It is written only when asked for.** Nothing is generated on the way to the
+  page: the exam is a POST, and a course of topics is not a bill a student pays
+  for opening a browser tab.
+- **It is sat once.** `MockExam.taken_on` is the attempt, written by the view
+  that marks the paper and read by the page offering it, so there is one answer
+  to "has this been sat". A second hand-in is refused and shows the first result
+  rather than overwriting it; a second request for an exam is refused and writes
+  nothing, because questions that were said not to regenerate cannot quietly
+  regenerate behind a student's back.
+- **Nothing is said about the answers until the paper is handed in.** No mark, no
+  expected answer, and no citation either — naming the paragraph a question came
+  from before the student answers is reading ahead to the answer. All of it comes
+  back together on submission, with every wrong answer linked to the exact
+  paragraph it came from and the topic it came from named.
+- **It is scored as a whole.** One mark, one share, one meter — and no per-topic
+  attempts and no completions, because mastery and completion are read from a
+  topic's own sittings and two questions sampled once at the end of the course
+  would make the number describe the exam rather than the student.
+
+Answers are stored on `MockQuestion.given` and the mark is made again from them
+when the result page is re-read, so a student who comes back to their paper sees
+the same marking rather than a copy of it — and there is no second verdict stored
+anywhere to fall out of step with the questions.
+
+Marking is `material/marking.py`, shared with the topic quiz. The two papers
+differ in how many attempts they get and what the student is told while sitting
+them; they do not differ in how a sentence is judged.
 
 ## Uploads
 

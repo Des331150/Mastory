@@ -1,0 +1,189 @@
+{% extends "material/base.html" %}
+
+{% comment %}
+  Three states of one sitting, in one template: not asked for, waiting to be
+  sat, and sat. Nothing between the first two says anything about the answers -
+  no citation, no expected answer, no mark - because naming the paragraph a
+  question came from is reading ahead to the answer, and this paper is the one
+  place the student is being examined.
+{% endcomment %}
+
+{% block title %}{{ course.title }}: mock exam{% endblock %}
+
+{% block content %}
+<div class="quiz-page exam-page">
+  <header class="quiz-head">
+    <h1>Mock exam: {{ course.title }}</h1>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  </header>
+
+  {% if not exam %}
+    <section class="panel">
+      <h2>One exam, one attempt</h2>
+      <p>
+        This is the whole course in one paper: questions written from your own
+        slides, up to {{ per_topic }} of them for every topic, in the order the
+        course teaches them. Any question that cannot be checked against the
+        paragraph it came from is left out rather than shown.
+      </p>
+      <p>
+        You get <strong>one attempt</strong>. The questions are written once and
+        are not written again, nothing is spent on a sitting, and the marks, the
+        score and the paragraph behind every wrong answer all come back together
+        when you hand the paper in &mdash; not before.
+      </p>
+      <p class="muted">
+        Nothing has been written yet. A paper is written when you ask for one,
+        not when you open this page.
+      </p>
+      <form method="post" action="{% url 'exam-start' course.pk %}">
+        {% csrf_token %}
+        <button type="submit">Write my mock exam</button>
+      </form>
+      <p class="muted small">
+        Topic quizzes are not spent by this and nothing is taken off them: sit
+        those as often as you like, before or after.
+      </p>
+    </section>
+  {% else %}
+    {% if paper %}
+      <section class="panel exam-shape">
+        <h2>What this paper is</h2>
+        <p class="quiz-count">
+          {{ paper.questions|length }} question{{ paper.questions|length|pluralize }}
+          from {{ paper.covered }} of the course&rsquo;s {{ paper.asked }}
+          topic{{ paper.asked|pluralize }},
+          {% if paper.whole_course %}
+            so it covers the whole course.
+          {% else %}
+            which is not the whole course.
+          {% endif %}
+        </p>
+        {% if exam.dropped %}
+          <p class="dropped-note">
+            {{ exam.dropped }} question{{ exam.dropped|pluralize }} more
+            {{ exam.dropped|pluralize:"was,were" }} written and not shown: either
+            the paragraph it came from did not check out, or there were more than
+            {{ per_topic }} for a topic. Nothing has been made up to fill the gap.
+          </p>
+        {% endif %}
+        {% if not paper.whole_course %}
+          <p class="low-confidence" role="status">
+            No question on this paper could be checked against these topics, so
+            they are not really being examined:
+            {% for title in paper.missed_topics %}{{ title }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            Read them, or point them at the slides that cover them, before you
+            read anything into the score.
+          </p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% if not result %}
+      {% if not paper.questions %}
+        <section class="panel">
+          <h2>No questions to sit</h2>
+          <p class="muted">
+            Nothing in the paragraphs this course&rsquo;s topics point at could be
+            turned into a question you could be marked against. Nothing has been
+            made up to fill the gap.
+            <a href="{% url 'topic-path' course.pk %}">Point your topics at the slides that cover them</a>
+            or <a href="{% url 'plan' course.pk %}">go back to your week</a>.
+          </p>
+        </section>
+      {% else %}
+        <section class="panel">
+          <h2>Before you start</h2>
+          <p>
+            There is no timer and nothing is saved as you go: the paper is
+            submitted in one go, and it cannot be sat again afterwards. Nothing on
+            this page tells you whether an answer is right &mdash; that is the
+            point of it.
+          </p>
+        </section>
+
+        <form method="post" action="{% url 'exam-submit' course.pk %}" class="quiz-form">
+          {% csrf_token %}
+          <input type="hidden" name="exam" value="{{ exam.pk }}" />
+          <ol class="questions">
+            {% for question in paper.questions %}
+              <li class="question" id="question-{{ question.pk }}">
+                <p class="question-prompt">{{ question.prompt }}</p>
+                {% if question.kind == "multiple_choice" %}
+                  <ul class="choices">
+                    {% for choice in question.choices %}
+                      <li>
+                        <label>
+                          <input type="radio" name="q-{{ question.pk }}" value="{{ choice }}" />
+                          {{ choice }}
+                        </label>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <label class="visually-hidden" for="answer-{{ question.pk }}">Your answer</label>
+                  <input id="answer-{{ question.pk }}" type="text" name="q-{{ question.pk }}"
+                         autocomplete="off" />
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+          <button type="submit">Hand in my exam</button>
+        </form>
+      {% endif %}
+    {% else %}
+      <section class="panel quiz-result">
+        <h2>You got {{ result.correct }} of {{ result.total }} right</h2>
+        <div class="meter">
+          <span class="meter-fill" style="width: {{ result.percent }}%"></span>
+        </div>
+        <p class="muted">
+          {{ result.passes }} of those {{ result.correct }} right answer{{ result.correct|pluralize }}
+          {{ result.passes|pluralize:"is,are" }} worded the way the paragraph they came from
+          words {{ result.passes|pluralize:"it,them" }}.
+        </p>
+        <p class="standing-finished">
+          That is the whole course marked as one paper, on {{ exam.taken_on|date:"j F Y" }},
+          and it is the one attempt you get. It has not finished or started any
+          topic: your week and what you know of each topic are still read from
+          your topic quizzes, which you can sit as often as you like.
+        </p>
+      </section>
+
+      <ol class="questions marked">
+        {% for answer in result.answers %}
+          <li class="question{% if answer.correct %} right{% else %} wrong{% endif %}"
+              id="question-{{ answer.question.pk }}">
+            <p class="question-topic">{{ answer.question.topic.title }}</p>
+            <p class="question-citation">
+              From {{ answer.citation }}
+              &middot;
+              <a href="{% url 'course-read' course.pk %}#{{ answer.anchor }}"
+                 >{% if answer.correct %}open that paragraph{% else %}read that paragraph again{% endif %}</a>
+            </p>
+            <p class="question-prompt">{{ answer.question.prompt }}</p>
+            <p class="mark" data-correct="{{ answer.correct|yesno:'yes,no' }}">
+              {% if answer.correct %}Right{% else %}Not this one{% endif %}
+            </p>
+            {% if answer.given %}
+              <p class="given">You wrote: {{ answer.given }}</p>
+            {% else %}
+              <p class="given">You left this blank.</p>
+            {% endif %}
+            {% if not answer.correct %}
+              <p class="expected">
+                What the paragraph says: {{ answer.question.answers|join:" or " }}
+              </p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  {% endif %}
+
+  <p class="muted small">
+    <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
+    <a href="{% url 'course-read' course.pk %}">Back to your material</a>
+  </p>
+</div>
+{% endblock %}

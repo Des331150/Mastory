@@ -1,8 +1,9 @@
 """The extraction layer: Course -> File -> Slide -> Span, the pointer map
-Course -> Topic -> TopicSlide, the plan Course -> Plan -> Session, and the record
+Course -> Topic -> TopicSlide, the plan Course -> Plan -> Session, the record
 the student keeps on a topic: ``Topic.completed_on``, the per-topic ``Attempt``
 with the paragraphs it sent them back to, and the ``SectionOpen`` saying they
-went.
+went, and the exam that spans the whole course: Course -> MockExam ->
+MockQuestion.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
@@ -679,6 +680,112 @@ class Question(models.Model):
     @property
     def slide(self) -> Slide:
         """The slide this question came from, named on the page before answering."""
+        return self.span.slide
+
+    @property
+    def anchor(self) -> str:
+        """The exact paragraph a wrong answer sends the student to."""
+        return self.span.anchor
+
+
+class MockExam(models.Model):
+    """One exam across the whole course, and the one attempt at it.
+
+    Its own table rather than a quiz hung off a made-up topic, because the exam
+    differs from a topic quiz in the three ways that matter and each of those is
+    a fact about the row: it spans every topic rather than one, it is sat once
+    rather than retaken, and it is scored as a whole rather than folded into a
+    topic's record.
+
+    The course is a one-to-one key rather than a foreign key because "one exam,
+    one attempt" is the whole rule. A second row would be a second exam, and
+    there is no route in the product that creates one - which is why
+    ``material.exam`` refuses to write a second rather than trusting the page not
+    to ask twice.
+
+    ``taken_on`` is the single attempt. It is the answer to "has this been sat",
+    read by the page that offers the paper and by the view that marks it, so
+    there is one clock and nothing to disagree with it, and the day is passed in
+    rather than read from the clock so that this table has one clock in it too.
+    ``score`` and ``passes`` are written with it and read back by marking the
+    stored answers again, rather than kept as a second verdict beside the rows
+    that produced them.
+
+    ``dropped`` is kept for the same reason a topic quiz keeps it: questions
+    written and not shown, which the student is told about rather than left to
+    discover.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mock_exams"
+    )
+    course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="exam")
+    dropped = models.PositiveIntegerField(default=0)
+    score = models.FloatField(null=True, blank=True)
+    passes = models.PositiveIntegerField(default=0)
+    taken_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        state = f"{self.score:.0%}" if self.sat else "not sat"
+        return f"{self.course.title}: {len(self.questions.all())} questions, {state}"
+
+    @property
+    def sat(self) -> bool:
+        """Whether this exam has been sat, and so cannot be sat again.
+
+        Read rather than compared against a date elsewhere, so the page offering
+        the paper and the view marking it cannot answer differently.
+        """
+        return self.taken_on is not None
+
+
+class MockQuestion(models.Model):
+    """One question of the mock exam, the topic it came from, and its span.
+
+    ``topic`` is kept even though the span already says where the question came
+    from: an exam covering the whole course is only honest if it can say which
+    parts of the course it asked about and which it could not, and a topic with
+    no question on it is a fact about this row's absence rather than something
+    worked out from spans.
+
+    ``given`` is the answer the student gave, kept so that a result page can be
+    re-read after the sitting rather than living only in the response that
+    marked it. The mark itself is not stored: it is made again by
+    ``material.marking`` from these words, so there is no second verdict to fall
+    out of step with the questions.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mock_questions"
+    )
+    exam = models.ForeignKey(MockExam, on_delete=models.CASCADE, related_name="questions")
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="mock_questions")
+    span = models.ForeignKey(Span, on_delete=models.CASCADE, related_name="mock_questions")
+    ordinal = models.PositiveIntegerField()
+    kind = models.CharField(max_length=16, choices=Question.Kind.choices)
+    prompt = models.TextField()
+    choices = models.JSONField(default=list)
+    answers = models.JSONField(default=list)
+    given = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["ordinal", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["exam", "ordinal"], name="unique_question_ordinal_per_exam"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.exam_id} q{self.ordinal}: {self.prompt[:40]}"
+
+    @property
+    def slide(self) -> Slide:
+        """The slide this question came from, named once the exam has been sat."""
         return self.span.slide
 
     @property

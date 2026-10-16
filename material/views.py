@@ -18,6 +18,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from material import (
+    exam as exam_service,
+    marking,
     mastery,
     model,
     planning,
@@ -26,7 +28,17 @@ from material import (
     reading,
     topics as topic_service,
 )
-from material.models import Course, Plan, Quiz, Session, Slide, SourceFile, Span, Topic
+from material.models import (
+    Course,
+    MockExam,
+    Plan,
+    Quiz,
+    Session,
+    Slide,
+    SourceFile,
+    Span,
+    Topic,
+)
 from material.render import Section, build_sections
 from material.services import (
     StageOutcome,
@@ -566,7 +578,7 @@ def _quiz_page(
     topic: Topic,
     current: Quiz | None,
     *,
-    result: quiz_service.Result | None = None,
+    result: marking.Marked | None = None,
     error: str = "",
     reread: quiz_service.Reread | None = None,
 ) -> HttpResponse:
@@ -602,6 +614,136 @@ def _quiz_page(
             # A quiz that has been sat is not one the student may answer again,
             # so the page does not offer them a button for it.
             "spent": current is not None and quiz_service.spent(topic, current),
+            "error": error,
+        },
+    )
+
+
+@require_GET
+def exam(request: HttpRequest, course_id: int) -> HttpResponse:
+    """The mock exam: written only once the student has asked for it.
+
+    Three states on one page, because they are one thing read three ways: an
+    exam this course does not have yet, an exam waiting to be sat, and an exam
+    that has been sat with the marks on it. Nothing is written on the way in -
+    a course of twelve topics means one model call per topic, and a page that
+    generated them on a GET would have the student waiting on a sitting they
+    never started.
+
+    A sat exam shows its result rather than the paper again, because the one
+    attempt is spent and the questions are not going to be written again.
+    """
+    course = _course(course_id)
+    current = exam_service.latest(course)
+    if current is None:
+        return _exam_page(request, course, None)
+    return _exam_page(
+        request, course, current, result=exam_service.taken(current)
+    )
+
+
+@require_POST
+def exam_start(request: HttpRequest, course_id: int) -> HttpResponse:
+    """Write the mock exam, once.
+
+    Refused once the student has sat one rather than quietly writing a second:
+    the questions a student was told would not regenerate, regenerating them
+    behind their back is the same lie told in a different order. The refusal
+    carries the result they already have, because a page that says no without
+    showing what they sat is not a useful no.
+    """
+    course = _course(course_id)
+    existing = exam_service.latest(course)
+    if existing is not None:
+        return _exam_page(
+            request,
+            course,
+            existing,
+            result=exam_service.taken(existing),
+            error=exam_service.ALREADY_SAT,
+        )
+    try:
+        written = exam_service.build(course)
+    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+        return _exam_page(request, course, None, error=_reason(exc))
+    return _exam_page(request, course, written)
+
+
+@require_POST
+def exam_submit(request: HttpRequest, course_id: int) -> HttpResponse:
+    """Hand the paper in, and get every mark and citation back at once.
+
+    The one place the exam is graded, and the only page that says whether an
+    answer was right: nothing before this point names a citation, an expected
+    answer or a mark, because a student who can see them while they sit is not
+    being examined.
+
+    A second hand-in is refused and the first result is shown again rather than
+    overwritten. Marking the same paper twice would leave the standing score
+    depending on which page happened to be submitted last, and the standing
+    score is the thing the exam was sat to find out.
+    """
+    course = _course(course_id)
+    current = exam_service.find(course, _int_or_none(request.POST.get("exam")))
+    if current is None:
+        return _exam_page(
+            request,
+            course,
+            exam_service.latest(course),
+            error=(
+                "That is not the mock exam of this course, so there is nothing "
+                "here to mark. The exam below is this course's one."
+            ),
+        )
+    if exam_service.spent(current):
+        return _exam_page(
+            request,
+            course,
+            current,
+            result=exam_service.taken(current),
+            error=exam_service.ALREADY_SAT,
+        )
+    given = {
+        # The form names every field ``q-<question>`` so one form can carry a
+        # whole paper; the marker is handed the bare question ids.
+        key.removeprefix("q-"): request.POST.get(key, "")
+        for key in request.POST
+        if key.startswith("q-")
+    }
+    try:
+        result = exam_service.grade(current, given, on=planning.today())
+    except topic_service.Rejected as exc:
+        return _exam_page(request, course, current, error=exc.reason)
+    return _exam_page(request, course, current, result=result)
+
+
+def _exam_page(
+    request: HttpRequest,
+    course: Course,
+    current: MockExam | None,
+    *,
+    result: marking.Marked | None = None,
+    error: str = "",
+) -> HttpResponse:
+    """The mock exam page: not asked for, waiting to be sat, or sat.
+
+    One template for the three, as with the topic quiz: they are the same page
+    at different moments of one sitting.
+
+    The paper is passed whole rather than as a list of questions, because the
+    page also has to say what the exam covers - how many of the course's topics
+    are on it, and which are not - and that is a reading of the questions and
+    the topics together rather than something the template should count.
+    """
+    return render(
+        request,
+        "material/exam.html",
+        {
+            "course": course,
+            "exam": current,
+            "paper": exam_service.paper(current) if current is not None else None,
+            "per_topic": exam_service.QUESTIONS_PER_TOPIC,
+            "result": result,
             "error": error,
         },
     )
