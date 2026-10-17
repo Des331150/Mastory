@@ -3,7 +3,8 @@ Course -> Topic -> TopicSlide, the plan Course -> Plan -> Session, the record
 the student keeps on a topic: ``Topic.completed_on``, the per-topic ``Attempt``
 with the paragraphs it sent them back to, and the ``SectionOpen`` saying they
 went, and the exam that spans the whole course: Course -> MockExam ->
-MockQuestion.
+MockQuestion, and ``Spend``: one row per piece of work the student caused, with
+what it cost.
 
 Every table carries a ``user_id`` so that adding real authentication in v1 is a
 filter rather than a refactor.
@@ -46,6 +47,24 @@ def is_failure(score: float) -> bool:
     and another about its own score.
     """
     return score < PASS_MARK
+
+
+def price(tokens: int | None) -> float | None:
+    """What so many tokens cost at the rate this deployment is configured with.
+
+    ``None`` for both of the things that are not a cost of nothing: tokens a
+    provider never reported, and a model nobody has said what a token costs.
+    Zero for either would print ``0.00`` on a page whose whole job is to say what
+    serving a student cost, and a student reading that would believe the course
+    was free.
+
+    One rate rather than one for what went in and one for what came back, because
+    the rate is one number whoever runs the server sets and a half-rate nobody has
+    told us would be a half-rate we invented.
+    """
+    if tokens is None or not settings.MODEL_USD_PER_MILLION_TOKENS:
+        return None
+    return tokens * settings.MODEL_USD_PER_MILLION_TOKENS / 1_000_000
 
 
 class Course(models.Model):
@@ -830,3 +849,67 @@ class TopicSlide(models.Model):
 
     def __str__(self) -> str:
         return f"{self.topic.title} -> {self.slide.anchor}"
+
+
+class Spend(models.Model):
+    """One piece of work the student caused, and what it cost.
+
+    Written by ``material.spend.working`` as the work ends, whether it worked or
+    not, because none of this can be backfilled: a cost the product only kept on
+    success is a record that says nothing went wrong on the days it did.
+
+    **One row per piece of work, not per model call.** What the product needs to
+    price is "this student's course cost 0.4 seconds and no model calls to read
+    in, and 1.8 seconds and six calls to write the quiz he has sat", and a row
+    per call would make that question an aggregation left to whoever reads the
+    table. ``calls`` carries how many the one piece took.
+
+    ``tokens`` is what the provider said its calls moved, and is ``None`` rather
+    than zero where the provider said nothing at all: a call that moved nothing
+    and a call that would not say are different facts, and only one of them is
+    free.
+
+    ``label`` names what the work was for instead of pointing at the topic or the
+    file. The path is the student's to edit all semester and a file can be taken
+    away, and what a week of generation cost is worth keeping after both of those
+    have happened.
+    """
+
+    class Kind(models.TextChoices):
+        INGEST = "ingest", "Reading material in"
+        TOPICS = "topics", "Working out the topic path"
+        QUIZ = "quiz", "Writing a topic quiz"
+        EXAM = "exam", "Writing the mock exam"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="spends"
+    )
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="spends")
+    kind = models.CharField(max_length=8, choices=Kind)
+    label = models.CharField(max_length=255, blank=True)
+    calls = models.PositiveIntegerField(default=0)
+    seconds = models.FloatField()
+    tokens = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.what}: {self.calls} calls in {self.seconds:.2f}s"
+
+    @property
+    def what(self) -> str:
+        """What this work was, in the words the page puts it in.
+
+        Both branches are live: reading a file in is named after that file, while
+        working out the topic path is named after the course and has no one file
+        to point at.
+        """
+        said = self.get_kind_display()
+        return f"{said}: {self.label}" if self.label else said
+
+    @property
+    def cost(self) -> float | None:
+        """What this piece of work cost in money, or nothing while that is unknown."""
+        return price(self.tokens)

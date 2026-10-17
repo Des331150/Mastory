@@ -21,12 +21,14 @@ from material import (
     exam as exam_service,
     marking,
     mastery,
+    metric,
     model,
     planning,
     progress,
     quiz as quiz_service,
     reading,
     readiness,
+    spend,
     topics as topic_service,
 )
 from material.models import (
@@ -760,6 +762,36 @@ def _exam_page(
             # they must be the same number.
             "per_topic": exam_service.QUESTIONS_PER_TOPIC,
             "error": error,
+        },
+    )
+
+
+@require_GET
+def cost_report(request: HttpRequest, course_id: int) -> HttpResponse:
+    """What serving this course has cost, and what its record says about helping.
+
+    Two readings of the same record, on one page, because both are readings of
+    rows this product wrote itself and neither can be reconstructed afterwards:
+    what the student's course cost in model calls and seconds, and how much of
+    it they have got through. The student's own readiness report is on another
+    page and answers a different question - what to revise - while this one is
+    the one nobody can ask the student for.
+
+    The correlation counts across every student in the record rather than this
+    one, and says what it cannot compare. It is on a course page because a course
+    is the only thing in v0 with an id to hang a deployment-wide reading on, and
+    it will move to a page of its own the moment there is more than one student
+    to put on it.
+    """
+    course = _course(course_id)
+    return render(
+        request,
+        "material/cost.html",
+        {
+            "course": course,
+            "ledger": spend.ledger(course),
+            "metric": metric.metric(course),
+            "correlation": metric.correlation(),
         },
     )
 

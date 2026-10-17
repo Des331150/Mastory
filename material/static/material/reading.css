@@ -277,6 +277,8 @@ button[disabled] { opacity: 0.5; cursor: default; }
 .report-head .muted { margin: 0; max-width: 60ch; }
 .readiness { border-left: 4px solid var(--accent); }
 .readiness.refused { border-left-color: #b8860b; }
+.metric.refused,
+.correlation.refused { border-left-color: #b8860b; }
 .readiness-figure { margin: 0 0 10px; font-size: 44px; line-height: 1.1; }
 .readiness .framing { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
 .readiness-refusal { margin: 0; font-size: 18px; }
@@ -295,6 +297,30 @@ button[disabled] { opacity: 0.5; cursor: default; }
 .report-list .report-when { margin: 0; font-size: 13px; color: var(--muted); }
 .unweighed-note { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
 .report-days .log-entry { grid-template-columns: 132px minmax(0, 1fr); }
+
+/* What a course cost, and how much of it has been got through. Two readings of
+   rows rather than anything a student was asked to fill in, so the figures are
+   set the way the report's are and the rows are read as a list of lines. */
+.ledger,
+.metric,
+.correlation { border-left: 4px solid var(--accent); }
+.ledger-figure,
+.metric-figure { margin: 0 0 10px; font-size: 44px; line-height: 1.1; }
+.spend-list,
+.arm-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.spend-row,
+.arm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.spend-what,
+.arm-name { margin: 0; }
+.spend-detail,
+.arm-detail { margin: 0; font-size: 14px; color: var(--muted); text-align: right; }
 
 /* Falling behind: the honest date, then the choice, priced. */
 .behind-line { margin: 0 0 12px; font-size: 18px; }

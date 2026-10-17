@@ -6,6 +6,9 @@
 <section class="panel">
   <h1>{{ course.title }}</h1>
   <p><a class="cta" href="{% url 'course-read' course.pk %}">Read the material</a></p>
+  <p class="muted small">
+    <a href="{% url 'cost' course.pk %}">What serving this course has cost, and how much of it you have got through</a>
+  </p>
 </section>
 
 <section class="panel">

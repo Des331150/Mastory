@@ -1,0 +1,131 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: what this has cost{% endblock %}
+
+{% comment %}
+  The two readings this product keeps of itself, on one page. The ledger is what
+  serving this student cost, and the metric is how much of the course they have
+  got through - neither of which anybody can be asked for and neither of which
+  can be worked out later if it was not kept as it happened.
+
+  Nothing here asks the student anything. There is no form on this page at all,
+  which is the point of the metric: it is read off their sittings, so a figure
+  that needed a survey would be a figure about who answered one.
+{% endcomment %}
+
+{% block content %}
+<div class="report-page">
+  <header class="report-head">
+    <p class="report-course">{{ course.title }}</p>
+    <h1>What serving this course has cost</h1>
+  </header>
+
+  <section class="panel ledger"
+           data-calls="{{ ledger.calls }}"
+           data-seconds="{{ ledger.seconds|floatformat:3 }}"
+           data-tokens="{% if ledger.tokens is not None %}{{ ledger.tokens }}{% endif %}"
+           data-cost="{% if ledger.cost is not None %}{{ ledger.cost|floatformat:6 }}{% endif %}">
+    <h2>Everything this course has caused</h2>
+    {% if ledger.cost is not None %}
+      <p class="ledger-figure">${{ ledger.cost|floatformat:6 }}</p>
+    {% endif %}
+    <p class="muted">
+      {{ ledger.calls }} model call{{ ledger.calls|pluralize }},
+      {{ ledger.seconds|floatformat:2 }} seconds
+      {% if ledger.tokens is not None %}
+        and {{ ledger.tokens }} token{{ ledger.tokens|pluralize }} moved
+      {% endif %}
+      since you uploaded this course.
+      {% if ledger.costing %}{{ ledger.costing }}{% endif %}
+    </p>
+    <ul class="spend-list">
+      {% for row in ledger.rows %}
+        <li class="spend-row"
+            data-kind="{{ row.kind }}"
+            data-calls="{{ row.calls }}"
+            data-seconds="{{ row.seconds|floatformat:3 }}"
+            data-tokens="{% if row.tokens is not None %}{{ row.tokens }}{% endif %}"
+            data-cost="{% if row.cost is not None %}{{ row.cost|floatformat:6 }}{% endif %}">
+          <p class="spend-what">{{ row.what }}</p>
+          <p class="spend-detail">
+            {{ row.calls }} call{{ row.calls|pluralize }},
+            {{ row.seconds|floatformat:2 }} second{{ row.seconds|pluralize }}
+            {% if row.tokens is not None %}
+              , {{ row.tokens }} token{{ row.tokens|pluralize }}
+            {% endif %}
+            {% if row.cost is not None %}
+              , ${{ row.cost|floatformat:6 }}
+            {% endif %}
+          </p>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="framing">
+      Nothing on this page was written before you asked for it. A quiz is
+      written when you open one, once; opening it again costs nothing and adds
+      no row here, and asking for different questions writes the next one.
+    </p>
+  </section>
+
+  <section class="panel metric{% if metric.readable %} readable{% else %} refused{% endif %}"
+           data-metric="{% if metric.readable %}{{ metric.percent }}{% else %}unreadable{% endif %}"
+           data-crossed="{{ metric.crossed }}"
+           data-weighed="{{ metric.weighed }}"
+           data-total="{{ metric.total }}">
+    <h2>How much of this course you have got through</h2>
+    {% if metric.readable %}
+      <p class="metric-figure">{{ metric.percent }}%</p>
+      <p class="muted">{{ metric.passed }}</p>
+    {% else %}
+      <p class="metric-refusal" role="status">{{ metric.reason }}</p>
+    {% endif %}
+    <p class="framing">
+      This is worked out from the quizzes you have sat. Nobody is asked how the
+      course is going, and nobody has to fill anything in. A topic you have cut
+      off your week is still on the exam, so it is still counted here.
+    </p>
+  </section>
+
+  <section class="panel correlation{% if correlation.comparable %} comparable{% else %} refused{% endif %}"
+           data-comparable="{% if correlation.comparable %}yes{% else %}no{% endif %}">
+    <h2>Whether going back to what you failed works</h2>
+    <p class="muted">
+      The claim this product is built on: students who go back to a quiz they
+      failed do better on the mock exam. Both sides are counted here, from
+      sittings and mock scores, and nothing is asked.
+    </p>
+    <ul class="arm-list">
+      {% for side in correlation.sides %}
+        <li class="arm-row"
+            data-side="{{ side.key }}"
+            data-students="{{ side.arm.students }}"
+            data-mocks="{{ side.arm.mocks }}"
+            data-mean="{% if side.arm.percent is not None %}{{ side.arm.percent }}{% endif %}">
+          <p class="arm-name">{{ side.name }}</p>
+          <p class="arm-detail">
+            {{ side.arm.students }} student{{ side.arm.students|pluralize }},
+            {{ side.arm.mocks }} mock{{ side.arm.mocks|pluralize }} sat
+            {% if side.arm.percent is not None %}
+              , {{ side.arm.percent }}% on average
+            {% endif %}
+          </p>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if correlation.comparable %}
+      <p class="correlation-note">
+        Both sides have sat the mock, so the two percentages above can be put
+        beside each other. Whether that difference is real is for whoever has
+        more than one student to read it on.
+      </p>
+    {% else %}
+      <p class="correlation-refusal" role="status">{{ correlation.reason }}</p>
+    {% endif %}
+  </section>
+
+  <p class="muted small">
+    <a href="{% url 'readiness' course.pk %}">Your readiness report</a> &middot;
+    <a href="{% url 'plan' course.pk %}">Back to your week</a>
+  </p>
+</div>
+{% endblock %}

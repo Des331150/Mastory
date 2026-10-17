@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from material import model, planning
+from material.models import MockExam
 
 #: One topic as the fake model claims it: a title, the slides it cites by their
 #: course position, and how sure it is.
@@ -294,16 +295,62 @@ def topic_pk(html: str, title: str) -> str:
     raise AssertionError(f"no topic titled {title!r} on the topic path")
 
 
-def use_fake_model(*topics: Claim, reply: str | None = None) -> Any:
+def panel(html: str, name: str) -> str:
+    """One panel of a page, cut out of it by the class it carries.
+
+    A page carrying several panels is one a whole-page search would answer from
+    the wrong one, and a test that asserts against whichever panel happened to
+    come first is a test that stops being about its subject the day the order
+    changes.
+    """
+    found = html.split(f'<section class="panel {name}')[1].split("</section>")[0]
+    return found
+
+
+def attribute(html: str, name: str) -> str:
+    """One attribute the way the page printed it, as text."""
+    found = re.search(rf'{name}="([^"]*)"', html)
+    assert found is not None, f"the page carries no {name}: {html}"
+    return str(found.group(1))
+
+
+def report_call(prompt: str, reply: str, *, silent: bool = False) -> None:
+    """Tell the cost meter about this call, the way a provider's reply does.
+
+    A real endpoint sends a ``usage`` block with every reply and
+    ``material.model.complete`` reads it, so a fake that reported nothing would
+    leave every cost in the suite at zero and the priced figure unexercised - the
+    one promise this seam cannot check would be the one thing no test could see.
+    Counting characters as tokens is close enough: the number belongs to the
+    fake, and the price is whatever the test sets.
+
+    ``silent`` answers without saying what the call moved, which is what a
+    provider whose replies carry no counts looks like, and the cost page has to
+    cope with that rather than pricing the course at nothing.
+    """
+    model.note_call(None if silent else (len(prompt) + len(reply)) // 4)
+
+
+def use_fake_model(
+    *topics: Claim, reply: str | None = None, silent: bool = False
+) -> Any:
     """Answer every model call in this test with these topics.
 
     Returns the patcher so it can be used as a context manager or started with
     ``addCleanup``. The application above the fake is entirely real: the reply
     still has to be grounded in the material, because that happens in
     ``material.model`` rather than here.
+
+    ``silent`` answers without saying what the call moved.
     """
+
     answer = reply if reply is not None else json.dumps({"topics": list(topics)})
-    patcher = mock.patch.object(model, "complete", return_value=answer, name="complete")
+
+    def says(prompt: str) -> str:
+        report_call(prompt, answer, silent=silent)
+        return answer
+
+    patcher = mock.patch.object(model, "complete", side_effect=says, name="complete")
     return patcher
 
 
@@ -357,8 +404,11 @@ class QuizModel:
         self.prompts.append(prompt)
         request = json.loads(prompt)
         if "supported" in request["instruction"]:
-            return json.dumps({"supported": self._verify(request)})
-        return json.dumps({"questions": self._write(request)})
+            reply = json.dumps({"supported": self._verify(request)})
+        else:
+            reply = json.dumps({"questions": self._write(request)})
+        report_call(prompt, reply)
+        return reply
 
     def _write(self, request: dict[str, Any]) -> list[dict[str, Any]]:
         """One question per span the fake was asked about, citing that span."""
@@ -456,6 +506,7 @@ class RecordingModel:
 
     def __call__(self, prompt: str) -> str:
         self.prompts.append(prompt)
+        report_call(prompt, self._answer)
         return self._answer
 
     @property
@@ -469,6 +520,76 @@ class RecordingModel:
         patcher = mock.patch.object(model, "complete", new=self)
         patcher.start()
         test_case.addCleanup(patcher.stop)
+
+
+class MockSittings(QuizSittings):
+    """Asking for the mock exam and handing it in, for a test that needs a score.
+
+    The other half of ``QuizSittings``: a paper that is not recorded as a topic
+    attempt, is marked from the questions rather than from the form a quiz page
+    drew, and exists at most once for a course. The claim this ticket asks about
+    is about mock scores, so something has to be able to sit one.
+    """
+
+    def take_exam(
+        self,
+        right: Fraction = Fraction(1),
+        *,
+        course_id: int = 1,
+        moment: date | None = None,
+        question: dict[str, Any] | None = None,
+    ) -> Fraction:
+        """Sit this course's mock exam once, marking ``right`` of it correct.
+
+        Asks for the paper only if there is not one already, because a course
+        gets one attempt: asking again would be refused rather than sat, and a
+        test that has to know whether its own subject sat first is a test that
+        could silently be testing the refusal.
+        """
+        source = question or DEFAULT_QUESTION
+        QuizModel(source).use(self)  # type: ignore[arg-type]
+        if not MockExam.objects.filter(course_id=course_id).exists():
+            response = self.client.post(  # type: ignore[attr-defined]
+                f"/courses/{course_id}/exam/start/", follow=True
+            )
+            assert response.status_code == 200, "the mock exam was not written"
+        day = moment or A_MONDAY
+        with on_a_monday(day):
+            html = self.exam_page(course_id=course_id)
+            asked = re.findall(r'id="question-(\d+)"', html)
+            assert asked, "there is no paper to sit"
+            correct = round(right * len(asked))
+            answers = {}
+            for index, question_id in enumerate(asked):
+                choices = re.findall(
+                    r'value="([^"]*)"',
+                    _question_block(html, f'id="question-{question_id}"'),
+                )
+                assert len(choices) >= 2, "a question offers nothing to get wrong"
+                answers[question_id] = choices[0 if index < correct else -1]
+            action = re.search(r'action="([^"]+)"', html)
+            which = re.search(r'name="exam" value="(\d+)"', html)
+            assert action is not None and which is not None, "no form to hand in"
+            response = self.client.post(  # type: ignore[attr-defined]
+                action.group(1),
+                {
+                    "nonsense": "",
+                    "exam": which.group(1),
+                    **{f"q-{key}": value for key, value in answers.items()},
+                },
+                follow=True,
+            )
+            assert response.status_code == 200, "the paper was not accepted"
+            assert 'class="error"' not in response.content.decode(), (
+                "the paper was refused"
+            )
+        return Fraction(correct, len(asked))
+
+    def exam_page(self, course_id: int = 1) -> str:
+        """The exam page for one course, as the student opens it."""
+        response = self.client.get(f"/courses/{course_id}/exam/")  # type: ignore[attr-defined]
+        assert response.status_code == 200, "the exam page did not open"
+        return flat(response.content.decode())
 
 
 #: A question and an answer the eigenvalue fixture's paragraphs really contain, so

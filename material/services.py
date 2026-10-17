@@ -9,6 +9,10 @@ is cached by content hash so the same bytes are never converted twice.
 Each file records the named stages it went through, because a student waiting
 on a conversion deserves to know what is happening rather than watching a
 spinner: the stages are the same ones the log lines name.
+
+Each file is also metered on the ledger, in ``material.spend``: conversion is
+this server's own work rather than a model's, so its row carries seconds and no
+calls, and it is written whether the file converted or not.
 """
 
 import enum
@@ -29,8 +33,8 @@ from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 
-from material import ingest, render
-from material.models import Course, Slide, SourceFile, Span
+from material import ingest, render, spend
+from material.models import Course, Slide, SourceFile, Spend, Span
 from material.render import plain_text
 
 logger = logging.getLogger(__name__)
@@ -194,7 +198,13 @@ def ingest_uploads(
 
     course = Course.objects.create(user_id=user_id, title=title)
     for attempt in attempts:
-        _ingest_file(user_id, course, attempt)
+        # Outside ``_ingest_file``'s own transaction on purpose: the slides and
+        # spans of one file are written together or not at all, and the seconds
+        # the conversion took are owed to the student whether they were kept.
+        with spend.working(
+            kind=Spend.Kind.INGEST, course=course, label=attempt.name
+        ):
+            _ingest_file(user_id, course, attempt)
     return course
 
 

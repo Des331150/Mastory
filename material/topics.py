@@ -20,8 +20,16 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.utils import timezone
 
-from material import model
-from material.models import Course, MockExam, Slide, Topic, TopicPath, TopicSlide
+from material import model, spend
+from material.models import (
+    Course,
+    MockExam,
+    Slide,
+    Spend,
+    Topic,
+    TopicPath,
+    TopicSlide,
+)
 from material.users import current_user_id, owned
 
 logger = logging.getLogger(__name__)
@@ -89,6 +97,29 @@ def heading_of(slide: Slide) -> str:
     return ""
 
 
+def _inferred(course: Course, slides: Sequence[Slide]) -> list[model.TopicProposal]:
+    """The topics the model claims for this material, and what asking cost.
+
+    The metered half of ``infer``, so that the one call reading a course in is
+    on the ledger as its own piece of work. A path inferred twice is two pieces:
+    the student paid for both, and the second one is how a bad extraction gets
+    corrected rather than lived with.
+    """
+    with spend.working(kind=Spend.Kind.TOPICS, course=course):
+        return model.infer_topics(
+            course_title=course.title,
+            slides=[
+                model.SlideExcerpt(
+                    index=index,
+                    title=slide.title,
+                    text=slide.plain_text,
+                    heading=heading_of(slide),
+                )
+                for index, slide in enumerate(slides, start=1)
+            ],
+        )
+
+
 def infer(course: Course) -> None:
     """Infer the course's topic path from its material, replacing what is there.
 
@@ -106,18 +137,7 @@ def infer(course: Course) -> None:
             "something is wrong with them: reworking the whole path would leave "
             "your paper asking about a course that is no longer here."
         )
-    proposals = model.infer_topics(
-        course_title=course.title,
-        slides=[
-            model.SlideExcerpt(
-                index=index,
-                title=slide.title,
-                text=slide.plain_text,
-                heading=heading_of(slide),
-            )
-            for index, slide in enumerate(slides, start=1)
-        ],
-    )
+    proposals = _inferred(course, slides)
     if not proposals:
         raise Rejected(
             "No topics could be worked out from this material. Add them yourself "

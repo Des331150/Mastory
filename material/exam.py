@@ -42,8 +42,8 @@ from datetime import date
 
 from django.db import transaction
 
-from material import marking, model, quiz
-from material.models import Course, MockExam, MockQuestion, Span, Topic
+from material import marking, model, quiz, spend
+from material.models import Course, MockExam, MockQuestion, Span, Spend, Topic
 from material.topics import Rejected
 from material.users import current_user_id, owned
 
@@ -201,7 +201,8 @@ def build(course: Course) -> MockExam:
         )
     if latest(course) is not None:
         raise Rejected(ALREADY_SAT)
-    asked, dropped = _ask(covering)
+    with spend.working(kind=Spend.Kind.EXAM, course=course):
+        asked, dropped = _ask(covering)
     with transaction.atomic():
         Course.objects.select_for_update().filter(pk=course.pk).first()
         if latest(course) is not None:
@@ -281,9 +282,29 @@ def taken(exam: MockExam, paper: Paper | None = None) -> marking.Marked | None:
     if not spent(exam):
         return None
     asked = paper.questions if paper is not None else questions(exam)
-    return marking.mark_all(
-        asked, {str(question.pk): question.given for question in asked}
-    )
+    return _marked(asked)
+
+
+def score_of(exam: MockExam) -> float:
+    """What one sat exam came to, for a reading that is about more than one
+    student.
+
+    Re-marked from the answers rather than read off a column, through the same
+    marking as the student's own page, so a figure about several students cannot
+    disagree with the score each of them was shown.
+
+    The paper is read without the one-student scoping ``questions`` applies,
+    because a mean over students worked out of one student's papers would come
+    back as a mark of zero rather than as the absence of a score - a fabricated
+    number in a figure about whether this product helps. v1 adds the filter here
+    alongside every other one.
+    """
+    return _marked(list(exam.questions.all())).score
+
+
+def _marked(asked: Sequence[MockQuestion]) -> marking.Marked:
+    """Mark a paper from the answers written down against its own questions."""
+    return marking.mark_all(asked, {str(question.pk): question.given for question in asked})
 
 
 def grade(exam: MockExam, given: Mapping[str, str], *, on: date) -> marking.Marked:

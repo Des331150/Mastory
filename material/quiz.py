@@ -39,14 +39,14 @@ differ in how many attempts they get and what the student is told before they
 answer, not in how a sentence is judged.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
 from django.db import transaction
 
-from material import marking, model, progress, reading
-from material.models import PASS_MARK, Question, Quiz, Span, Topic
+from material import marking, model, progress, reading, spend
+from material.models import PASS_MARK, Question, Quiz, Span, Spend, Topic
 from material.topics import Rejected
 from material.users import current_user_id, owned
 
@@ -190,6 +190,24 @@ def reread(topic: Topic) -> Reread:
     return Reread(failures=len(failures), sittings=len(taken), owed=owed)
 
 
+def _written(topic: Topic, spans: Sequence[Span]) -> model.QuestionSet:
+    """The questions this topic's own paragraphs support, and what writing them cost.
+
+    The metered half of ``build``, so that every question written and verified
+    lands on one row of the ledger: a quiz costs one call per paragraph it asks
+    about plus one per answer it checks, and a ledger row for the quiz as a whole
+    is the unit anybody would want to price.
+    """
+    with spend.working(kind=Spend.Kind.QUIZ, course=topic.course, label=topic.title):
+        return model.generate_questions(
+            topic_title=topic.title,
+            spans=[
+                model.SpanExcerpt(index=index, text=span.text)
+                for index, span in enumerate(spans, start=1)
+            ],
+        )
+
+
 def build(topic: Topic) -> Quiz:
     """A fresh quiz for this topic, written from its own paragraphs.
 
@@ -204,13 +222,7 @@ def build(topic: Topic) -> Quiz:
             "This topic points at no paragraphs to ask about, so there is no quiz "
             "to write. Point it at the slides that cover it first."
         )
-    written = model.generate_questions(
-        topic_title=topic.title,
-        spans=[
-            model.SpanExcerpt(index=index, text=span.text)
-            for index, span in enumerate(spans, start=1)
-        ],
-    )
+    written = _written(topic, spans)
     kept = written.questions[:QUESTION_LIMIT]
     by_index = {index: span for index, span in enumerate(spans, start=1)}
     with transaction.atomic():

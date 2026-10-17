@@ -16,14 +16,18 @@ a time and then verifies every answer against that paragraph before returning
 it: a citation is only worth showing if what it points at supports the question.
 
 Nothing above this module knows how a model is reached, and nothing in it knows
-what a topic is.
+what a topic is. What it does know is what a call cost: every call the
+application makes is counted here, and this is the only place in the application
+that knows a call happened at all.
 """
 
 import json
 import logging
 import urllib.error
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -581,33 +585,129 @@ def complete(prompt: str) -> str:
     The only function in Mastory that leaves the machine for a model, and the
     one place a deterministic fake is installed: everything above it, including
     the whole HTTP test suite, goes through this call.
+
+    Every call is counted as it finishes, whether it answered or failed, because
+    a refused call is the expensive one: it took the wall clock and the
+    provider's money and gave back nothing, and a ledger that only counted the
+    calls which came back would price a failing week at nothing.
     """
     base = settings.MODEL_BASE_URL
     if not base or not settings.MODEL_NAME:
         raise ModelUnavailable(*NOT_CONFIGURED)
-    request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
-        f"{base.rstrip('/')}/chat/completions",
-        data=json.dumps(
-            {
-                "model": settings.MODEL_NAME,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-            }
-        ).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.MODEL_API_KEY}",
-        },
-        method="POST",
-    )
+    moved: int | None = None
     try:
-        with urllib.request.urlopen(  # noqa: S310
-            request, timeout=settings.MODEL_TIMEOUT_SECONDS
-        ) as response:
-            body: Any = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
-        raise ModelUnavailable(*UNREACHABLE) from failure
-    return _reply_text(body)
+        request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
+            f"{base.rstrip('/')}/chat/completions",
+            data=json.dumps(
+                {
+                    "model": settings.MODEL_NAME,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                }
+            ).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.MODEL_API_KEY}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(  # noqa: S310
+                request, timeout=settings.MODEL_TIMEOUT_SECONDS
+            ) as response:
+                body: Any = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
+            raise ModelUnavailable(*UNREACHABLE) from failure
+        moved = _tokens(body)
+        return _reply_text(body)
+    finally:
+        note_call(moved)
+
+
+def _tokens(body: Any) -> int | None:
+    """What the reply says this call moved, or nothing where it says nothing.
+
+    The whole of the provider's count rather than what went in and what came back
+    separately, because the rate Mastory prices at is one number and half of one
+    would be a rate we had invented.
+    """
+    try:
+        total = body["usage"]["total_tokens"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    if isinstance(total, bool) or not isinstance(total, int):
+        return None
+    return total
+
+
+class Meter:
+    """What the model calls made inside one piece of work came to.
+
+    Counted here, in the one function that knows a call was made, rather than by
+    the caller wrapping ``complete``: the test suite fakes exactly that function,
+    so anything counting calls from outside it would be counting the fake and
+    nothing else, and the one piece of this product that cannot be reconstructed
+    afterwards would be the one piece nothing ever exercised.
+
+    The wall clock is not in here. Reading a PDF is not work a model did and
+    still has to be counted, so the seconds a piece of work took are measured
+    around the whole of it, in ``material.spend``.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self._moved = 0
+        self._said = 0
+
+    def note(self, tokens: int | None) -> None:
+        """One call, and what it said it moved. Nothing where it said nothing."""
+        self.calls += 1
+        if tokens is not None:
+            self._moved += tokens
+            self._said += 1
+
+    @property
+    def tokens(self) -> int | None:
+        """What the calls moved between them, or nothing while one would not say.
+
+        All or nothing rather than the sum of whatever arrived: half a quiz's
+        calls reporting is not half a quiz's cost, and a money figure printed
+        from the calls that happened to answer would be one this product cannot
+        support. Zero where nothing was called at all, which is a different fact
+        again - there is nothing for work no model did to have failed to report.
+        """
+        if not self.calls:
+            return 0
+        return self._moved if self._said == self.calls else None
+
+
+#: Where the calls being made right now are counted. Holding a meter nobody is
+#: reading is the state a call is in outside ``material.spend.working``, and every
+#: model call in Mastory is made inside one, so that call has no row to land on.
+_counting: ContextVar[Meter] = ContextVar("mastory_meter", default=Meter())
+
+
+@contextmanager
+def measuring() -> Iterator[Meter]:
+    """Meter the calls made inside this block, and hand back what they came to."""
+    meter = Meter()
+    held = _counting.set(meter)
+    try:
+        yield meter
+    finally:
+        _counting.reset(held)
+
+
+def note_call(tokens: int | None) -> None:
+    """What one call moved, told to the meter around us.
+
+    Told rather than returned because ``complete`` answers with the reply the
+    student is shown and nothing else, and because a model stands in for the
+    provider in the tests: saying what a call moved is part of being a model, so
+    a fake that reported nothing would leave every cost in the suite at zero and
+    the priced figure unexercised.
+    """
+    _counting.get().note(tokens)
 
 
 NOT_CONFIGURED = (

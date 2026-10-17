@@ -110,6 +110,14 @@ MODEL_API_KEY = os.environ.get("MASTORY_MODEL_API_KEY", "")
 MODEL_NAME = os.environ.get("MASTORY_MODEL_NAME", "")
 MODEL_TIMEOUT_SECONDS = float(os.environ.get("MASTORY_MODEL_TIMEOUT_SECONDS", "60"))
 
+# What the provider charges, in dollars per million tokens. Zero means nobody has
+# told this server what a call costs, and the cost page then shows what each call
+# moved without turning it into money: a figure invented from a rate we do not
+# have would be the one number on that page nobody could rely on.
+MODEL_USD_PER_MILLION_TOKENS = float(
+    os.environ.get("MASTORY_MODEL_USD_PER_MILLION_TOKENS", "0")
+)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
