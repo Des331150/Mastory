@@ -183,7 +183,8 @@
 
   <p class="muted small">
     <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
-    <a href="{% url 'course-read' course.pk %}">Back to your material</a>
+    <a href="{% url 'course-read' course.pk %}">Back to your material</a> &middot;
+    <a href="{% url 'readiness' course.pk %}">Read your readiness report</a>
   </p>
 </div>
 {% endblock %}

@@ -1,0 +1,154 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ course.title }}: your readiness report{% endblock %}
+
+{% comment %}
+  One screen, on purpose. This is the artefact a student screenshots and shows a
+  course-mate, so nothing here is behind a fold, a tab or a second page: the
+  figure, the three topics to revise, the whole table of topics and the days
+  studied all fit on one screen at a phone's width too.
+{% endcomment %}
+
+{% block content %}
+<div class="report-page">
+  <header class="report-head">
+    <p class="report-course">{{ course.title }}</p>
+    <h1>Your readiness report</h1>
+    <p class="muted">
+      Read off the {{ report.weighed }} topic{{ report.weighed|pluralize }} you
+      have sat and the {{ report.topics|length }} of your course, on the day you
+      opened this. Nothing here is stored; it is your record, read.
+    </p>
+  </header>
+
+  <section class="panel readiness{% if report.readiness.measurable %} measurable{% else %} refused{% endif %}"
+           data-readiness="{% if report.readiness.measurable %}{{ report.readiness.percent }}{% else %}unmeasurable{% endif %}"
+           data-covered="{{ report.readiness.covered }}"
+           data-total="{{ report.readiness.total }}">
+    <h2>{% if report.readiness.measurable %}Your readiness{% else %}Your readiness is not measurable{% endif %}</h2>
+    {% if report.readiness.measurable %}
+      <p class="readiness-figure">{{ report.readiness.percent }}%</p>
+      <div class="meter">
+        <span class="meter-fill" style="width: {{ report.readiness.percent }}%"></span>
+      </div>
+      <p class="muted">
+        The mean of what you have been weighed at on
+        {{ report.readiness.covered }} of your
+        {{ report.readiness.total }} topics, each counting for as much as you gave
+        it on your topic path.
+      </p>
+    {% else %}
+      <p class="readiness-refusal" role="status">{{ report.readiness.reason }}</p>
+    {% endif %}
+    <p class="framing">
+      This is a reading of your quizzes, not a prediction of your exam. Nobody
+      knows how your paper will go; what this can tell you is where you are
+      weakest, and that is what the ranking below is for.
+    </p>
+  </section>
+
+  {% if report.weakest %}
+    <section class="panel weakest">
+      <h2>Revise these first</h2>
+      <p class="muted">
+        Your three weakest weighed topics, lowest first. This is what the figure
+        is for.
+      </p>
+      <ol class="weakest-list">
+        {% for reading in report.weakest %}
+          <li class="weakest-row" data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}">
+            <p class="weakest-rank">{{ forloop.counter }}</p>
+            <p class="weakest-topic">{{ reading.topic.title }}</p>
+            <p class="weakest-mastery">
+              {% if reading.measured %}
+                {{ reading.percent }}% from {{ reading.sittings }} sitting{{ reading.sittings|pluralize }}
+              {% else %}
+                not weighed yet
+              {% endif %}
+            </p>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endif %}
+
+  <section class="panel report-topics">
+    <h2>Every topic</h2>
+    <p class="muted">
+      Mastery is your best sitting on that topic, counted down once for every
+      sitting since. The sittings are on the row because one sitting and five are
+      not the same claim: a topic measured once could be a lucky guess.
+    </p>
+    {% if report.topics %}
+      <ul class="standing-list report-list">
+        {% for reading in report.topics %}
+          <li class="standing-row" data-complete="{{ reading.topic.completed_on|yesno:'yes,no' }}"
+              data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}"
+              data-sittings="{{ reading.sittings }}">
+            <p class="standing-topic">{{ reading.topic.title }}</p>
+            <p class="standing-complete" data-state="{{ reading.topic.state }}">
+              {% if reading.topic.completed_on %}finished{% elif reading.topic.skipped_on %}skipped{% elif reading.topic.cut %}cut{% else %}not finished{% endif %}
+            </p>
+            <p class="standing-mastery">
+              {% if reading.measured %}
+                mastery {{ reading.percent }}% from {{ reading.sittings }} sitting{{ reading.sittings|pluralize }}{% if reading.sittings == 1 %}, so one guess is all this rests on{% endif %}
+              {% else %}
+                not weighed yet
+              {% endif %}
+            </p>
+            <p class="report-when">
+              {% if reading.first_on %}
+                studied {{ reading.first_on|date:"j M Y" }}{% if reading.last_on and reading.last_on != reading.first_on %} to {{ reading.last_on|date:"j M Y" }}{% endif %}
+              {% else %}
+                never sat
+              {% endif %}
+            </p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">This course has no topics on it yet.</p>
+    {% endif %}
+    {% if report.unweighed %}
+      <p class="unweighed-note">
+        {{ report.unweighed|length }} topic{{ report.unweighed|length|pluralize }}
+        of your course {{ report.unweighed|length|pluralize:"has,have" }} no
+        sitting at all: {{ report.unweighed_titles }}. Sitting
+        {% if report.unweighed|length == 1 %}that quiz{% else %}those quizzes{% endif %}
+        is what would bring this report to a figure.
+      </p>
+    {% endif %}
+  </section>
+
+  <section class="panel report-days">
+    <h2>When you studied</h2>
+    {% if report.days %}
+      <p class="muted">
+        {{ report.days_studied }} day{{ report.days_studied|pluralize }} your
+        record says you worked, earliest first. Sittings are quizzes you sat;
+        finished is topics you marked done.
+      </p>
+      <ol class="log">
+        {% for day in report.days %}
+          <li class="log-entry" data-date="{{ day.on|date:"Y-m-d" }}">
+            <p class="log-when">{{ day.on|date:"D j M Y" }}</p>
+            <p class="log-topic">
+              {% if day.sittings %}{{ day.sittings }} sitting{{ day.sittings|pluralize }}{% endif %}{% if day.sittings and day.finished %}, {% endif %}{% if day.finished %}{{ day.finished }} topic{{ day.finished|pluralize }} finished{% endif %}
+            </p>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="log-empty">
+        No days in your record yet. Sit a topic quiz or mark a session done and
+        the day appears here.
+      </p>
+    {% endif %}
+  </section>
+
+  <p class="muted small">
+    <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
+    <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a>
+  </p>
+</div>
+{% endblock %}

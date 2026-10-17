@@ -268,6 +268,34 @@ button[disabled] { opacity: 0.5; cursor: default; }
 .topic-standing .standing-mastery { font-size: 16px; color: var(--ink); }
 .topic-standing .meter { margin-top: 10px; }
 
+/* The readiness report. One screen, because it is the page a student screenshots:
+   the figure at the top, what to revise under it, then the evidence. */
+.report-page { max-width: 780px; margin: 0 auto; padding: 32px 24px 48px; }
+.report-head { margin-bottom: 20px; }
+.report-head .report-course { margin: 0 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.report-head h1 { margin: 0 0 6px; font-size: 30px; }
+.report-head .muted { margin: 0; max-width: 60ch; }
+.readiness { border-left: 4px solid var(--accent); }
+.readiness.refused { border-left-color: #b8860b; }
+.readiness-figure { margin: 0 0 10px; font-size: 44px; line-height: 1.1; }
+.readiness .framing { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+.readiness-refusal { margin: 0; font-size: 18px; }
+.weakest-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.weakest-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.weakest-rank { margin: 0; color: var(--muted); }
+.weakest-topic { margin: 0; }
+.weakest-mastery { margin: 0; font-size: 14px; color: var(--muted); }
+.report-list .report-when { margin: 0; font-size: 13px; color: var(--muted); }
+.unweighed-note { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+.report-days .log-entry { grid-template-columns: 132px minmax(0, 1fr); }
+
 /* Falling behind: the honest date, then the choice, priced. */
 .behind-line { margin: 0 0 12px; font-size: 18px; }
 .projected-on { font-variant-numeric: tabular-nums; }
@@ -357,4 +385,8 @@ button[disabled] { opacity: 0.5; cursor: default; }
   .log-state { grid-column: 1 / -1; }
   .cut-option { grid-template-columns: minmax(0, 1fr); }
   .cut-option form { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
+  .weakest-row { grid-template-columns: 24px minmax(0, 1fr); }
+  .weakest-mastery { grid-column: 2; }
+  .report-days .log-entry { grid-template-columns: minmax(0, 1fr); }
+  .report-days .log-when { grid-column: 1; }
 }

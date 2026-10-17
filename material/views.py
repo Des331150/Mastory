@@ -26,6 +26,7 @@ from material import (
     progress,
     quiz as quiz_service,
     reading,
+    readiness,
     topics as topic_service,
 )
 from material.models import (
@@ -760,6 +761,25 @@ def _exam_page(
             "per_topic": exam_service.QUESTIONS_PER_TOPIC,
             "error": error,
         },
+    )
+
+
+@require_GET
+def readiness_report(request: HttpRequest, course_id: int) -> HttpResponse:
+    """Where the course has got to: mastery per topic, the days studied, and the
+    readiness figure or the refusal of one.
+
+    Reads every topic of the course rather than the ones on this week's plan,
+    because the report is about the course and a student who cut a topic this
+    week still sat its quiz last month. It needs no confirmed topic path and
+    writes nothing: what it shows is read off the attempt rows and the topic rows
+    as they stand.
+    """
+    course = _course(course_id)
+    return render(
+        request,
+        "material/readiness.html",
+        {"course": course, "report": readiness.report(course)},
     )
 
 

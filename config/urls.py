@@ -97,6 +97,11 @@ urlpatterns = [
         name="topic-quiz-submit",
     ),
     path(
+        "courses/<int:course_id>/readiness/",
+        views.readiness_report,
+        name="readiness",
+    ),
+    path(
         "courses/<int:course_id>/exam/",
         views.exam,
         name="exam",

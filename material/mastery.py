@@ -177,7 +177,7 @@ def for_topic(topic: Topic) -> Mastery:
     Read through ``progress.attempts`` so that the page showing a topic's mastery
     and the rows a sitting wrote cannot answer differently.
     """
-    return _measure(progress.attempts(topic))
+    return measure(progress.attempts(topic))
 
 
 def one(topic: Topic) -> Standing:
@@ -206,7 +206,7 @@ def for_topics(topics: Sequence[Topic]) -> dict[int, Mastery]:
         Attempt.objects.filter(topic_id__in=[topic.pk for topic in topics])
     ):
         grouped[attempt.topic_id].append(attempt)
-    return {topic.pk: _measure(grouped[topic.pk]) for topic in topics}
+    return {topic.pk: measure(grouped[topic.pk]) for topic in topics}
 
 
 def standing(topics: Sequence[Topic]) -> tuple[Standing, ...]:
@@ -221,8 +221,13 @@ def standing(topics: Sequence[Topic]) -> tuple[Standing, ...]:
     )
 
 
-def _measure(taken: Sequence[Attempt]) -> Mastery:
+def measure(taken: Sequence[Attempt]) -> Mastery:
     """One topic's mastery from its sittings, oldest first.
+
+    Named rather than kept private because ``material.readiness`` weighs sittings
+    it has already read - it needs their dates as well as their scores, and
+    weighing them again through ``for_topic`` would be a second read of the same
+    rows on the page that reads them once.
 
     The number is the best sitting's score, discounted once for every sitting
     since. One sitting therefore reads as exactly that score, which is what makes

@@ -337,7 +337,8 @@
 
   <p class="muted small">
     <a href="{% url 'topic-path' course.pk %}">Change your topic path</a> &middot;
-    <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a>
+    <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a> &middot;
+    <a href="{% url 'readiness' course.pk %}">Read your readiness report</a>
   </p>
 </div>
 {% endblock %}
