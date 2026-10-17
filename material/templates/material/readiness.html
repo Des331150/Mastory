@@ -15,9 +15,9 @@
     <p class="report-course">{{ course.title }}</p>
     <h1>Your readiness report</h1>
     <p class="muted">
-      Read off the {{ report.weighed }} topic{{ report.weighed|pluralize }} you
-      have sat and the {{ report.topics|length }} of your course, on the day you
-      opened this. Nothing here is stored; it is your record, read.
+      Read off the {{ report.readiness.covered }} topic{{ report.readiness.covered|pluralize }}
+      of your {{ report.readiness.total }} you have sat, on the day you opened
+      this. Nothing here is stored; it is your record, read.
     </p>
   </header>
 
@@ -38,7 +38,7 @@
         it on your topic path.
       </p>
     {% else %}
-      <p class="readiness-refusal" role="status">{{ report.readiness.reason }}</p>
+      <p class="readiness-refusal">{{ report.readiness.reason }}</p>
     {% endif %}
     <p class="framing">
       This is a reading of your quizzes, not a prediction of your exam. Nobody
@@ -51,21 +51,15 @@
     <section class="panel weakest">
       <h2>Revise these first</h2>
       <p class="muted">
-        Your three weakest weighed topics, lowest first. This is what the figure
-        is for.
+        Your {{ report.weakest|length }} weakest weighed topic{{ report.weakest|length|pluralize }},
+        lowest first. This is what the figure is for.
       </p>
       <ol class="weakest-list">
         {% for reading in report.weakest %}
           <li class="weakest-row" data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}">
             <p class="weakest-rank">{{ forloop.counter }}</p>
             <p class="weakest-topic">{{ reading.topic.title }}</p>
-            <p class="weakest-mastery">
-              {% if reading.measured %}
-                {{ reading.percent }}% from {{ reading.sittings }} sitting{{ reading.sittings|pluralize }}
-              {% else %}
-                not weighed yet
-              {% endif %}
-            </p>
+            <p class="weakest-mastery">{{ reading.summary }}</p>
           </li>
         {% endfor %}
       </ol>
@@ -86,23 +80,9 @@
               data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}"
               data-sittings="{{ reading.sittings }}">
             <p class="standing-topic">{{ reading.topic.title }}</p>
-            <p class="standing-complete" data-state="{{ reading.topic.state }}">
-              {% if reading.topic.completed_on %}finished{% elif reading.topic.skipped_on %}skipped{% elif reading.topic.cut %}cut{% else %}not finished{% endif %}
-            </p>
-            <p class="standing-mastery">
-              {% if reading.measured %}
-                mastery {{ reading.percent }}% from {{ reading.sittings }} sitting{{ reading.sittings|pluralize }}{% if reading.sittings == 1 %}, so one guess is all this rests on{% endif %}
-              {% else %}
-                not weighed yet
-              {% endif %}
-            </p>
-            <p class="report-when">
-              {% if reading.first_on %}
-                studied {{ reading.first_on|date:"j M Y" }}{% if reading.last_on and reading.last_on != reading.first_on %} to {{ reading.last_on|date:"j M Y" }}{% endif %}
-              {% else %}
-                never sat
-              {% endif %}
-            </p>
+            <p class="standing-complete" data-state="{{ reading.state }}">{{ reading.completion }}</p>
+            <p class="standing-mastery">{{ reading.evidence }}</p>
+            <p class="report-when">{{ reading.studied }}</p>
           </li>
         {% endfor %}
       </ul>
@@ -110,13 +90,7 @@
       <p class="muted">This course has no topics on it yet.</p>
     {% endif %}
     {% if report.unweighed %}
-      <p class="unweighed-note">
-        {{ report.unweighed|length }} topic{{ report.unweighed|length|pluralize }}
-        of your course {{ report.unweighed|length|pluralize:"has,have" }} no
-        sitting at all: {{ report.unweighed_titles }}. Sitting
-        {% if report.unweighed|length == 1 %}that quiz{% else %}those quizzes{% endif %}
-        is what would bring this report to a figure.
-      </p>
+      <p class="unweighed-note">{{ report.unweighed_note }}</p>
     {% endif %}
   </section>
 
@@ -132,9 +106,7 @@
         {% for day in report.days %}
           <li class="log-entry" data-date="{{ day.on|date:"Y-m-d" }}">
             <p class="log-when">{{ day.on|date:"D j M Y" }}</p>
-            <p class="log-topic">
-              {% if day.sittings %}{{ day.sittings }} sitting{{ day.sittings|pluralize }}{% endif %}{% if day.sittings and day.finished %}, {% endif %}{% if day.finished %}{{ day.finished }} topic{{ day.finished|pluralize }} finished{% endif %}
-            </p>
+            <p class="log-topic">{{ day.did }}</p>
           </li>
         {% endfor %}
       </ol>

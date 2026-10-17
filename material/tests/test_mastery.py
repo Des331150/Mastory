@@ -18,19 +18,19 @@ history, read by a student through the same page.
 """
 
 import re
-from contextlib import contextmanager
 from datetime import date, timedelta
-from typing import Iterator
-from unittest import mock
 
 from django.test import TestCase
 
-from material import planning
 from material.tests.helpers import (
+    A_MONDAY,
+    DEFAULT_QUESTION,
     LINEAR_ALGEBRA_PDF,
     QuizModel,
-    fake_question,
+    QuizSittings,
     fake_topic,
+    flat,
+    on_a_monday,
     pdf_upload,
     topic_pk,
     use_fake_model,
@@ -43,8 +43,9 @@ TOPICS = (
 )
 NAMES = [title for title, _ in TOPICS]
 
-#: A Monday, so the day a topic is finished on can be read off the page.
-A_MONDAY = date(2026, 11, 2)
+#: A Monday, so the day a topic is finished on can be read off the page. Stated
+#: here rather than imported as a bare literal because the tests below name it as
+#: the Monday this course was started on.
 
 #: The Monday after it. An exam on a study day that is also the last day leaves
 #: room for one session, which is how a test gets a topic with no session on the
@@ -58,21 +59,7 @@ LATER = A_MONDAY + timedelta(weeks=2)
 
 #: A question and an answer this fixture's paragraphs really contain, so the fake
 #: model has something true to write about.
-FROM_THE_MATERIAL = fake_question(
-    1, "What is the vector v called in Av = lambda v?", answer="eigenvector"
-)
-
-
-def flat(text: str) -> str:
-    """The page with its line wrapping squeezed out."""
-    return " ".join(text.split())
-
-
-@contextmanager
-def on_a_monday(moment: date = A_MONDAY) -> Iterator[None]:
-    """Sit the quiz as though the student were living on a known day."""
-    with mock.patch.object(planning, "today", return_value=moment):
-        yield
+FROM_THE_MATERIAL = DEFAULT_QUESTION
 
 
 class StandingTestCase(TestCase):

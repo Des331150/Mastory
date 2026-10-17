@@ -24,10 +24,13 @@ almost every decision here follows from that:
   later. Without this, one good afternoon on day one would outrank real progress
   made since.
 
-`Attempt.passes` is deliberately not folded in here. A right answer the cited
+`Attempt.passes` is deliberately not folded in here either. A right answer the cited
 paragraph does not word that way is a different signal from a right answer, and
-weighing the two is what the readiness report is for; a mastery number that
-quietly blended them would be a third thing that means neither.
+mastery is the figure a student is shown topic by topic; a number that quietly
+blended the two would be a third thing that means neither. ``material.readiness``
+weighs the mastery this module computes and leaves it alone, and shows how many
+sittings each figure rests on so that a student can see whether it is one lucky
+sitting before acting on it.
 
 Nothing here is stored. Mastery is a reading of the attempt rows, so it cannot
 drift from them: a sitting that is recorded changes the number because the rows
@@ -36,7 +39,7 @@ it is read from changed, and there is no second copy to be left behind.
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Sequence
+from typing import DefaultDict, Sequence
 
 from material import progress
 from material.models import Attempt, Topic
@@ -91,6 +94,19 @@ class Mastery:
         history.
         """
         return round(self.value * 100) if self.value is not None else 0
+
+    @property
+    def known(self) -> float:
+        """The value as a plain number, for a caller that has filtered on
+        ``measured``.
+
+        Narrowing, not a second reading of the figure: a caller which has already
+        dropped the unmeasured topics still holds ``float | None``, and writing
+        ``value or 0.0`` at each of those call sites would be the alternative -
+        a default repeated once per reader, each of which would have to be right
+        about the same filter the reader it sits in just applied.
+        """
+        return 0.0 if self.value is None else self.value
 
 
 #: What a topic nobody has sat reads as. Shared rather than rebuilt per topic so
@@ -189,6 +205,32 @@ def one(topic: Topic) -> Standing:
     return Standing(topic=topic, mastery=for_topic(topic))
 
 
+def sittings(topics: Sequence[Topic]) -> DefaultDict[int, list[Attempt]]:
+    """Every sitting taken on these topics, grouped by topic, oldest first.
+
+    The one grouped read of a set of topics' attempt rows, here so that the pages
+    which need more than the number - the plan page needs the figures, the
+    readiness report needs the days the sittings were taken - are not each
+    building their own grouping of the same rows. Two groupings of one table would
+    be two answers to "which sitting is the latest", and the day they disagreed
+    the report would date a topic's mastery from a different sitting than the
+    figure was weighed from.
+
+    A topic nobody has sat is a key that groups to nothing, which is what
+    ``measure`` and the report both read as unmeasured.
+
+    Not a plain ``dict``: callers weigh ``grouped[topic.pk]`` without asking
+    first, which is the whole point of handing them the grouping rather than a
+    per-topic lookup.
+    """
+    grouped: DefaultDict[int, list[Attempt]] = defaultdict(list)
+    for attempt in owned(
+        Attempt.objects.filter(topic_id__in=[topic.pk for topic in topics])
+    ):
+        grouped[attempt.topic_id].append(attempt)
+    return grouped
+
+
 def for_topics(topics: Sequence[Topic]) -> dict[int, Mastery]:
     """Every topic's mastery, from one read of the sittings.
 
@@ -201,11 +243,7 @@ def for_topics(topics: Sequence[Topic]) -> dict[int, Mastery]:
     two disagreed the quiz page and the plan page would print two different
     mastery figures for one topic.
     """
-    grouped: dict[int, list[Attempt]] = defaultdict(list)
-    for attempt in owned(
-        Attempt.objects.filter(topic_id__in=[topic.pk for topic in topics])
-    ):
-        grouped[attempt.topic_id].append(attempt)
+    grouped = sittings(topics)
     return {topic.pk: measure(grouped[topic.pk]) for topic in topics}
 
 

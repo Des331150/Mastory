@@ -12,6 +12,9 @@ real application.
 import json
 import re
 from contextlib import contextmanager
+from datetime import date, datetime, time
+from fractions import Fraction
+from html import unescape
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Iterator
@@ -19,8 +22,10 @@ from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.utils import timezone
+from django.utils.timezone import make_aware
 
-from material import model
+from material import model, planning
 
 #: One topic as the fake model claims it: a title, the slides it cites by their
 #: course position, and how sure it is.
@@ -94,6 +99,176 @@ def use_temporary_media_root(test_case: TestCase) -> None:
 def fake_topic(title: str, slides: list[int], confidence: float = 0.9) -> Claim:
     """One topic the fake model claims, citing slides by their course position."""
     return {"title": title, "slides": slides, "confidence": confidence}
+
+
+def flat(text: str) -> str:
+    """The page as a student reads it: no line wrapping, no entities.
+
+    Entities are decoded because the copy says "this course's" and the page a
+    test reads it off says ``this course&#x27;s``; a test that had to know about
+    the escaping would be testing the template engine rather than the product.
+    """
+    return " ".join(unescape(text).split())
+
+
+#: A Monday, so a day a thing happened on can be read back off the page. A Monday
+#: rather than an arbitrary date because the plan puts sessions on study days and
+#: a test that pinned a Sunday would be reading a week that never had one.
+A_MONDAY = date(2026, 11, 2)
+
+
+@contextmanager
+def on_a_monday(moment: date = A_MONDAY) -> Iterator[None]:
+    """Do the student's work as though they were living on a known day.
+
+    Patches both clocks a sitting is stamped with, because a sitting is stamped
+    twice: ``planning.today`` dates the topic being finished, and the model's
+    ``auto_now_add`` dates the moment the quiz was handed in. A test that pinned
+    one and not the other would put a sitting on one day and the work it finished
+    on another, and any assertion about days would be reading a day that no
+    student ever lived.
+    """
+    with (
+        mock.patch.object(planning, "today", return_value=moment),
+        mock.patch(
+            "django.db.models.fields.timezone.now", return_value=_at(moment)
+        ),
+    ):
+        yield
+
+
+def _at(day: date) -> datetime:
+    """Midday on that day, as an aware moment, for the row a sitting writes.
+
+    Midday rather than midnight so that a timestamp near a day's edge cannot be
+    read as the day before or after it in whatever timezone the row is rendered
+    in.
+    """
+    return make_aware(
+        datetime.combine(day, time(hour=12)), timezone.get_default_timezone()
+    )
+
+
+
+class QuizSittings:
+    """Sitting a topic's quiz through the browser, for any HTTP test that needs it.
+
+    The one driver for "sit this topic and mark it this way", shared rather than
+    written again per test module: the mastery tests, the retry tests and the
+    readiness report all sit quizzes, and three copies of the form-posting would
+    be three places for a change to the quiz page to be forgotten.
+
+    Takes a ``TestCase`` as a base class, not a fixture, because sitting a quiz
+    needs the client's assertions and a fake model installed per sitting.
+    """
+
+    def topic_id(self, title: str, course_id: int = 1) -> str:
+        """The topic's id, read off the topic page the way a student finds it."""
+        response = self.client.get(f"/courses/{course_id}/topics/")  # type: ignore[attr-defined]
+        return topic_pk(response.content.decode(), title)
+
+    def quiz_url(self, title: str, course_id: int = 1) -> str:
+        """Where this topic's quiz is, for a title the student recognises."""
+        return f"/courses/{course_id}/topics/{self.topic_id(title, course_id)}/quiz/"
+
+    def quiz_page(self, title: str, course_id: int = 1) -> str:
+        """The quiz page for one topic, as the student opens it."""
+        response = self.client.get(self.quiz_url(title, course_id))  # type: ignore[attr-defined]
+        assert response.status_code == 200, f"the quiz for {title!r} did not open"
+        return flat(response.content.decode())
+
+    def sit(
+        self,
+        title: str,
+        right: Fraction = Fraction(1),
+        *,
+        course_id: int = 1,
+        moment: date | None = None,
+        question: dict[str, Any] | None = None,
+    ) -> Fraction:
+        """Sit this topic's quiz once, marking ``right`` of the questions correct.
+
+        ``right`` is a share of however many questions survived verification, and
+        the score that sitting recorded is returned as the exact fraction of them
+        rather than as a float: a test computing an expected mean from it is then
+        doing arithmetic instead of rounding twice.
+
+        The url and the quiz id are read off the page rather than built, so the
+        sitting is marked on the quiz the student was actually looking at, as a
+        browser would send it.
+        """
+        source = question or DEFAULT_QUESTION
+        QuizModel(source).use(self)  # type: ignore[arg-type]
+        day = moment or A_MONDAY
+        with on_a_monday(day):
+            html = self.quiz_page(title, course_id)
+            questions = re.findall(r'id="question-(\d+)"', html)
+            assert questions, f"there are no questions on {title!r}'s quiz to answer"
+            correct = round(right * len(questions))
+            answers = {}
+            for index, question_id in enumerate(questions):
+                choices = re.findall(
+                    r'value="([^"]*)"',
+                    _question_block(html, f'id="question-{question_id}"'),
+                )
+                assert len(choices) >= 2, (
+                    f"question {question_id} offers nothing to get wrong"
+                )
+                answers[question_id] = choices[0 if index < correct else -1]
+            action = re.search(r'action="([^"]+)"', html)
+            which = re.search(r'name="quiz" value="(\d+)"', html)
+            assert action is not None and which is not None, "no form to hand in"
+            response = self.client.post(  # type: ignore[attr-defined]
+                action.group(1),
+                {
+                    "quiz": which.group(1),
+                    **{f"q-{key}": value for key, value in answers.items()},
+                },
+                follow=True,
+            )
+            assert response.status_code == 200, "the sitting was not accepted"
+        return Fraction(correct, len(questions))
+
+    def sit_again(
+        self,
+        title: str,
+        right: Fraction = Fraction(1),
+        *,
+        course_id: int = 1,
+        moment: date | None = None,
+        question: dict[str, Any] | None = None,
+    ) -> Fraction:
+        """Take a topic's quiz a second time, on a new set of questions.
+
+        A retake has to be a new quiz: marking the same questions twice is the
+        thing regeneration exists to stop, and a test asking for a second sitting
+        that silently re-marks the first would be asserting nothing about it.
+        """
+        source = question or DEFAULT_QUESTION
+        QuizModel(source).use(self)  # type: ignore[arg-type]
+        day = moment or A_MONDAY
+        with on_a_monday(day):
+            response = self.client.post(  # type: ignore[attr-defined]
+                f"{self.quiz_url(title, course_id)}rewrite/", follow=True
+            )
+            assert response.status_code == 200
+            assert re.findall(
+                r'id="question-\d+"', response.content.decode()
+            ), f"the rewrite of {title!r} produced no questions to sit"
+        return self.sit(title, right, course_id=course_id, moment=day, question=source)
+
+
+def _question_block(html: str, opening: str) -> str:
+    """The question carrying ``opening``, cut out of a quiz page.
+
+    Cut at the next question rather than at the next list item, because a
+    question's choices are list items of their own and a shorter cut would leave
+    one option to answer with.
+    """
+    for chunk in html.split('<li class="question')[1:]:
+        if opening in chunk:
+            return chunk.split('<li class="question')[0]
+    raise AssertionError(f"the page has no question with {opening}")
 
 
 def topic_pk(html: str, title: str) -> str:
@@ -284,3 +459,11 @@ class RecordingModel:
         patcher.start()
         test_case.addCleanup(patcher.stop)
 
+
+#: A question and an answer the eigenvalue fixture's paragraphs really contain, so
+#: the fake model has something true to write about whichever topic it is asked
+#: for. Named here rather than repeated per test module because it is the fixture
+#: that goes with this helper, not with any one file's course.
+DEFAULT_QUESTION = fake_question(
+    1, "What is the vector v called in Av = lambda v?", answer="eigenvector"
+)

@@ -11,16 +11,29 @@ here is a claim the student may act on. Three decisions earn their place:
   zero is a claim that the student knows nothing, and the absence of a sitting is
   not that claim. What the mean is not made of is stated on the page instead.
 
-- **Too little data is refused in words, not in a footnote.** Below
-  ``MEASURED_SHARE`` of the course, ``Readiness.measurable`` is false and the page
-  prints the refusal and the shortfall. A partial-data percentage is worse than
-  no number, because a student will act on it: they will revise four topics and
-  believe the figure describes the course.
+- **The gate that refuses it is in the same unit as the figure.** Enough topics
+  *and* enough weight, or the report says so. A gate counting only topics would be
+  satisfied by the smallest half of the course and would print a confident number
+  about the part of a course nobody has measured.
+
+- **Too little data is refused in words, not in a footnote.** Below that bar
+  ``Readiness.measurable`` is false and the page prints the refusal and the
+  shortfall. A partial-data percentage is worse than no number, because a student
+  will act on it: they will revise four topics and believe the figure describes
+  the course.
 
 - **The weakest topics are ranked whatever the coverage.** The ranking is the part
   of the report a student can act on today, and it does not get withheld because
   the mean is refused - the ranking is read off the topics that have been sat,
   and naming them costs nothing.
+
+``Attempt.passes`` is not folded into the figure either. It is a second signal
+from the same sitting and the report's standing on it is deliberately the one
+``material.mastery`` takes: the readiness figure is a mean of mastery, and a
+figure that quietly weighted a second signal into it would be a third number that
+means neither "how much you know" nor "how much of the right answer you could
+argue for". The report shows how many sittings each number rests on, which is what
+tells a student whether it is worth acting on.
 
 Everything is read, never stored. The report is a reading of the attempt rows and
 the topic rows, so it cannot drift from the record it describes, and it is as
@@ -28,6 +41,7 @@ current as the page that drew it.
 """
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from math import ceil
@@ -55,6 +69,16 @@ MEASURED_SHARE = 0.5
 #: twenty is the standing table above it and would be read as nothing in
 #: particular.
 WEAKEST = 3
+
+#: The one word each state of a topic is given, shared with ``mastery.Standing``
+#: rather than spelled out per page so that the report and the week cannot name
+#: one topic two ways.
+COMPLETION = {
+    Topic.DONE: "finished",
+    Topic.SKIPPED: "skipped",
+    Topic.CUT: "cut",
+    Topic.PLANNED: "not finished",
+}
 
 
 @dataclass(frozen=True)
@@ -85,20 +109,107 @@ class TopicReading:
     def percent(self) -> int:
         return self.mastery.percent
 
+    @property
+    def state(self) -> str:
+        """Where the plan calls this topic, in the word the plan uses.
+
+        Read through ``mastery.Standing`` rather than off the model's own fields,
+        so that the report and the plan cannot name one topic two ways - a page
+        that says a topic is cut while the week says it is planned is the sort of
+        pair of answers this report exists to prevent.
+        """
+        return mastery.Standing(topic=self.topic, mastery=self.mastery).state
+
+    @property
+    def completion(self) -> str:
+        """The one word the table gives this topic's place in the record.
+
+        The same four words the plan's standing column prints, for the same four
+        states.
+        """
+        return COMPLETION[self.state]
+
+    @property
+    def summary(self) -> str:
+        """The figure and the evidence behind it, in one phrase.
+
+        The sittings are in the phrase rather than in a column of their own
+        because the count changes what the number means: one sitting is a
+        different claim from three.
+        """
+        if not self.measured:
+            return "not weighed yet"
+        return f"{self.percent}% from {self.sittings} sitting{'' if self.sittings == 1 else 's'}"
+
+    @property
+    def evidence(self) -> str:
+        """The whole line for this topic's mastery row, caveat included.
+
+        The caveat is on the row rather than in a footnote because a single
+        sitting is a guess and the report says so where the student reads the
+        number, not somewhere else on the page they may never scroll to.
+        """
+        if not self.measured:
+            return self.summary
+        thin = ", so one guess is all this rests on" if self.sittings == 1 else ""
+        return f"mastery {self.summary}{thin}"
+
+    @property
+    def studied(self) -> str:
+        """When this topic was sat, in the student's own days.
+
+        A range rather than one day, because a student who came back to a topic
+        a fortnight later has two dates worth knowing and the report that showed
+        only the first would be telling them something true and stopping short of
+        everything.
+        """
+        if self.first_on is None:
+            return "never sat"
+        if self.last_on is None or self.last_on == self.first_on:
+            return f"studied {self.first_on:%-d %b %Y}"
+        return f"studied {self.first_on:%-d %b %Y} to {self.last_on:%-d %b %Y}"
+
 
 @dataclass(frozen=True)
 class StudyDay:
     """One day the student worked, and what they did on it.
 
-    Sittings and finished topics together, because either alone is a partial
-    picture: a student who read a week and sat nothing, or sat a quiz on a topic
-    they have not marked done, has studied on a day that one of the two columns
-    would leave out.
+    Sittings, finished topics and skipped topics, because any one alone is a
+    partial picture: a student who read a week and marked nothing, or sat a quiz
+    on a topic they never put on a week, has studied on a day one column would
+    leave out. Skipped is its own column and not folded into finished because a
+    skip is a decision the student made and not work they did, which is the same
+    distinction the plan page's log draws.
+
+    The line is one sentence written here rather than assembled in the template,
+    because a day can have any combination of the three, and seven sentences are
+    not something a template should be interleaving correctly forever.
     """
 
     on: date
     sittings: int
     finished: int
+    skipped: int = 0
+
+    @property
+    def did(self) -> str:
+        """What this day says, or nothing when the record has nothing to say.
+
+        Empty rather than a placeholder: a day with nothing on it is not put in
+        the report at all, so a day that reaches here always has one part to say.
+        """
+        parts = []
+        if self.sittings:
+            parts.append(f"{self.sittings} sitting{'' if self.sittings == 1 else 's'}")
+        if self.finished:
+            parts.append(
+                f"{self.finished} topic{'' if self.finished == 1 else 's'} finished"
+            )
+        if self.skipped:
+            parts.append(
+                f"{self.skipped} topic{'' if self.skipped == 1 else 's'} skipped"
+            )
+        return ", ".join(parts)
 
 
 @dataclass(frozen=True)
@@ -114,6 +225,8 @@ class Readiness:
     value: float | None
     covered: int
     total: int
+    weight_covered: int
+    weight_total: int
 
     @property
     def measurable(self) -> bool:
@@ -131,6 +244,22 @@ class Readiness:
         return ceil(MEASURED_SHARE * self.total)
 
     @property
+    def enough_topics(self) -> bool:
+        """Whether enough of the course's topics have been weighed."""
+        return self.covered >= MEASURED_SHARE * self.total
+
+    @property
+    def enough_weight(self) -> bool:
+        """Whether enough of the course's weight has been weighed.
+
+        A separate condition from ``enough_topics`` and reported separately,
+        because a student who has sat half the topics and almost none of the work
+        is refused for a different reason and can only fix it by sitting
+        different quizzes.
+        """
+        return self.weight_covered >= MEASURED_SHARE * self.weight_total
+
+    @property
     def reason(self) -> str:
         """The refusal, said in the numbers, or nothing when there is a figure.
 
@@ -145,13 +274,24 @@ class Readiness:
                 "This course has no topics on it, so there is nothing to weigh "
                 "and no readiness figure to print."
             )
+        counts = (
+            f"You have weighed {self.covered} of this course's {self.total} topics"
+        )
+        if self.enough_topics:
+            counts += (
+                f", which is most of them, but only {self.weight_covered} of this "
+                f"course's {self.weight_total} units of work"
+            )
+        else:
+            counts += (
+                f", and readiness needs at least {self.needed} of them before it "
+                f"means anything"
+            )
         return (
-            f"You have weighed {self.covered} of this course's {self.total} "
-            f"topics, and readiness needs at least {self.needed} of them before "
-            f"it means anything. A mean over the topics you happened to quiz "
-            f"would be a number about your evenings rather than about your "
-            f"course, so this report is not printing one. Sit the quizzes on the "
-            f"topics below and it will."
+            f"{counts}. A mean over the topics you happened to quiz would be a "
+            f"number about your evenings rather than about your course, so this "
+            f"report is not printing one. Sit the quizzes on the topics below and "
+            f"it will."
         )
 
 
@@ -164,11 +304,6 @@ class Report:
     readiness: Readiness
     weakest: tuple[TopicReading, ...]
     days: tuple[StudyDay, ...]
-
-    @property
-    def weighed(self) -> int:
-        """How many topics have a mastery figure at all."""
-        return sum(1 for topic in self.topics if topic.measured)
 
     @property
     def unweighed(self) -> tuple[TopicReading, ...]:
@@ -190,6 +325,25 @@ class Report:
         """
         return ", ".join(reading.topic.title for reading in self.unweighed)
 
+    @property
+    def unweighed_note(self) -> str:
+        """The whole sentence about the topics with no sitting, or nothing.
+
+        One sentence in one place, pluralisation and all: a template that spelled
+        "that quiz" against "those quizzes" is a second place where the grammar
+        of this product is decided, and the two are one edit apart forever.
+        """
+        if not self.unweighed:
+            return ""
+        count = len(self.unweighed)
+        quiz = "that quiz" if count == 1 else "those quizzes"
+        return (
+            f"{count} topic{'' if count == 1 else 's'} of your course "
+            f"{'has' if count == 1 else 'have'} no sitting at all: "
+            f"{self.unweighed_titles}. Sitting {quiz} is what would bring this "
+            f"report to a figure."
+        )
+
 
 def report(course: Course) -> Report:
     """The readiness report for this course, read from its own record.
@@ -198,11 +352,14 @@ def report(course: Course) -> Report:
     ``material.mastery`` - the same function the plan page and the quiz page read
     a topic with, so the report cannot print a mastery figure that disagrees with
     the one the student was just looking at.
+
+    The sittings are grouped once by ``mastery.sittings`` and weighed here, rather
+    than read again by this module: the report needs the days as well as the
+    figures, and two groupings of one table would be two answers to which sitting
+    is the latest one.
     """
     topics = list(owned(course.topics.all()))
-    taken: dict[int, list[Attempt]] = defaultdict(list)
-    for attempt in owned(Attempt.objects.filter(topic_id__in=[t.pk for t in topics])):
-        taken[attempt.topic_id].append(attempt)
+    taken = mastery.sittings(topics)
     readings = tuple(
         TopicReading(
             topic=topic,
@@ -226,20 +383,46 @@ def _readiness(readings: Sequence[TopicReading]) -> Readiness:
 
     Weighted by ``Topic.weight`` because the course does not weigh its topics
     equally - it is the same number the week's minutes were built from, so the
-    figure and the plan are one reading of the same course. The denominator
-    guarded with ``or 1`` as in ``material.planning``: a topic's weight is floored
-    at one by the student's own edit, and a report that raised ``ZeroDivisionError``
-    over a weight of zero would be worse than one that read such a course oddly.
+    figure and the plan are one reading of the same course.
+
+    **The gate is in the same unit as the figure.** It refuses unless the weighed
+    topics are both a share of the course's *topics* and a share of its *weight*.
+    Counting only topics would let the gate be satisfied by the parts of the
+    course that matter least: ten one-unit topics of a twenty topic course sat
+    perfectly would clear a topic count of half while holding a fraction of a
+    percent of the weight, and the report would print 100% for a course whose
+    heaviest topic had never been opened. A gate in one unit with a figure in
+    another is how a refusal gets defeated by the data it was refusing.
+
+    Two conditions rather than one because either alone can be gamed: all the
+    weight of a course can sit on two topics of twenty, and both topics counted is
+    not most of a course; and a course of one-unit topics can be half counted and
+    half the weight not counted. The denominator guarded with ``or 1`` as in
+    ``material.planning``, though ``Topic.weight`` is floored at one by the
+    student's own edit and so it cannot be zero.
     """
     weighed = [reading for reading in readings if reading.measured]
-    covered, total = len(weighed), len(readings)
-    if not weighed or covered < MEASURED_SHARE * total:
-        return Readiness(value=None, covered=covered, total=total)
-    scale = sum(reading.topic.weight for reading in weighed) or 1
+    held = sum(reading.topic.weight for reading in weighed)
+    whole = sum(reading.topic.weight for reading in readings)
+    counts = Readiness(
+        value=None,
+        covered=len(weighed),
+        total=len(readings),
+        weight_covered=held,
+        weight_total=whole,
+    )
+    if not weighed or not counts.enough_topics or not counts.enough_weight:
+        return counts
     value = sum(
-        (reading.mastery.value or 0.0) * reading.topic.weight for reading in weighed
-    ) / scale
-    return Readiness(value=value, covered=covered, total=total)
+        reading.mastery.known * reading.topic.weight for reading in weighed
+    ) / held
+    return Readiness(
+        value=value,
+        covered=len(weighed),
+        total=len(readings),
+        weight_covered=held,
+        weight_total=whole,
+    )
 
 
 def _weakest(readings: Sequence[TopicReading]) -> tuple[TopicReading, ...]:
@@ -255,35 +438,49 @@ def _weakest(readings: Sequence[TopicReading]) -> tuple[TopicReading, ...]:
     the report lists those separately as the ones that would add to the figure.
     """
     weighed = [reading for reading in readings if reading.measured]
-    return tuple(sorted(weighed, key=lambda reading: (reading.mastery.value or 0.0,))[:WEAKEST])
+    return tuple(sorted(weighed, key=lambda reading: reading.mastery.known)[:WEAKEST])
 
 
 def _days(
-    readings: Sequence[TopicReading], taken: dict[int, list[Attempt]]
+    readings: Sequence[TopicReading], taken: Mapping[int, list[Attempt]]
 ) -> tuple[StudyDay, ...]:
     """Every day the record says the student worked, earliest first.
 
-    Read from the same two places the rest of the report is read - the sittings
-    they took and the topics they finished - so that the dates on this page are
-    the dates the plan page logged, not a second opinion about them.
+    **Both of the days ``progress.summarise`` logs, not only the finished ones.**
+    The plan page's session log reads ``completed_on or skipped_on``, so a day a
+    student chose to skip a topic is a day in their log; this counted only the
+    completed ones and would have said the week they skipped something was a week
+    they did not study, on the page that reports their whole course. Skipped
+    counted apart from finished for the same reason the plan counts them apart: a
+    skip is a decision, and a study log that read it as work would be the other
+    half of that same lie.
+
+    Plus the sittings, which are days of work the plan log has no row for: a quiz
+    sat is study whether or not a session was marked, and on a topic the student
+    never put on a week there is nothing else on the page that would name the day.
 
     A sitting is dated by its own timestamp in the server's local day rather than
     in UTC, which is the day the student sat it in: ``planning.today`` answers the
     same question for the day a thing is marked, and a study log that disagreed
-    with the plan about which day it was would be the sort of pair of answers
-    this product keeps refusing to print.
+    with the plan about which day it was would be the sort of pair of answers this
+    product keeps refusing to print.
     """
     sittings: dict[date, int] = defaultdict(int)
     finished: dict[date, int] = defaultdict(int)
-    for topic_id, attempts in taken.items():
+    skipped: dict[date, int] = defaultdict(int)
+    for attempts in taken.values():
         for attempt in attempts:
             sittings[_local(attempt)] += 1
     for reading in readings:
         if reading.topic.completed_on is not None:
             finished[reading.topic.completed_on] += 1
+        elif reading.topic.skipped_on is not None:
+            skipped[reading.topic.skipped_on] += 1
     return tuple(
-        StudyDay(on=on, sittings=sittings[on], finished=finished[on])
-        for on in sorted({*sittings, *finished})
+        StudyDay(
+            on=on, sittings=sittings[on], finished=finished[on], skipped=skipped[on]
+        )
+        for on in sorted({*sittings, *finished, *skipped})
     )
 
 

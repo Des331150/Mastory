@@ -18,25 +18,20 @@ weighting and not about a number that moves when a fixture does.
 """
 
 import re
-from contextlib import contextmanager
-from datetime import date, datetime, time
+from datetime import date
 from fractions import Fraction
-from html import unescape
-from typing import Iterator
-from unittest import mock
 
 from django.test import TestCase
-from django.utils import timezone
-from django.utils.timezone import make_aware
 
-from material import planning
 from material.tests.helpers import (
+    A_MONDAY,
+    DEFAULT_QUESTION,
     LINEAR_ALGEBRA_PDF,
-    QuizModel,
-    fake_question,
+    QuizSittings,
     fake_topic,
+    flat,
+    on_a_monday,
     pdf_upload,
-    topic_pk,
     use_fake_model,
     use_temporary_media_root,
 )
@@ -52,54 +47,11 @@ TOPICS = (
 )
 NAMES = [title for title, _ in TOPICS]
 
-#: A Monday, so the day a topic was finished on can be read off the report.
-A_MONDAY = date(2026, 11, 2)
-
-#: A question and an answer the fixture's paragraphs really contain, so the fake
-#: model has something true to write about on whichever topic it is asked for.
-FROM_THE_MATERIAL = fake_question(
-    1, "What is the vector v called in Av = lambda v?", answer="eigenvector"
-)
-
 #: What the report must never say: a promise about the paper.
 PREDICTIONS = ("you will pass", "the exam will be easy", "guaranteed")
 
 
-def flat(text: str) -> str:
-    """The page as a student reads it: no wrapping, no entities.
-
-    Entities are decoded because the report says "this course's" and the page it
-    is asserted on says ``this course&#x27;s``; a test that has to know about the
-    escaping would be testing the template engine rather than the report.
-    """
-    return " ".join(unescape(text).split())
-
-
-@contextmanager
-def on_a_monday(moment: date = A_MONDAY) -> Iterator[None]:
-    """Do the student's work as though they were living on a known day.
-
-    Patches the two clocks a sitting is stamped with and not one: ``planning``
-    stamps the day a topic was finished, and the model's ``auto_now_add`` stamps
-    the moment the sitting was taken. A report that dates one and not the other
-    would put a student's quiz on a day their work is not logged, which is the
-    pair of answers this product keeps refusing to print.
-    """
-    with (
-        mock.patch.object(planning, "today", return_value=moment),
-        mock.patch(
-            "django.db.models.fields.timezone.now", return_value=_at(moment)
-        ),
-    ):
-        yield
-
-
-def _at(day: date) -> datetime:
-    """Midday on that day, as an aware moment, for the row the sitting writes."""
-    return make_aware(datetime.combine(day, time(hour=12)), timezone.get_default_timezone())
-
-
-class ReportTestCase(TestCase):
+class ReportTestCase(QuizSittings, TestCase):
     """One course uploaded, its topic path confirmed, and no sittings yet."""
 
     def setUp(self) -> None:
@@ -124,77 +76,6 @@ class ReportTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         return flat(response.content.decode())
 
-    def topic_id(self, title: str) -> str:
-        return topic_pk(self.client.get("/courses/1/topics/").content.decode(), title)
-
-    def sit(self, title: str, right: Fraction, *, moment: date = A_MONDAY) -> Fraction:
-        """Sit this topic's quiz once, marking ``right`` of its questions correct.
-
-        Returns the score that sitting should have recorded, as the exact fraction
-        of the questions on the page rather than as a float, so that a test
-        computing an expected weighted mean is doing arithmetic rather than
-        rounding twice.
-        """
-        fake = QuizModel(FROM_THE_MATERIAL)
-        fake.use(self)
-        with on_a_monday(moment):
-            html = flat(self.client.get(self.quiz_url(title)).content.decode())
-            questions = re.findall(r'id="question-(\d+)"', html)
-            self.assertTrue(questions, f"no questions on {title}'s quiz to answer")
-            correct = round(right * len(questions))
-            answers = {}
-            for index, question in enumerate(questions):
-                choices = re.findall(
-                    r'value="([^"]*)"', self.block(html, f'id="question-{question}"')
-                )
-                self.assertGreaterEqual(
-                    len(choices), 2, f"question {question} offers nothing to get wrong"
-                )
-                answers[question] = choices[0 if index < correct else -1]
-            action = re.search(r'action="([^"]+)"', html)
-            which = re.search(r'name="quiz" value="(\d+)"', html)
-            assert action is not None and which is not None, "no form to hand in"
-            response = self.client.post(
-                action.group(1),
-                {
-                    "quiz": which.group(1),
-                    **{f"q-{key}": value for key, value in answers.items()},
-                },
-                follow=True,
-            )
-            self.assertEqual(response.status_code, 200)
-        return Fraction(correct, len(questions))
-
-    def sit_again(self, title: str, right: Fraction, *, moment: date = A_MONDAY) -> Fraction:
-        """Take a topic's quiz a second time, on new questions."""
-        fake = QuizModel(FROM_THE_MATERIAL)
-        fake.use(self)
-        with on_a_monday(moment):
-            response = self.client.post(
-                f"{self.quiz_url(title)}rewrite/", follow=True
-            )
-            self.assertEqual(response.status_code, 200)
-            self.assertTrue(
-                re.findall(r'id="question-\d+"', response.content.decode()),
-                f"the rewrite of {title} produced no questions to sit",
-            )
-        return self.sit(title, right, moment=moment)
-
-    def quiz_url(self, title: str) -> str:
-        return f"/courses/1/topics/{self.topic_id(title)}/quiz/"
-
-    def block(self, html: str, opening: str) -> str:
-        """The question that carries ``opening``, cut out of the page.
-
-        Cut at the next question rather than at the next list item, because a
-        question's choices are list items of their own and a shorter cut would
-        leave one option to answer with.
-        """
-        for chunk in html.split('<li class="question')[1:]:
-            if opening in chunk:
-                return chunk.split('<li class="question')[0]
-        raise AssertionError(f"the page has no question with {opening}")
-
     def reweigh(self, title: str, weight: int) -> None:
         """Say how much of the week a topic is worth, as the student does."""
         response = self.client.post(
@@ -203,6 +84,39 @@ class ReportTestCase(TestCase):
             follow=True,
         )
         self.assertEqual(response.status_code, 200)
+
+    def skip(self, title: str, moment: date) -> None:
+        """Mark a topic skipped on a named day, through the plan page's own button.
+
+        Driven over HTTP because that is the only way a skip is recorded: the
+        student presses it on the week, and the day is stamped by the same clock
+        the report reads.
+        """
+        with on_a_monday(moment):
+            response = self.client.post(
+                "/courses/1/plan/settings/",
+                {"exam_date": "", "days_per_week": "3", "hours_per_week": "12"},
+                follow=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        session = self.session_id(title)
+        with on_a_monday(moment):
+            response = self.client.post(
+                f"/courses/1/plan/sessions/{session}/",
+                {"state": "skipped"},
+                follow=True,
+            )
+        self.assertEqual(response.status_code, 200)
+
+    def session_id(self, title: str) -> str:
+        """The url id of the session this week holds for one topic."""
+        page = flat(self.client.get("/courses/1/plan/").content.decode())
+        for block in page.split('<li class="session')[1:]:
+            if f'<h3 class="session-topic">{title}</h3>' in block:
+                found = re.search(r"/sessions/(\d+)/", block)
+                assert found is not None, f"no session url for {title!r}"
+                return found.group(1)
+        raise AssertionError(f"the plan has no session for {title!r}")
 
     # -- reading the report ----------------------------------------------------
 
@@ -249,6 +163,14 @@ class ReportTestCase(TestCase):
         """One line per day the report says the student studied."""
         return re.findall(r'<li class="log-entry"[^>]*>(.*?)</li>', page)
 
+    def day_line(self, page: str, day: date) -> str:
+        """The line for one day of the report, found by the date it carries."""
+        found = re.search(
+            rf'<li class="log-entry" data-date="{day.isoformat()}">(.*?)</li>', page
+        )
+        assert found is not None, f"the report has no day for {day.isoformat()}"
+        return found.group(1)
+
 
 class RefusesToLieTestCase(ReportTestCase):
     """The figure, and the refusal of one.
@@ -276,16 +198,40 @@ class RefusesToLieTestCase(ReportTestCase):
         self.sit("Eigenvalues", Fraction(1))
         page = self.page()
         self.assertNotIn('class="readiness-figure"', page)
-        self.assertNotIn("readiness-meter", page)
+        self.assertNotIn('class="meter-fill"', page)
+
+    def test_half_the_topics_of_no_weight_is_still_refused(self) -> None:
+        """Most of the topics and almost none of the work is not most of a course.
+
+        The gate has to be in the unit the figure is in. A count of topics alone is
+        satisfied here by the two lightest of five, and the report would print a
+        confident number for a course whose three heaviest topics have never been
+        sat - which is the failure the whole refusal exists to prevent.
+        """
+        self.build_course(*[(f"Topic {number}", [1]) for number in range(1, 6)])
+        for number, weight in ((1, 1), (2, 1), (3, 100), (4, 100), (5, 100)):
+            self.reweigh(f"Topic {number}", weight)
+        self.sit("Topic 1", Fraction(1))
+        self.sit("Topic 2", Fraction(1))
+        self.sit("Topic 3", Fraction(1))
+        page = self.page()
+        self.assertEqual(self.figure(page), "unmeasurable")
+        self.assertEqual(self.coverage(page), (3, 5))
+        self.assertIn("which is most of them", page)
+        self.assertIn("only 102 of this course's 302 units of work", page)
 
     def test_four_topics_of_twenty_is_still_no_figure(self) -> None:
         """The case the product names: four sittings of a twenty topic course.
 
         Twenty topics is the size of a real course rather than a fixture, and four
         of them is where a mean would look most like a result: 4/20 is the figure
-        a student would screenshot and believe.
+        a student would screenshot and believe. Every topic is reweighed to one
+        unit so that the refusal here is about the count of topics rather than
+        about weights the pointer map happened to derive.
         """
         self.build_course(*[(f"Topic {number}", [1]) for number in range(1, 21)])
+        for number in range(1, 21):
+            self.reweigh(f"Topic {number}", 1)
         for number in range(1, 5):
             self.sit(f"Topic {number}", Fraction(1))
         page = self.page()
@@ -295,10 +241,10 @@ class RefusesToLieTestCase(ReportTestCase):
         self.assertIn("needs at least 10 of them", page)
 
     def test_half_the_course_is_enough_for_a_figure(self) -> None:
-        # Both weighed at one unit each, so that this test is about the halfway
-        # mark and not about the weights the pointer map happened to derive.
-        self.reweigh("Eigenvalues", 1)
-        self.reweigh("Eigenspaces", 1)
+        # Every topic at one unit, so that this test is about the halfway mark and
+        # not about the weights the pointer map happened to derive from the slides.
+        for title in NAMES:
+            self.reweigh(title, 1)
         high = self.sit("Eigenvalues", Fraction(1))
         low = self.sit("Eigenspaces", Fraction(0))
         page = self.page()
@@ -309,8 +255,8 @@ class RefusesToLieTestCase(ReportTestCase):
     def test_one_short_of_the_halfway_mark_is_still_refused(self) -> None:
         """A five topic course needs three sat; two is not a figure."""
         self.build_course(*[(f"Topic {number}", [1]) for number in range(1, 6)])
-        self.reweigh("Topic 1", 1)
-        self.reweigh("Topic 2", 1)
+        for number in range(1, 6):
+            self.reweigh(f"Topic {number}", 1)
         self.sit("Topic 1", Fraction(1))
         self.sit("Topic 2", Fraction(0))
         page = self.page()
@@ -411,13 +357,39 @@ class ReportContentsTestCase(ReportTestCase):
         self.assertIn("2 sittings", self.row(page, "Eigenvalues"))
         self.assertTrue(self.day_line(page, later))
 
-    def day_line(self, page: str, day: date) -> str:
-        """The line for one day of the report, found by the date it carries."""
-        found = re.search(
-            rf'<li class="log-entry" data-date="{day.isoformat()}">(.*?)</li>', page
-        )
-        assert found is not None, f"the report has no day for {day.isoformat()}"
-        return found.group(1)
+    def test_each_topic_says_when_it_was_studied(self) -> None:
+        """The per-topic dates, which are what makes a retake visible as a retake.
+
+        Asserted on the row because the dates come off the ends of the same
+        ordered rows mastery is weighed from, and a row that dated itself from the
+        wrong end would print a range running backwards.
+        """
+        later = date(2026, 11, 9)
+        self.sit_again("Eigenvalues", Fraction(1), moment=later)
+        page = self.page()
+        retaken = self.row(page, "Eigenvalues")
+        self.assertIn(f"studied {A_MONDAY:%-d %b %Y} to {later:%-d %b %Y}", retaken)
+        once = self.row(page, "Diagonalisation")
+        self.assertIn(f"studied {A_MONDAY:%-d %b %Y}", once)
+        self.assertNotIn(" to ", once)
+        self.assertIn("never sat", self.row(page, "Cayley-Hamilton"))
+
+    def test_a_skipped_day_is_a_day_the_student_worked_on(self) -> None:
+        """A day they chose to skip is in the plan's log, so it is in this one too.
+
+        Two pages of the same session must not disagree about how many days the
+        student worked: the plan's session log reads ``completed_on or
+        skipped_on``, and a report that counted only the finished ones would say a
+        week in which they skipped something was a week they did nothing.
+        """
+        later = date(2026, 11, 9)
+        self.skip("Cayley-Hamilton", later)
+        page = self.page()
+        self.assertIn("1 topic skipped", self.day_line(page, later))
+        self.assertIn("2 days your record says you worked", page)
+        # And the plan page agrees with the report about that day.
+        plan = flat(self.client.get("/courses/1/plan/").content.decode())
+        self.assertIn(f'data-date="{later.isoformat()}"', plan)
 
 
 class FramingTestCase(ReportTestCase):
