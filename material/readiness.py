@@ -249,6 +249,16 @@ class Readiness:
         return self.covered >= MEASURED_SHARE * self.total
 
     @property
+    def weight_needed(self) -> int:
+        """How many units of the course's work have to be weighed for a figure.
+
+        The weight counterpart of ``needed``, so that the two refusals a student
+        can hit are both stated in the same shape and the second one does not
+        arrive without a number to aim at.
+        """
+        return ceil(MEASURED_SHARE * self.weight_total)
+
+    @property
     def enough_weight(self) -> bool:
         """Whether enough of the course's weight has been weighed.
 
@@ -279,8 +289,9 @@ class Readiness:
         )
         if self.enough_topics:
             counts += (
-                f", which is most of them, but only {self.weight_covered} of this "
-                f"course's {self.weight_total} units of work"
+                f", which is enough of them, but only {self.weight_covered} of this "
+                f"course's {self.weight_total} units of work. Readiness needs at "
+                f"least {self.weight_needed} of those."
             )
         else:
             counts += (
@@ -397,9 +408,9 @@ def _readiness(readings: Sequence[TopicReading]) -> Readiness:
     Two conditions rather than one because either alone can be gamed: all the
     weight of a course can sit on two topics of twenty, and both topics counted is
     not most of a course; and a course of one-unit topics can be half counted and
-    half the weight not counted. The denominator guarded with ``or 1`` as in
-    ``material.planning``, though ``Topic.weight`` is floored at one by the
-    student's own edit and so it cannot be zero.
+    half the weight not counted. The denominator needs no guard: ``Topic.weight``
+    is floored at one by the student's own edit and defaults to one, so a course
+    with anything weighed on it has a denominator of at least one.
     """
     weighed = [reading for reading in readings if reading.measured]
     held = sum(reading.topic.weight for reading in weighed)
@@ -446,8 +457,8 @@ def _days(
 ) -> tuple[StudyDay, ...]:
     """Every day the record says the student worked, earliest first.
 
-    **Both of the days ``progress.summarise`` logs, not only the finished ones.**
-    The plan page's session log reads ``completed_on or skipped_on``, so a day a
+    **Every day ``progress.summarise`` logs, not only the finished ones.** The
+    plan page's session log reads ``completed_on or skipped_on``, so a day a
     student chose to skip a topic is a day in their log; this counted only the
     completed ones and would have said the week they skipped something was a week
     they did not study, on the page that reports their whole course. Skipped
@@ -455,9 +466,13 @@ def _days(
     skip is a decision, and a study log that read it as work would be the other
     half of that same lie.
 
-    Plus the sittings, which are days of work the plan log has no row for: a quiz
-    sat is study whether or not a session was marked, and on a topic the student
-    never put on a week there is nothing else on the page that would name the day.
+    Plus the sittings, which the plan's log has no row for. So this page can name
+    a day the plan page does not - a quiz sat on a topic that was never on this
+    week's plan, or sat in a week the plan has since been rebuilt - and that is
+    the one direction they may differ in: a day of work with no session on it is
+    still a day of work, and the plan page only knows about sessions. The
+    direction that would be a contradiction, a day the plan logs and this one
+    does not, cannot happen.
 
     A sitting is dated by its own timestamp in the server's local day rather than
     in UTC, which is the day the student sat it in: ``planning.today`` answers the

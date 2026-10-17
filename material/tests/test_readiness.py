@@ -217,8 +217,15 @@ class RefusesToLieTestCase(ReportTestCase):
         page = self.page()
         self.assertEqual(self.figure(page), "unmeasurable")
         self.assertEqual(self.coverage(page), (3, 5))
-        self.assertIn("which is most of them", page)
+        self.assertIn("which is enough of them", page)
         self.assertIn("only 102 of this course's 302 units of work", page)
+        self.assertIn("Readiness needs at least 151 of those", page)
+        # And the gate is two-sided: sitting the heaviest topic is what makes it
+        # measurable, so a test that only ever refused would pass with the weight
+        # half of the rule deleted as long as the copy still said no.
+        self.sit("Topic 4", Fraction(1))
+        self.assertEqual(self.coverage(self.page()), (4, 5))
+        self.assertNotEqual(self.figure(self.page()), "unmeasurable")
 
     def test_four_topics_of_twenty_is_still_no_figure(self) -> None:
         """The case the product names: four sittings of a twenty topic course.
@@ -294,11 +301,13 @@ class ReportContentsTestCase(ReportTestCase):
         page = self.page()
         expected = round((self.high * 1 + self.middle * 1 + self.low * 3) / 5 * 100)
         self.assertEqual(self.figure(page), str(expected))
-        # And the number that figure would have been without the weights, so a
-        # test cannot pass by dropping the weighting and rounding hopefully.
+        # The number that figure would have been without the weights. Asserted as
+        # a precondition rather than conditionally, so that a fixture change which
+        # made the two agree would fail this test instead of quietly removing the
+        # only thing it is distinguishing.
         unweighted = round((self.high + self.middle + self.low) / 3 * 100)
-        if expected != unweighted:
-            self.assertNotEqual(self.figure(page), str(unweighted))
+        self.assertNotEqual(expected, unweighted)
+        self.assertNotEqual(self.figure(page), str(unweighted))
 
     def test_every_topic_shows_its_own_mastery(self) -> None:
         page = self.page()

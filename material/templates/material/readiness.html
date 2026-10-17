@@ -15,9 +15,10 @@
     <p class="report-course">{{ course.title }}</p>
     <h1>Your readiness report</h1>
     <p class="muted">
-      Read off the {{ report.readiness.covered }} topic{{ report.readiness.covered|pluralize }}
-      of your {{ report.readiness.total }} you have sat, on the day you opened
-      this. Nothing here is stored; it is your record, read.
+      Read off the {{ report.readiness.covered }} of your
+      {{ report.readiness.total }} topic{{ report.readiness.total|pluralize }}
+      you have sat, on the day you opened this. Nothing here is stored; it is
+      your record, read.
     </p>
   </header>
 
@@ -38,7 +39,7 @@
         it on your topic path.
       </p>
     {% else %}
-      <p class="readiness-refusal">{{ report.readiness.reason }}</p>
+      <p class="readiness-refusal" role="status">{{ report.readiness.reason }}</p>
     {% endif %}
     <p class="framing">
       This is a reading of your quizzes, not a prediction of your exam. Nobody

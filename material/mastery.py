@@ -222,11 +222,14 @@ def sittings(topics: Sequence[Topic]) -> DefaultDict[int, list[Attempt]]:
     Not a plain ``dict``: callers weigh ``grouped[topic.pk]`` without asking
     first, which is the whole point of handing them the grouping rather than a
     per-topic lookup.
+
+    Read from a list rather than from whatever was passed in, because the ids are
+    collected before the query runs and a QuerySet would be walked twice - twice
+    the queries, and two snapshots that could differ.
     """
+    ids = [topic.pk for topic in topics]
     grouped: DefaultDict[int, list[Attempt]] = defaultdict(list)
-    for attempt in owned(
-        Attempt.objects.filter(topic_id__in=[topic.pk for topic in topics])
-    ):
+    for attempt in owned(Attempt.objects.filter(topic_id__in=ids)):
         grouped[attempt.topic_id].append(attempt)
     return grouped
 

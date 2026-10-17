@@ -227,6 +227,14 @@ class QuizSittings:
                 follow=True,
             )
             assert response.status_code == 200, "the sitting was not accepted"
+            # A refused sitting re-renders the quiz page with the refusal on it,
+            # and still answers 200, so the status code says nothing here. Without
+            # this a held retake or a re-marked quiz would hand back a score for a
+            # sitting that was never recorded, and every later assertion would be
+            # quietly reading the previous one.
+            assert 'class="error"' not in response.content.decode(), (
+                f"the sitting on {title!r} was refused"
+            )
         return Fraction(correct, len(questions))
 
     def sit_again(
@@ -255,6 +263,9 @@ class QuizSittings:
             assert re.findall(
                 r'id="question-\d+"', response.content.decode()
             ), f"the rewrite of {title!r} produced no questions to sit"
+            assert 'class="error"' not in response.content.decode(), (
+                f"the rewrite of {title!r} was refused"
+            )
         return self.sit(title, right, course_id=course_id, moment=day, question=source)
 
 
