@@ -21,8 +21,10 @@ it was measuring: a row claiming five calls when the model was asked six times i
 a cost figure for something that did not happen.
 """
 
+import email.message
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -437,3 +439,102 @@ class AnsweredTestCase(TestCase):
 
         self.assertEqual(meter.calls, 1)
         self.assertIsNone(meter.tokens)
+
+
+class ThrottlingTests(AnsweredTestCase):
+    """A provider that is busy is waited for, and is not reported as unreachable.
+
+    Found on the first real course (issue 14): one 233-page course needed about
+    fifty calls inside a few minutes, which is more than a free tier allows per
+    minute. Read as an ordinary failure, throttling dropped every question in
+    the second half of the course and told the student the model could not be
+    reached - a reason that sends them to check their connection instead of
+    waiting a minute.
+    """
+
+    @staticmethod
+    def _throttled(headers: dict[str, str] | None = None) -> urllib.error.HTTPError:
+        return urllib.error.HTTPError(
+            "http://model.invalid",
+            429,
+            "Too Many Requests",
+            _headers(headers or {}),
+            None,
+        )
+
+    def call_through(
+        self,
+        *errors: BaseException,
+        answer: dict[str, Any] | None = None,
+    ) -> tuple[str, model.Meter, list[float]]:
+        """One call metered, where the provider refuses ``errors`` before answering."""
+        body = answer or {"choices": [{"message": {"content": "{}"}}],
+                          "usage": {"total_tokens": 20}}
+        slept: list[float] = []
+        refusals = list(errors)
+
+        def refusing(*_: Any, **__: Any) -> Any:
+            if refusals:
+                raise refusals.pop(0)
+            return _Reply(body)
+
+        with (
+            override_settings(**self.SERVED),
+            mock.patch.object(urllib.request, "urlopen", side_effect=refusing),
+            mock.patch.object(time, "sleep", slept.append),
+            model.measuring() as meter,
+        ):
+            return model.complete("a prompt"), meter, slept
+
+    def test_a_throttled_call_is_tried_again_rather_than_dropped(self) -> None:
+        reply, meter, slept = self.call_through(
+            self._throttled(), self._throttled()
+        )
+
+        self.assertEqual(json.loads(reply), {})
+        self.assertEqual(meter.calls, 1, "the retries are one piece of work, not four")
+        self.assertEqual(len(slept), 2, "it did not wait between the refusals")
+        self.assertEqual(sorted(slept), [1.0, 2.0], "the wait did not grow")
+
+    def test_a_provider_that_keeps_refusing_says_it_is_busy(self) -> None:
+        throttled = self._throttled()
+        with self.assertRaises(model.ModelUnavailable) as raised:
+            self.call_through(*[throttled] * model.THROTTLE_ATTEMPTS)
+
+        self.assertIn("too busy", str(raised.exception))
+        self.assertNotIn("could not be reached", str(raised.exception))
+
+    def test_the_providers_own_wait_is_believed(self) -> None:
+        """``Retry-After`` is the only number here that knows how loaded the
+        provider actually is, so it beats our guess."""
+        _, _, slept = self.call_through(
+            self._throttled({"Retry-After": "9"}),
+            answer={"choices": [{"message": {"content": "{}"}}]},
+        )
+
+        self.assertEqual(slept, [9.0])
+
+    def test_a_refusal_that_is_not_throttling_is_not_waited_for(self) -> None:
+        """A broken endpoint is a different fault from a busy one, and a server
+        error is not going to clear itself by waiting for it."""
+        with self.assertRaises(model.ModelUnavailable) as raised:
+            self.call_through(
+                urllib.error.HTTPError(
+                    "http://model.invalid", 500, "Server Error", email.message.Message(), None
+                )
+            )
+
+        self.assertIn("could not be reached", str(raised.exception))
+
+
+def _headers(pairs: dict[str, str]) -> email.message.Message:
+    """An ``email.message.Message`` carrying ``pairs``, which is what an
+    ``HTTPError`` holds its headers in.
+
+    Built rather than faked because urllib reads ``Retry-After`` off it and this
+    test is about what urllib sees.
+    """
+    message = email.message.Message()
+    for name, value in pairs.items():
+        message[name] = value
+    return message

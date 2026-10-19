@@ -400,6 +400,21 @@ class ModelBoundaryTests(TopicPathTestCase):
         self.assertIn("no language model configured", html)
         self.assertIn("MODEL_BASE_URL", html)
 
+    def test_a_fenced_reply_is_read_as_the_answer_it_wraps(self) -> None:
+        """A model that fences its JSON meant to answer, and the fence is not
+        part of the answer.
+
+        Found on the first real course (issue 14): Gemini returned a correct,
+        complete topic path wrapped in a Markdown fence, and every claim in it
+        was dropped for the want of three backticks.
+        """
+        fenced = "```json\n" + json.dumps(
+            {"topics": [fake_topic("Eigenvalues", [2])]}
+        ) + "\n```"
+        with use_fake_model(reply=fenced):
+            self.client.post("/courses/1/topics/infer/")
+        self.assertIn("Eigenvalues", self.topics_page())
+
     def test_the_student_can_still_add_topics_without_a_model(self) -> None:
         from unittest import mock
 
