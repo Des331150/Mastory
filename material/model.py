@@ -31,6 +31,8 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 from django.conf import settings
@@ -633,67 +635,86 @@ def complete(prompt: str) -> str:
     which is more than the free tier allows per minute; read as a plain failure
     that throttling dropped every question in the second half of the course and
     the student was told the model could not be reached.
+
+    What the ledger counts is HTTP attempts, not intentions: a call throttled
+    four times and answered on the fifth is five calls, because five requests
+    were made and throttling is counted against a provider's quota.
     """
     base = settings.MODEL_BASE_URL
     if not base or not settings.MODEL_NAME:
         raise ModelUnavailable(*NOT_CONFIGURED)
-    moved: int | None = None
-    try:
-        for attempt in range(THROTTLE_ATTEMPTS):
-            request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
-                f"{base.rstrip('/')}/chat/completions",
-                data=json.dumps(
-                    {
-                        "model": settings.MODEL_NAME,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0,
-                    }
-                ).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {settings.MODEL_API_KEY}",
-                },
-                method="POST",
-            )
-            try:
-                with urllib.request.urlopen(  # noqa: S310
-                    request, timeout=settings.MODEL_TIMEOUT_SECONDS
-                ) as response:
-                    body: Any = json.loads(response.read().decode("utf-8"))
-            except urllib.error.HTTPError as failure:
-                if failure.code != THROTTLED or attempt == THROTTLE_ATTEMPTS - 1:
-                    raise ModelUnavailable(
-                        *(
-                            THROTTLE_MESSAGE
-                            if failure.code == THROTTLED
-                            else UNREACHABLE
-                        )
-                    ) from failure
-                time.sleep(_backoff(failure, attempt))
-                continue
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
-                raise ModelUnavailable(*UNREACHABLE) from failure
-            moved = _tokens(body)
-            return _reply_text(body)
-    finally:
-        note_call(moved)
+    for attempt in range(THROTTLE_ATTEMPTS):
+        request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
+            f"{base.rstrip('/')}/chat/completions",
+            data=json.dumps(
+                {
+                    "model": settings.MODEL_NAME,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                }
+            ).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.MODEL_API_KEY}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(  # noqa: S310
+                request, timeout=settings.MODEL_TIMEOUT_SECONDS
+            ) as response:
+                body: Any = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as failure:
+            note_call(None)
+            if failure.code != THROTTLED or attempt == THROTTLE_ATTEMPTS - 1:
+                raise ModelUnavailable(
+                    *(
+                        THROTTLE_MESSAGE
+                        if failure.code == THROTTLED
+                        else UNREACHABLE
+                    )
+                ) from failure
+            time.sleep(_backoff(failure, attempt))
+            continue
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
+            note_call(None)
+            raise ModelUnavailable(*UNREACHABLE) from failure
+        note_call(_tokens(body))
+        return _reply_text(body)
     raise ModelUnavailable(*UNREACHABLE)  # pragma: no cover - the loop returns or raises
 
 
 def _backoff(failure: urllib.error.HTTPError, attempt: int) -> float:
     """How long to wait before trying a throttled call again.
 
-    The provider's own ``Retry-After`` is believed where it gives one, because
-    it is the only number here that knows how loaded the provider actually is.
-    The exponential term is the floor under it, so a provider that sends no
-    header at all is still waited for rather than hammered.
+    The provider's own ``Retry-After`` is believed where it gives one, in either
+    of the two forms the header is allowed to take - seconds, or an HTTP date -
+    because it is the only number here that knows how loaded the provider
+    actually is. A date further off than the ceiling is waited out to the
+    ceiling rather than ignored, so the wait is always at least as long as the
+    backoff it would have taken anyway. The exponential term is the floor
+    under it, so a provider that sends no header at all is still waited for
+    rather than hammered.
     """
+    return max(_asked_for(failure), min(2.0**attempt, MAX_BACKOFF_SECONDS))
+
+
+def _asked_for(failure: urllib.error.HTTPError) -> float:
+    """How many seconds the provider asked us to wait, or zero where it did not."""
     given = failure.headers.get("Retry-After") if failure.headers else None
+    if given is None:
+        return 0.0
     try:
-        ceiling = min(float(given), MAX_BACKOFF_SECONDS)  # type: ignore[arg-type]
+        return min(float(given), MAX_BACKOFF_SECONDS)
     except (TypeError, ValueError):
-        ceiling = 0.0
-    return max(ceiling, min(2.0**attempt, MAX_BACKOFF_SECONDS))
+        pass
+    try:
+        when = parsedate_to_datetime(given)
+    except (TypeError, ValueError):
+        return 0.0
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return min(max((when - datetime.now(when.tzinfo)).total_seconds(), 0.0), MAX_BACKOFF_SECONDS)
 
 
 def _tokens(body: Any) -> int | None:

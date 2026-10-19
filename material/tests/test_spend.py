@@ -27,6 +27,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+from email.utils import formatdate
 from typing import Any
 from unittest import mock
 
@@ -492,9 +493,38 @@ class ThrottlingTests(AnsweredTestCase):
         )
 
         self.assertEqual(json.loads(reply), {})
-        self.assertEqual(meter.calls, 1, "the retries are one piece of work, not four")
+        self.assertEqual(
+            meter.calls, 3, "the ledger counts requests made, not intentions"
+        )
+        # The two refused requests did not say what they moved and never will,
+        # so the whole call is of unknown cost rather than the one known answer
+        # dressed up as a total.
+        self.assertIsNone(meter.tokens)
         self.assertEqual(len(slept), 2, "it did not wait between the refusals")
         self.assertEqual(sorted(slept), [1.0, 2.0], "the wait did not grow")
+
+    def test_a_wait_named_as_a_date_is_believed_too(self) -> None:
+        """``Retry-After`` is allowed to be an HTTP date, and a provider that
+        sends one is asking for a specific moment, not a number of seconds."""
+        when = formatdate(time.time() + 20, usegmt=True)
+        _, _, slept = self.call_through(
+            self._throttled({"Retry-After": when}),
+            answer={"choices": [{"message": {"content": "{}"}}]},
+        )
+
+        self.assertEqual(len(slept), 1)
+        self.assertGreater(slept[0], 15.0, "it retried before the time it was given")
+        self.assertLessEqual(slept[0], 20.0)
+
+    def test_a_wait_further_off_than_the_ceiling_is_waited_out_to_it(self) -> None:
+        """The cap is on how long a student is made to wait, not a licence to
+        retry before the moment the provider named."""
+        _, _, slept = self.call_through(
+            self._throttled({"Retry-After": "3600"}),
+            answer={"choices": [{"message": {"content": "{}"}}]},
+        )
+
+        self.assertEqual(slept, [model.MAX_BACKOFF_SECONDS])
 
     def test_a_provider_that_keeps_refusing_says_it_is_busy(self) -> None:
         throttled = self._throttled()

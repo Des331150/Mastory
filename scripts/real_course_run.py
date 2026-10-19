@@ -22,6 +22,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,11 @@ from material.models import (  # noqa: E402
 # back to, and it does not flatter the product.
 WRONG = "this is not the answer and is deliberately wrong"
 
+#: Where the findings are written as they are gathered, set by ``main``. Module
+#: level so ``flush`` can reach it from the failure handler, which is outside
+#: ``main`` and is the one that most needs to write.
+out: Path | None = None
+
 findings: dict[str, Any] = {
     "run_started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     "source_pdf": None,
@@ -76,7 +82,35 @@ findings: dict[str, Any] = {
 
 def note(step: str, **detail: Any) -> None:
     findings["steps"].append({"step": step, **detail})
+    flush()
     print(f"[{step}] {json.dumps(detail, default=str)}", flush=True)
+
+
+def flush() -> None:
+    """Write what has been collected so far, now.
+
+    Written on every step rather than once at the end because the interesting
+    runs are the ones that fall over. A harness that only writes on success
+    loses the evidence of exactly the failure it was run to find.
+    """
+    if out is None:
+        return
+    out.write_text(json.dumps(findings, indent=2, default=str))
+
+
+def trap() -> None:
+    """Record the step that killed the run, then write what there is.
+
+    A run that dies between steps is the most informative kind of failure there
+    is, and an unrecorded one is indistinguishable from a run that was never
+    made.
+    """
+    last = findings["steps"][-1]["step"] if findings["steps"] else "no step"
+    findings["outcome"] = f"stopped after: {last}"
+    findings["stopped_with"] = traceback.format_exc(limit=6)
+    findings["run_finished"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    flush()
+    print(f"[stopped] {findings['outcome']}", flush=True)
 
 
 def text_of(response: Any) -> str:
@@ -96,6 +130,7 @@ def text_of(response: Any) -> str:
 
 
 def main() -> int:
+    global out
     if len(sys.argv) < 3:
         print(__doc__)
         return 2
@@ -135,7 +170,7 @@ def main() -> int:
     )
     if response.status_code != 302:
         findings["outcome"] = "upload refused"
-        out.write_text(json.dumps(findings, indent=2, default=str))
+        flush()
         return 1
 
     course_id = int(response.headers["Location"].strip("/").split("/")[1])
@@ -255,7 +290,12 @@ def main() -> int:
             "topic": topic.title,
             "built": True,
             "seconds": seconds,
-            "dropped": quiz.dropped,
+            # What the product stores, on purpose: it blends verification drops
+            # with questions cut only because a quiz holds four (quiz.py:237).
+            # ``dropped`` alone therefore cannot say how many verification
+            # rejected, so this is recorded as what it is and not as a rate.
+            "dropped_as_stored": quiz.dropped,
+            "at_the_cap": len(questions) >= question_limit(),
             "low_confidence": quiz.low_confidence,
             "kept": len(questions),
             "distinct_spans": len({q.span_id for q in questions}),
@@ -381,15 +421,52 @@ def main() -> int:
     findings["pointer_map_check"] = _pointer_sheet(course_id)
     findings["pointer_map_check_note"] = (
         "One line per topic: the slides it points at, the first 90 characters of "
-        "each of those slides, and a bare verdict left blank on purpose. Reading "
-        "the verdict column against the real file is the hand check."
+        "each of those slides, and a verdict left blank on purpose. Filling the "
+        "verdict in is the hand check; a run whose verdicts are still blank has "
+        "not had one."
     )
-    findings["outcome"] = "ran to the readiness report"
+    findings["outcome"] = _outcome(topics, per_topic_quiz, exam, len(attempts))
     findings["run_finished"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
-    out.write_text(json.dumps(findings, indent=2, default=str))
+    flush()
     print(f"\nwrote {out}")
     return 0
+
+
+def _outcome(
+    topics: list[Topic],
+    per_topic_quiz: list[dict[str, Any]],
+    exam: MockExam | None,
+    attempts: int,
+) -> str:
+    """What this run actually did, said without rounding up.
+
+    Asked of the run rather than assumed by it. A run that stops after the exam
+    is refused has not "run to the readiness report" however willing the
+    readiness page was to render, and a label that says otherwise is the one
+    thing a findings document must never do.
+    """
+    built = sum(1 for q in per_topic_quiz if q.get("built"))
+    missing = []
+    if not topics:
+        missing.append("no topic path")
+    if not built:
+        missing.append("no topic quiz written")
+    if exam is None:
+        missing.append("no mock exam written")
+    elif exam.taken_on is None:
+        missing.append("mock exam never sat")
+    if not attempts:
+        missing.append("no quiz sat")
+    if not missing:
+        return "upload, topic path, schedule, quizzes, mock exam and readiness"
+    return "partial: reached readiness, but " + "; ".join(missing)
+
+
+def question_limit() -> int:
+    from material.quiz import QUESTION_LIMIT
+
+    return QUESTION_LIMIT
 
 
 def _slides(topic: Topic) -> list[int]:
@@ -450,4 +527,10 @@ def _pointer_sheet(course_id: int) -> list[dict[str, Any]]:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except BaseException:  # noqa: BLE001 - a failed run is the point of this script
+        trap()
+        raise

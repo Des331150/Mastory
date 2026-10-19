@@ -5,53 +5,92 @@ every failure written down. This is that document. It sits next to
 `0001-v0-personalised-learning-path.md` because it is the first evidence about
 whether that spec survives contact with real material.
 
-Three defects were found and two were fixed before the run could finish. The
-third, and the cost and shape findings, are still open and are listed at the
-end.
+**No run completed the path the issue asked for.** Four were made; the best
+reached the readiness report with no mock exam written. That is the first thing
+to know about everything below, and it is repeated wherever it bears on a
+number rather than left as a caveat.
 
-## The file
+Two defects were found and fixed here, because they stopped the run getting past
+the first screen. The third, and everything the run could not measure, are
+listed at the end.
+
+## What was actually run
 
 **University of Ghana, Handbook for the Bachelor's Degree, Volume 4: Course
-Descriptions for Programmes in the Health Sciences, September 2017.**
-233 pages, 1.29 MB, downloaded from
-`https://www.ug.edu.gh/sites/default/files/manual_uploads/CHS handbook 2017.pdf`.
+Descriptions for Programmes in the Health Sciences, September 2017.** 233 pages,
+1,325,354 bytes, `sha256 4b0f3219e61573489b9ee5846f46b4fc4406cb9bd8592fe22b4250de24ce0077`,
+from `https://www.ug.edu.gh/sites/default/files/manual_uploads/CHS handbook 2017.pdf`.
 
-One caveat stated up front, because it changes what the findings mean. Issue 14
-asked for *one course's slides*. Ghanaian university course material of 200-plus
-pages is not published as open lecture decks — the KNUST and UG institutional
-repositories were searched first and hold theses, journal articles and course
-handbooks, not lecture series. This file is a real University of Ghana course
-document over 200 pages, and it is a harder case than slides rather than an
-easier one: it has no headings, no slide numbers, a table of contents that
-contradicts the page order, administrative front matter mixed with syllabi, and
-several pages of tables. Where a finding depends on this being a handbook rather
-than a deck, it says so.
+### This is not the file the issue asked for, and the difference matters
 
-Extraction is deterministic, so the file and the findings reproduce on any
-machine with the same dependencies. The model calls do not: a second run gets
-different topics, different questions and different drops.
+Issue 14 asked for *one course's slides*. What was run is a **multi-programme
+course-description handbook**: 233 pages describing fourteen BSc programmes
+across six schools, plus the university's own front matter and academic
+calendar. It is not one assessed course.
 
-## How the run was driven
+Ghanaian university lecture decks of 200-plus pages are not published openly. The
+KNUST institutional repository (2,740 hits) and UG's were searched first; both
+hold theses, journal articles and handbooks, not lecture series. This was the
+best available real file over 200 pages, and it is a **different and harder kind
+of test in some ways and an easier one in others**:
 
-`scripts/real_course_run.py` drives the real application through the Django test
-client — the same HTTP seam the test suite uses — and writes one JSON file of
-findings. It asserts nothing. A run that finds the product broken is the run
-working. It is not a test and is not part of the suite.
+- Harder for extraction: no headings, no slide numbers, a two-column contents
+  page, administrative front matter interleaved with syllabi, dense tables.
+- Harder for quiz generation: mostly course *administration* — who holds what
+  post, what a semester is, how many credits a course carries — which resists
+  being turned into a well-posed question.
+- **Easier** than a real slide deck on several axes: text density, no diagrams,
+  no equations, and a stable single-column reading order.
+
+So nothing here should be read as "this is what happens when a student uploads
+their MATH 201 slides." It shows that the product survives contact with one
+adversarial real document and that its external dependencies do not.
+
+### Reproduction
+
+Extraction is deterministic, so the file converts identically on any machine
+with these versions. **The model calls do not reproduce** — a second run gets
+different topics, different questions and different drops, because the model is
+sampled and the provider's quota state differs.
+
+| | |
+|---|---|
+| Commit | `1aa8be5` on `issue-14-real-course-run` |
+| Python / Django | 3.14 / 6.1.1 |
+| pymupdf / pymupdf4llm | 1.28.2 / 1.28.2 |
+| Database | SQLite (the test seam's own database) |
+| Model | `gemini-3.5-flash-lite` via Google's OpenAI-compatible endpoint, free tier |
+| Priced at | $0.30 per million tokens, a blended rate — see Cost |
+
+The run evidence is retained at [`run-evidence/run-c.json`](run-evidence/run-c.json),
+including the pointer map with a verdict filled in against each topic. Every
+figure below is readable from it.
+
+### How it was driven
+
+[`scripts/real_course_run.py`](../scripts/real_course_run.py) drives the real
+application through the Django test client — the same HTTP seam the test suite
+uses — and writes one JSON file of findings. **It asserts nothing.** A run that
+finds the product broken is the run working. It is not a test and is not part of
+the suite.
 
 ```sh
 .venv/bin/python scripts/real_course_run.py <course.pdf> <findings.json>
 ```
 
-Four runs were made. They differ because each one found something:
+Four runs were made, differing only in model and timeout:
 
-| Run | Model | Timeout | Outcome |
+| Run | Model | Timeout | Result |
 |---|---|---|---|
-| A | gemini-2.5-flash | 60 s (default) | Topic inference timed out. 0 topics. |
-| B | gemini-2.5-flash | 600 s | Inference answered; reply discarded as unparseable. 0 topics. |
-| C | gemini-3.5-flash-lite | 600 s | 16 topics, 16 sessions, 13/16 quizzes, exam refused. |
+| A | gemini-2.5-flash | 60 s (default) | Topic inference timed out. No topic path. |
+| B | gemini-2.5-flash | 600 s | Inference answered; reply discarded as unparseable. No topic path. |
+| C | gemini-3.5-flash-lite | 600 s | 16 topics, 16 sessions, 13/16 quizzes, **exam refused**. |
 | D | gemini-3.8-flash | 600 s | 16 topics, 1/16 quizzes, 995 s burned. |
 
-**Run C is the reference run.** The figures below are from it unless stated.
+Run C is used as the reference because it got furthest. **That is survivor
+selection, not replication**: the model, the timeout, the quota state and the
+code all changed between runs, so before-and-after is not controlled. Any claim
+below that depends on a single run says so.
 
 ## Extraction
 
@@ -60,52 +99,55 @@ Four runs were made. They differ because each one found something:
 | Pages in | 233 |
 | Slides stored | 233 |
 | Slide numbers missing | none |
-| Pages with no text at all | 0 |
+| Pages with no text | 0 |
 | Pages with no Markdown | 0 |
 | Pages under 120 characters | 1 (page 233, the back page) |
 | Spans cut | 3,118 |
 | Images extracted | 1 |
 | Longest page | 3,901 characters |
-| **Wall clock, upload → readable** | **95.0 s** (runs A–D: 98.7, 102.1, 82.7, 95.0, 104.6) |
+| **Wall clock, upload → readable** | **95.0 s** (82.7 / 95.0 / 98.7 / 102.1 / 104.6 across runs) |
 
-**Extraction is the one part of this product that did not break.** Zero pages
-lost, zero blank slides, on a messy 233-page document with mixed fonts, tables
-and a two-column contents page. That is worth stating plainly because it is the
-part the whole product rests on.
+**The acceptance criterion asked for extraction failures to be recorded with the
+slides and spans that failed. None occurred.** The recording path exists —
+`SourceFile.failure_reason`, `failure_advice` and the three-stage log — and was
+read on this run and was empty at every stage: `pages_read`, `converting`,
+`verifying` all reported `done`. What the run *did* establish is narrower than
+"extraction held": every page produced a row with non-empty text, and every
+slide number 1–233 is present.
 
-One thing the extractor leaves in the text: converted PDFs carry their
-structural tags through into the stored Markdown as literal text.
+That is a row-count and non-blank check. It is not a fidelity check. Nobody
+compared the extracted Markdown against the PDF for tables, reading order,
+equations or figures, and no OCR-dependent page was in this file at all, so
+**scanned and image-heavy course material remains entirely untested.**
+
+One defect the run did surface: converted pages carry their structural tags into
+the stored Markdown as literal text, and from there into the plain text the
+model is shown.
 
 ```
 UNIVERSITY OF GHANA <!-- Start of picture text -- wen<br<!-- End of picture text -- VOLUME 4
 ```
 
-That is `pymupdf4llm`'s page-tearing detection being preserved rather than
-stripped. It is visible to the student and it is in the plain text the model is
-shown, so every page that had it carries those comments into generation.
+### The timeout margin is small and variable
 
-### The timeout is closer than it looks
+Ingestion took 82.7–104.6 s across four runs against
+`INGEST_FILE_TIMEOUT_SECONDS` = **120 s**. That is a margin of between 14% and
+30% on a 233-page file, varying by 26% between runs of the same bytes.
 
-Ingestion took 82.7–104.6 s across four runs against a
-`INGEST_FILE_TIMEOUT_SECONDS` default of **120 s**. The margin on a 233-page
-file is between 14% and 30%. Per-page cost here was roughly 0.42 s, which puts
-the 120-second limit at about **285 pages**.
-
-A student with a 300-slide course — squarely inside the "200-plus slides" the
-product is built for, and a normal size for a Ghanaian lecture series — is
-abandoned at the default setting and told to split the file by hand. There is
-no signal that this is close: the limit is a fixed constant, not a function of
-page count, so the first course that crosses it is the first course anyone finds
-out.
-
-**Recommendation:** scale the limit with the page count, or raise the default to
-a figure a real deck cannot exceed in one request.
+At the fastest observed rate this would reach the limit at roughly 340 pages,
+and at the slowest at roughly 270. **This is an extrapolation and no 300-page
+file was run**, and per-page cost depends on image density and layout rather
+than scaling linearly. The supported claim is: *this file left a small and
+variable margin under a fixed limit*. Whether a 300-slide deck is abandoned
+depends on the deck.
 
 ## Topic inference
 
-16 topics over 233 slides, confirmed, and a 16-session exam plan built over
-4 days a week and 8 hours a week with the exam 28 days out. The planner is the
-product and it did its job on real material.
+16 topics over 233 slides, confirmed, and a 16-session exam plan built over 4
+days a week, 8 hours a week, exam 28 days out. The planner did its job on real
+material — but note that "confirmed" here means the harness posted the
+confirmation endpoint. **No student reviewed, corrected, renamed, split, merged
+or re-weighted anything.** The plan was built on an unchecked path.
 
 ### The prompt is the first bill and the first failure
 
@@ -120,82 +162,79 @@ characters (`material/topics.py:118`, `material/model.py:181`).
 | Slides hitting the 1,200-character cap | **227 of 233** |
 | Course text discarded before the model sees it | **354,653 characters — 56% of the file** |
 
-Two failures in one call. It is too big to answer in time — **60.69 s against
-the 60 s `MODEL_TIMEOUT_SECONDS` default**, so at default settings a real
-200-plus page course produces no topic path at all and the student is told to
-add topics by hand. And it is too big because 56% of the course was thrown away
-to keep it smaller, which means a topic whose distinguishing material sits past
-1,200 characters on a slide cannot be inferred from that slide.
+Run A took **60.69 s against the 60 s `MODEL_TIMEOUT_SECONDS` default** and
+produced nothing: no topic path, and a student told to add topics by hand. Run C
+answered the same request in **5.72 s** on a different model.
 
-Run C answered the same request in **5.72 s** on gemini-3.5-flash-lite. The
-timeout is not a property of a large prompt on its own; it is a property of
-this prompt on a particular provider. That is still a deployment hazard, because
-the default is 60 seconds and nothing warns that the one call that reads the
-whole course in is the one that will not fit.
+So the honest reading is not "a 200-plus page course produces no topic path".
+It is: **one call carrying the whole course sits right on the default timeout,
+and whether it fits depends entirely on which model answers it.** That is a
+deployment hazard with no warning — the single call that reads the whole course
+in is the one most likely to hit the wall, and nothing in the product says so.
+
+The 56% discard is a separate and more certain problem: a topic whose
+distinguishing material sits past 1,200 characters on a slide cannot be inferred
+from that slide at all.
 
 ### The flagged-topic mechanism never fired
 
-`CONFIDENCE_FLOOR` is 0.6. A topic below it is flagged so the student checks it
-before trusting the plan — acceptance criterion 20, and the affordance the whole
-topic page rests on.
+`CONFIDENCE_FLOOR` is 0.6. Below it a topic is flagged so the student checks it
+before trusting the plan — acceptance criterion 20, and the affordance the topic
+page rests on.
 
-**Every topic from both models came back at confidence 1.0.** Zero topics
-flagged across four runs. The one defence the product claims against a bad
-inference is switched off by a model that reports uniform certainty, and there
-is no second signal behind it: nothing checks whether a topic's slides agree
-with its title.
+**Every topic from every model came back at confidence 1.0. Zero flagged across
+four runs and two model families.** The one defence the product claims against a
+bad inference is switched off by any model that reports uniform certainty, and
+there is no second signal behind it — nothing checks whether a topic's title
+agrees with the paragraphs it points at.
 
-This is the finding I would act on first. The grounding contract drops topics
-that cite slides the material does not have, which is real protection, but it
-does nothing about a topic whose slides are real and wrong.
+### Could a student correct it in under a minute? Not measured
 
-### Can the student correct it in under a minute?
+Nobody was timed. The interface for correcting is one click per operation, and
+sixteen topics is a short list, but **whether a student could spot the errors in
+under a minute is untested and this document does not claim it either way.**
 
-Sixteen topics is correctable in a minute. Sixteen topics *with no flag telling
-you which are wrong* is not, because the student has to check all of them
-against the slides. The interface for correcting is there — rename, split,
-merge, reorder, re-weight — and each of those is one click. The cost is not the
-click count; it is that nothing tells you where to spend it.
-
-On this file, a student who did the check would have found the model's error in
-the first topic (below) in under a minute, because the title says one thing and
-the slides say another. They would have had no reason to look there first.
+What can be said is structural: with no flag and no cross-check, a student has
+no way to know *which* topics to spend the minute on, and would have to check
+all sixteen against their slides.
 
 ## Verification
 
-The contract drops a question that cites a paragraph it was not written from,
-a multiple-choice question whose answer is not among its own options, and a
-short answer the paragraph does not contain. That contract did its job, hard.
+**A measurement problem that stops the acceptance criterion being answered.**
 
-Run C, 16 topics:
+Issue 14 asked for questions dropped by verification to be recorded. The product
+stores one number, `Quiz.dropped`, and `material/quiz.py:237` documents on
+purpose that it **blends** two causes:
 
-| | |
+```python
+dropped=written.dropped + len(written.questions) - len(kept)
+```
+
+Verification rejections *and* questions that verified but were cut because a
+quiz holds four. The page is meant to be able to say what it left out, and it
+cannot say which. **The two causes cannot be separated from anything the product
+persists**, so no verification drop rate can be computed from a run. The harness
+now records the column under its real name, `dropped_as_stored`, alongside
+`at_the_cap`, precisely so that this is visible rather than mistaken for a rate.
+
+What the per-topic figures *do* support, because `kept < 4` with
+`dropped_as_stored == 0` means the generator simply wrote too few:
+
+| | Run C, 16 topics |
 |---|---|
-| Topics given a quiz | 13 of 16 |
-| Topics given no quiz at all | 3 |
-| Questions written and kept | 29 |
-| Questions dropped | 18 |
+| Topics given a quiz | 13 |
+| Topics given none at all | 3 |
+| Quizzes below the four-question target | 9 of 13 |
+| Of those, **wrote fewer than four and dropped none** | **7** |
+| Topics at the four-question cap | 4 |
+| Topics whose quiz was empty | 1 |
 | Sittings recorded | 12 |
-| Mean score (deliberately wrong answers) | 0.0 |
-| Wrong answers sent back to a paragraph | 32 pointers |
+| Mean score (every answer deliberately wrong) | 0.0 |
 
-### The drop rate makes quizzes unusable
-
-Kept questions per topic: 4, 2, 4, 1, 3, 3, 4, 4, 1, 1, 3, **0**, 2.
-
-The spec promises a four-question quiz. **Eleven of the thirteen topics that got
-a quiz got fewer than four questions, and six got one or two.** One topic got a
-quiz with zero questions in it, and sitting it was refused.
-
-So the honest answer to "did the topic still get a usable quiz" is: **mostly
-no.** A one-question quiz cannot show a student what they do not know about a
-topic, and it does not produce the "topic has been weighed" signal the readiness
-report is built on. Twelve of sixteen topics were weighed. Four were not, and
-the report cannot say why, because "nothing survived verification" and "the
-provider was throttling" are recorded identically — as a smaller number.
-
-The drops themselves are worth reading. They are overwhelmingly short-answer
-questions the model wrote about content the span does not carry:
+**So the shortfall is mostly generation, not verification.** Seven topics
+produced one to three questions and lost nothing. The model is writing too few
+questions for administrative course descriptions — which is what the drops look
+like when read in the logs:
 
 ```
 dropped a short answer question with no answer: 'What is the dominant technique
@@ -205,55 +244,54 @@ background understanding of human bodily structures?'
 dropped an ungrounded question claim: '' on span 23
 ```
 
-That last one is a question with an **empty prompt**. The model returned objects
-with no text in them, repeatedly, and each one costs a call to discover. The
-material here is mostly course *administrative* content — who holds what post,
-what a semester is, how many credits a course carries — which is exactly the
-material that resists being turned into a multiple-choice question with a
-defensible answer.
+The last is a question with an **empty prompt**, returned repeatedly, each one
+costing a call to discover.
 
-The grounding contract is doing its job. The generator is asking the wrong
-question of the wrong material, and the contract is what stands between the
-student and a bad quiz.
+Whether a one-question quiz is *usable* is a judgement this document does not
+make on the run's behalf. The defensible statement is: **nine of thirteen
+topics fell below the four-question target the spec describes, and seven of
+those fell short because the generator under-produced, not because verification
+rejected.**
 
 ### Three topics got nothing at all
 
 Not dropped by grounding — the provider was throttling, the verification calls
-failed, and every question was lost. See the next section.
+failed, and every question was lost. See Cost. The student cannot tell this
+apart from a grounding drop, because it is recorded identically.
 
 ## The pointer map, checked by hand
 
-Every topic's slides read against the file. Fifteen of sixteen are correct and
-sensibly contiguous. Two discrepancies:
+Every topic's slides were opened and compared with its title. The completed
+sheet, with a verdict against each topic, is in
+[`run-evidence/run-c.json`](run-evidence/run-c.json) under
+`pointer_map_check`. **14 ok, 1 wrong, 1 thin; none left unchecked.**
 
-**1. Topic 1 points at the table of contents.** "College of Health Sciences
-Overview and Administration" cites slides 1, 2, 3, 4, 27, 28. Slides 1–4 are the
-title page, the copyright page, the note to undergraduates, and the table of
-contents. A student quizzed on this topic gets questions about how the book is
-laid out.
+**1. "College of Health Sciences Overview and Administration" — wrong.** Cites
+slides 1, 2, 3, 4, 27, 28. Slides 1–4 are the title page, the copyright page,
+the note to undergraduates, and the **table of contents**. The topic title names
+only the second half, and the contents page belongs to no topic at all. A
+student quizzed here gets questions about how the book is laid out. In run B the
+model created a separate topic called "Table of Contents"; in run C it folded
+one into this. Neither is right.
 
-The model also created a *separate* topic called "Table of Contents" in run B,
-and dropped it in run C. Neither is right: the contents page belongs to no
-topic, and the CoHS introduction deserves one of its own.
+**2. "Academic Calendar" — thin.** Three pages, six spans in total. Correctly
+named, but too small to support a quiz; it produced two questions.
 
-**2. Topic 1 spans a gap of 22 slides.** It holds slides 1–4 and 27–28. The
-non-contiguity is correct behaviour — it is why pointers are join rows rather
-than ranges — but combined with (1) it means one topic covers two unrelated
-things, and the title names only one of them.
+The non-contiguity of topic 1 — slides 1–4 and 27–28, a 22-slide gap — is
+correct behaviour and is exactly why pointers are join rows. The failure is in
+**naming, not pointing**, and nothing in the product notices.
 
-Also thin: "Academic Calendar" is 3 slides and 6 spans, and produced a
-two-question quiz.
-
-What this tells us: the pointer map is structurally sound and its unusual
-coverage is usually right. The failure is in *naming*, not in pointing, and
-nothing in the product notices a topic whose title does not describe its slides.
+This is also the case that argues against the reviewers' suggested remedy of
+checking a title's words against its slides: a table of contents sitting inside a
+named topic is not evidence that inferred abstractions are unsafe.
 
 ## Cost
 
-Priced at the rate the run was configured with. Tokens are what the provider
-reported; nothing here is estimated from request sizes.
+Priced at $0.30 per million tokens, a blended rate the run was configured with.
+**Tokens are what the provider reported; nothing here is estimated from request
+sizes.**
 
-Run C, gemini-3.5-flash-lite at $0.30 per million:
+Run C:
 
 | Work | Calls | Seconds | Tokens | Cost |
 |---|---|---|---|---|
@@ -264,98 +302,114 @@ Run C, gemini-3.5-flash-lite at $0.30 per million:
 | Writing the mock exam | 35 | 95.3 | unknown | unknown |
 | **Total** | **99** | **374.6** | **unknown** | **≥ $0.032** |
 
-**One call to infer the topic path costs more than every quiz on half the
-course put together.** It is 73,270 tokens of the student's own slides, and it
-happens once. That single figure is the most important cost number in this
-document: the product's first call is also its most expensive one, and it scales
-with course size while nothing else does.
+**One call to infer the topic path cost more than the twelve quizzes the run
+did manage to write, combined.** That is a comparison of $0.021981 against
+$0.010306 and it is the most important cost number here: the product's first
+call is also its most expensive, and it scales with course size while the
+per-quiz work does not.
 
-The total is not a real figure. Three quiz rows and the exam row have no token
-count, because those calls were refused, and `Ledger.tokens` returns `None` for
-the whole course rather than pricing what it knows. That is the right behaviour
-and it means **the cost of a full course run has still not been measured.** It
-could not be, on a free tier.
+**The total is not a real figure and the acceptance criterion is not met.** Three
+quiz rows and the exam row have no token count, because those calls were
+refused, and `Ledger.tokens` returns `None` for the whole course rather than
+pricing what it knows. That is correct behaviour and it means **the cost of one
+full course run has still not been measured.** It could not be, on a free tier.
 
 ### The free tier cannot serve this product
 
-This is the most consequential finding in the document.
-
-A full course run needs roughly **99 model calls**. Gemini's free tier allows
-about 20 requests a minute and has a daily cap per model.
-
-- Run A and B exhausted `gemini-2.5-flash`'s daily quota. It then refused with
+- A full course run needs roughly **99 model calls**. Gemini's free tier allows
+  about 20 requests a minute plus a daily cap per model.
+- Runs A and B exhausted `gemini-2.5-flash`'s daily quota. It then refused with
   *"Please retry in 22h16m"*.
 - `gemini-2.5-flash-lite`, `gemini-2.0-flash` and `gemini-3.5-flash-lite`
   returned **404** on the OpenAI-compatible endpoint. Only the `-latest` aliases
   and the 3.x models are reachable there.
-- Run C used 99 calls and was throttled three times despite backoff.
-- Run D on `gemini-3.8-flash` managed **37 calls in 995 seconds** and built
-  **1 of 16 quizzes**. It was slower and worse than run C.
+- Run C made 99 calls and was throttled three times even with backoff.
+- Run D made 37 calls in 995 seconds and built **1 of 16 quizzes** — slower and
+  worse than run C.
 
-Before the fix in this branch, throttling was reported to the student as *"The
-language model could not be reached"* — which sends a student to check their
-connection rather than to wait. It also lost every question in the affected
-topic silently, because the drop looked identical to a grounding drop.
+Before the fix in this branch, throttling was reported as *"The language model
+could not be reached"*, which sends a student to check their connection instead
+of to wait, and lost every question in the affected topic silently.
 
-## What was fixed in this branch
+## What was fixed here
 
-**A correct reply inside a Markdown code fence was discarded.**
-`material/model.py` parsed every model reply with a bare `json.loads`. Gemini
-answers a JSON request fenced three quarters of the time. Run B returned a
-complete, valid, 24-topic reply wrapped in ```` ```json ````, and every claim in
-it was dropped for the want of three backticks, logged only as "model reply was
-not JSON". One `_decoded` helper now unwraps a fence that is the whole reply. A
-reply with prose around the JSON is still refused, because guessing where the
-answer ends is worse than refusing.
+**A correct reply inside a Markdown code fence was discarded.** Every reply was
+parsed with a bare `json.loads`. Gemini fences its JSON most of the time. Run B
+returned a complete, valid, 24-topic reply inside a ```` ```json ```` fence and
+every claim in it was dropped for three backticks, logged only as "model reply
+was not JSON". One `_decoded` helper now unwraps a fence that is the whole
+reply; a reply with prose around the JSON is still refused, because guessing
+where the answer ends is worse than refusing.
 
-**Throttling was read as unreachability, and was not waited for.** `complete`
-now retries a 429 up to five times, believes the provider's own `Retry-After`,
-and otherwise backs off to a 60-second ceiling — the window a per-minute quota
-actually needs — then says the model is too busy rather than unreachable. The
-retries are one piece of work and one ledger row, not four.
+**Throttling was read as unreachability and was not waited for.** `complete`
+now retries a 429, believes `Retry-After` in **both** the seconds and HTTP-date
+forms, backs off to a 60-second ceiling, and reports the model as too busy rather
+than unreachable.
 
-Both are covered by tests. Full suite: 431 passing. mypy strict: clean.
+Two things changed after review, both worth stating:
+
+- **The ledger now counts HTTP attempts, not intentions.** A call throttled four
+  times and answered on the fifth is five calls, because five requests were made
+  and throttling counts against a quota. The cost of such a call is honestly
+  *unknown* — the refused requests reported no token count — so the row says so
+  rather than pricing one known answer as a total.
+- **The harness stopped lying.** It used to label every non-aborted run "ran to
+  the readiness report" regardless of what happened, and wrote its JSON only at
+  the end, so a crash lost the whole run. It now writes after every step, traps
+  and records the step that killed it, and computes its outcome from what
+  actually happened. Run C's honest outcome is:
+  `partial: reached readiness, but no mock exam written`.
+
+Tests: 433 passing. mypy strict: clean.
 
 ## What must change before a second student is onboarded
 
 Ordered by what blocks the most.
 
+**0. There is no second student.** `material/users.py` returns a constant
+`HARDCODED_USER_ID`; there is no authentication in v0. **A second student in the
+same deployment is the first student** and sees and modifies their courses.
+Everything scoped by `user_id` is ready for real identity, but that identity does
+not exist. This blocks a second student before any of the below does.
+
 **1. The topic-inference prompt has to stop being the whole course.**
-76k tokens, one call, 56% of the material discarded to fit, and a default
-timeout it cannot meet. Chunk the outline by section, or send a first pass over
-titles and a second pass over the slides of each candidate topic. This is the
-single biggest cost, the single biggest latency risk, and the reason a
-200-plus page course produces nothing at default settings.
+One 76k-token call, 56% of the material discarded to fit, sitting on the default
+timeout. Chunk it: a first pass over titles, then the slides of each candidate
+topic. Biggest cost, biggest latency risk, and the reason run A produced nothing.
 
-**2. Rate limiting has to be a first-class state, not a dropped question.**
-Three of sixteen topics had no quiz at all and the readiness report cannot
-distinguish that from a grounding drop. A topic with no verified questions
-should say so, and the cost ledger should show what was attempted.
+**2. Rate limiting must be a state the product knows, not a dropped question.**
+Three of sixteen topics had no quiz and the readiness report cannot tell that
+from a grounding drop. A topic with no verified questions should say so.
 
-**3. Verification is too strict to be useful on administrative material.**
-A majority of topics got fewer than four questions; some got one. When
-verification leaves a topic with one question, that is a finding about the
-material and it should reach the student as a sentence, not as a thinner quiz.
+**3. `Quiz.dropped` cannot answer "what did verification reject?"**
+Issue 14 asked for that and the product cannot produce it. Store the two causes
+separately.
 
-**4. A topic's title is never checked against its slides.**
-The only defence against a bad inference is a confidence number the model
-reports as 1.0. The cheapest real check — does the topic's title appear in, or
-follow from, the paragraphs it points at — is not implemented.
+**4. The generator under-produces on administrative material.** Seven of
+thirteen quizzes came up short with nothing dropped. This material resists
+well-posed questions, and the right answer may be an explicit "not enough
+assessable material here" rather than a thinner quiz — **but that is a
+hypothesis from one handbook and must be tested on real lecture decks before it
+becomes a gate.**
 
-**5. A 233-page file has a 14–30% margin on the ingestion timeout.**
-A 300-slide deck fails. The limit should scale with page count.
+**5. The flagged-topic mechanism is inert.** Confidence 1.0 from every model
+means criterion 20 never fires and the student is never warned. This needs a
+second signal that does not depend on the model's self-report.
 
-**6. The full cost of a full run is still unknown** because no run has completed
-on a provider that would answer. It needs a paid key and one patient run.
+**6. Ingestion has a 14–30% margin on a 233-page file, varying 26% run to run.**
+Scale the limit with page count, or raise the default.
 
 **7. Throttling copy leaks onto the wrong page.** The mock exam's refusal says
-*"You can add the topics yourself below"*, on a page about an exam. The advice
-is shared between every model failure; it should be chosen per page.
+*"You can add the topics yourself below"* — on a page about an exam. The advice
+is shared across every model failure; it should be chosen per page.
+
+**8. The full cost of a full run is unknown.** It needs a paid key and one
+patient run. Until then the cost page can honestly say what each piece cost and
+cannot say what a student costs.
 
 ## The one-line version
 
-Extraction held. Inference did not, and the two things standing between a
-student and a usable plan — a bounded prompt and a working model — are both
-external limits rather than code. The fixes made here unblock a run; they do
-not make the product work on a 200-plus page course, and the first thing to
-change is the 76k-token call that reads the whole course in one request.
+Extraction produced every page. Generation never finished the journey, and the
+three things that stopped it — one oversized call, one provider's rate limits,
+and an unverifiable drop count — are all still open. The first thing to change
+is the 76k-token call that reads the whole course in a single request.
