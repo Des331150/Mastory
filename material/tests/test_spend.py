@@ -463,6 +463,11 @@ class ThrottlingTests(AnsweredTestCase):
             None,
         )
 
+    #: What one call waited and what it was charged, kept on the case so a test
+    #: that asserts the refusal can still read the waits that led to it.
+    slept: list[float]
+    meter: model.Meter
+
     def call_through(
         self,
         *errors: BaseException,
@@ -472,6 +477,7 @@ class ThrottlingTests(AnsweredTestCase):
         body = answer or {"choices": [{"message": {"content": "{}"}}],
                           "usage": {"total_tokens": 20}}
         slept: list[float] = []
+        self.slept = slept
         refusals = list(errors)
 
         def refusing(*_: Any, **__: Any) -> Any:
@@ -485,6 +491,7 @@ class ThrottlingTests(AnsweredTestCase):
             mock.patch.object(time, "sleep", slept.append),
             model.measuring() as meter,
         ):
+            self.meter = meter
             return model.complete("a prompt"), meter, slept
 
     def test_a_throttled_call_is_tried_again_rather_than_dropped(self) -> None:
@@ -516,15 +523,88 @@ class ThrottlingTests(AnsweredTestCase):
         self.assertGreater(slept[0], 15.0, "it retried before the time it was given")
         self.assertLessEqual(slept[0], 20.0)
 
-    def test_a_wait_further_off_than_the_ceiling_is_waited_out_to_it(self) -> None:
-        """The cap is on how long a student is made to wait, not a licence to
-        retry before the moment the provider named."""
+    def test_a_wait_further_off_than_the_budget_is_not_waited_at_all(self) -> None:
+        """A provider naming an hour is told, plainly, rather than being waited
+        on: the page asks a student for a minute and this is a minute."""
+        throttled = self._throttled({"Retry-After": "3600"})
+        with self.assertRaises(model.ModelUnavailable) as raised:
+            self.call_through(*[throttled] * model.THROTTLE_ATTEMPTS)
+
+        self.assertIn("too busy", str(raised.exception))
+        self.assertEqual(self.slept, [], "it waited on a wait it could not afford")
+
+    def test_the_budget_is_on_the_total_not_on_each_wait(self) -> None:
+        """A provider asking for a minute on every refusal must not be able to
+        buy four minutes of a student watching a spinner.
+
+        Capping each sleep instead of the total made this 240 seconds against a
+        stated budget of 75.
+        """
+        throttled = self._throttled({"Retry-After": "60"})
+        with self.assertRaises(model.ModelUnavailable) as raised:
+            self.call_through(*[throttled] * model.THROTTLE_ATTEMPTS)
+
+        self.assertIn("too busy", str(raised.exception))
+        self.assertLessEqual(
+            sum(self.slept),
+            model.RETRY_BUDGET_SECONDS,
+            "the whole of the waiting has to fit the budget",
+        )
+        self.assertEqual(
+            self.meter.calls, 1, "a wait the budget cannot afford is not taken at all"
+        )
+
+    def test_a_wait_the_budget_cannot_afford_is_not_taken_at_all(self) -> None:
+        """The page tells a student to wait a minute. This product must not then
+        hold them for longer than that over a provider's wishes."""
+        throttled = self._throttled({"Retry-After": "3600"})
+        with self.assertRaises(model.ModelUnavailable):
+            self.call_through(*[throttled] * model.THROTTLE_ATTEMPTS)
+
+        self.assertLessEqual(sum(self.slept), model.RETRY_BUDGET_SECONDS)
+
+    def test_a_throttled_call_that_is_given_no_answer_is_not_waited_on_at_all(self) -> None:
+        """An error this product is asked to hold on to is closed, not left for
+        a collector: a throttled run makes these by the dozen."""
+        self.closed: list[bool] = []
+        self.slept = []
+        throttled = self._throttled()
+        throttled.close = lambda: self.closed.append(True)  # type: ignore[method-assign]
+        with override_settings(
+            **self.SERVED
+        ), mock.patch.object(
+            time, "sleep", self.slept.append
+        ), mock.patch.object(urllib.request, "urlopen", side_effect=throttled):
+            with self.assertRaises(model.ModelUnavailable):
+                model.complete("a prompt")
+
+        self.assertTrue(self.closed, "the error holding the response was not closed")
+
+    def test_a_wait_that_is_not_a_number_is_not_waited_on(self) -> None:
+        """``Retry-After: nan`` parses as a float and compares False to
+        everything, which would carry a nan into ``sleep`` and raise there."""
         _, _, slept = self.call_through(
-            self._throttled({"Retry-After": "3600"}),
+            self._throttled({"Retry-After": "nan"}),
             answer={"choices": [{"message": {"content": "{}"}}]},
         )
 
-        self.assertEqual(slept, [model.MAX_BACKOFF_SECONDS])
+        self.assertEqual(slept, [1.0], "it fell back on the backoff, not the nan")
+
+    def test_a_body_that_is_not_text_is_unreachable_rather_than_a_crash(self) -> None:
+        """A provider answering in bytes this product cannot read has not
+        answered, and the request was still made."""
+        with (
+            override_settings(**self.SERVED),
+            mock.patch.object(
+                urllib.request, "urlopen", return_value=_Bytes(b"\xff\xfe not utf-8")
+            ),
+            model.measuring() as meter,
+        ):
+            with self.assertRaises(model.ModelUnavailable) as raised:
+                model.complete("a prompt")
+
+        self.assertIn("could not be reached", str(raised.exception))
+        self.assertEqual(meter.calls, 1, "the request was made whether or not it read")
 
     def test_a_provider_that_keeps_refusing_says_it_is_busy(self) -> None:
         throttled = self._throttled()
@@ -550,11 +630,31 @@ class ThrottlingTests(AnsweredTestCase):
         with self.assertRaises(model.ModelUnavailable) as raised:
             self.call_through(
                 urllib.error.HTTPError(
-                    "http://model.invalid", 500, "Server Error", email.message.Message(), None
+                    "http://model.invalid",
+                    500,
+                    "Server Error",
+                    email.message.Message(),
+                    None,
                 )
             )
 
         self.assertIn("could not be reached", str(raised.exception))
+
+
+class _Bytes:
+    """A reply whose bytes are not valid text, which a provider can still send."""
+
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def __enter__(self) -> "_Bytes":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._body
 
 
 def _headers(pairs: dict[str, str]) -> email.message.Message:

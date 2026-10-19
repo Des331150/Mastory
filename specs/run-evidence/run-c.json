@@ -225,9 +225,7 @@
    }
   }
  },
- "outcome": "ran to the readiness report",
  "verification": {
-  "total_dropped": 18,
   "topics_with_no_quiz": [
    "School of Nursing Programme Structure and Course Descriptions",
    "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
@@ -405,7 +403,12 @@
   "mock_exam": {
    "written": false,
    "page_says": "REAL RUN: ug-chs-handbook-2017: mock exam Mastory Your course material, readable Mock exam: REAL RUN: ug-chs-handbook-2017 The language model is too busy to answer right now. Wait a minute and try again. You can add the topics yourself below in the meantime. One exam, one attempt This is the whole course in one paper: questions written from your own slides, up to 2 of them for every topic, in the "
-  }
+  },
+  "dropped_as_stored_total": 18,
+  "quizzes_below_target": 9,
+  "short_because_under_produced": 7,
+  "dropped_note": "dropped_as_stored blends verification rejections with questions cut only because a quiz holds four (material/quiz.py:237). It is not a verification drop rate and cannot be made into one from stored data.",
+  "outcome_note": "Recorded by hand from run C. The harness labels its own outcome; this file predates that and the line above is the corrected value."
  },
  "readiness": {
   "status": 200,
@@ -2110,5 +2113,7 @@
   "infer_seconds": 5.9,
   "infer_page_says": ""
  },
- "pointer_map_check_note": "Read against the file on 2026-10-19. verdict is ok / WRONG / THIN, decided by opening every cited slide and comparing it with the topic title. 14 ok, 1 wrong, 1 thin; no topic was left unchecked."
+ "pointer_map_check_note": "Read against the file on 2026-10-19. verdict is ok / WRONG / THIN, decided by opening every cited slide and comparing it with the topic title. 14 ok, 1 wrong, 1 thin; no topic was left unchecked.",
+ "outcome": "partial: no mock exam written",
+ "evidence_note": "Findings for run C, the reference run. Run before the round-2 harness fixes, so its outcome line and its drop aggregate were corrected by hand afterwards; per-topic dropped values are as stored by the application."
 }

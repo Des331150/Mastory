@@ -297,16 +297,24 @@ Run C:
 |---|---|---|---|---|
 | Reading the file in | 0 | 94.2 | 0 | $0.000000 |
 | Working out the topic path | 1 | 5.7 | 73,270 | **$0.021981** |
-| Writing 12 topic quizzes | 40 | 63.0 | 34,353 | **$0.010306** |
-| 4 more quizzes, throttled | 23 | 116.4 | unknown | unknown |
-| Writing the mock exam | 35 | 95.3 | unknown | unknown |
-| **Total** | **99** | **374.6** | **unknown** | **≥ $0.032** |
+| Writing the 10 quizzes that both wrote and verified fully | 40 | 63.0 | 34,353 | **$0.010306** |
+| 3 quizzes partly written, throttled | 23 | 116.4 | unknown | unknown |
+| Writing the mock exam, which failed | 35 | 95.3 | unknown | unknown |
+| **Total (16 quiz rows + 1 exam row + 1 topic row + 1 ingest row)** | **99** | **374.6** | **unknown** | **≥ $0.032** |
 
-**One call to infer the topic path cost more than the twelve quizzes the run
-did manage to write, combined.** That is a comparison of $0.021981 against
-$0.010306 and it is the most important cost number here: the product's first
-call is also its most expensive, and it scales with course size while the
-per-quiz work does not.
+The quiz column is 63 calls across 16 rows; the table shows only the 40 of those
+whose token count the provider reported. The remaining 23 are calls that were
+made and refused.
+
+**One call to infer the topic path cost more than the twelve quizzes whose cost
+is known, put together** — $0.021981 against $0.010306. That is a comparison of
+*known* costs only, and it is the most important number here, because it is the
+one piece of work that scales with course size while the per-quiz work does not.
+It is **not** a claim that inference is the most expensive work in the product:
+four quiz rows and the exam row have no token count, and if those four quizzes
+cost anything near $0.022 each the comparison reverses. What survives is
+narrower and still worth acting on — *one call reading the whole course in cost
+more than every quiz the run managed to write at a known price.*
 
 **The total is not a real figure and the acceptance criterion is not met.** Three
 quiz rows and the exam row have no token count, because those calls were
@@ -316,8 +324,10 @@ full course run has still not been measured.** It could not be, on a free tier.
 
 ### The free tier cannot serve this product
 
-- A full course run needs roughly **99 model calls**. Gemini's free tier allows
-  about 20 requests a minute plus a daily cap per model.
+- This run made **99 model calls and still did not finish** — the exam was never
+  written. A complete run needs *more* than 99; how much more is unknown,
+  because the exam never ran. Gemini's free tier allows about 20 requests a
+  minute plus a daily cap per model.
 - Runs A and B exhausted `gemini-2.5-flash`'s daily quota. It then refused with
   *"Please retry in 22h16m"*.
 - `gemini-2.5-flash-lite`, `gemini-2.0-flash` and `gemini-3.5-flash-lite`
@@ -343,24 +353,37 @@ where the answer ends is worse than refusing.
 
 **Throttling was read as unreachability and was not waited for.** `complete`
 now retries a 429, believes `Retry-After` in **both** the seconds and HTTP-date
-forms, backs off to a 60-second ceiling, and reports the model as too busy rather
-than unreachable.
+forms, backs off, and reports the model as too busy rather than unreachable.
+The waiting is bounded by `RETRY_BUDGET_SECONDS` (45) on the **total**, not per
+sleep — a provider asking for a minute on every refusal would otherwise buy four
+minutes of a student watching a spinner, and the page only ever asks for one.
 
-Two things changed after review, both worth stating:
+Four things changed after review, all worth stating:
 
-- **The ledger now counts HTTP attempts, not intentions.** A call throttled four
-  times and answered on the fifth is five calls, because five requests were made
-  and throttling counts against a quota. The cost of such a call is honestly
-  *unknown* — the refused requests reported no token count — so the row says so
-  rather than pricing one known answer as a total.
+- **The ledger now counts HTTP attempts, not intentions.** A call throttled and
+  retried is several calls, because several requests were made and throttling
+  counts against a quota. The cost of such a call is honestly *unknown* — the
+  refused requests reported no token count — so the row says so rather than
+  pricing one known answer as a total.
+- **The error holding a refused response is now closed.** `HTTPError` is
+  file-like and can own the socket it came from; a throttled run makes these by
+  the dozen, and they were being left for the collector.
+- **A body that is not text is now unreachable rather than a crash.** A
+  non-UTF-8 reply escaped as a raw `UnicodeDecodeError`, and the spend row then
+  recorded zero calls for a request that was in fact made. `Retry-After: nan`
+  had the same shape: it parsed as a float, compared false to everything, and
+  raised inside `sleep`.
 - **The harness stopped lying.** It used to label every non-aborted run "ran to
   the readiness report" regardless of what happened, and wrote its JSON only at
-  the end, so a crash lost the whole run. It now writes after every step, traps
-  and records the step that killed it, and computes its outcome from what
-  actually happened. Run C's honest outcome is:
-  `partial: reached readiness, but no mock exam written`.
+  the end, so a crash lost the whole run. It now writes after every step through
+  a temporary file and `replace()`, so an interrupted write cannot destroy the
+  evidence it exists to keep; it flushes per topic rather than per stage, so a
+  run that dies on topic twelve still has eleven; it traps and records the step
+  that killed it; and it computes its outcome from what actually happened,
+  checking the readiness and schedule responses rather than assuming them. Run
+  C's honest outcome is `partial: no mock exam written`.
 
-Tests: 433 passing. mypy strict: clean.
+Tests: 438 passing. mypy strict: clean.
 
 ## What must change before a second student is onboarded
 

@@ -58,17 +58,23 @@ _SLIDE_TEXT_LIMIT = 1200
 _FENCE = re.compile(r"\A\s*```[^\n`]*\n(?P<body>.*?)\n?```\s*\Z", re.DOTALL)
 
 #: How many times one call is tried when the provider is throttling, and how long
-#: the wait between them is allowed to grow.
+#: the whole of that waiting is allowed to take.
 #:
-#: The ceiling is a minute because that is the shape of the limit being ridden
-#: out: providers with a free tier allow a fixed number of requests a minute and
-#: send no ``Retry-After`` for it, so waiting has to reach as far as the window
-#: that will have passed. Five attempts then waits at most 75 seconds, which is
-#: the same order as the "wait a minute and try again" a student is told, so the
-#: worst case is never longer than what the page asks of them.
+#: The budget is on the total rather than on each wait, because the limit being
+#: ridden out is a window: providers with a free tier allow a fixed number of
+#: requests a minute and send no ``Retry-After`` for it, so waiting has to reach
+#: as far as the window that will have passed. Capping each sleep alone let a
+#: provider asking for a minute buy four minutes of a student watching a spinner.
 THROTTLED = 429
-THROTTLE_ATTEMPTS = 5
-MAX_BACKOFF_SECONDS = 60.0
+THROTTLE_ATTEMPTS = 4
+MAX_BACKOFF_SECONDS = 45.0
+
+#: The most time one call may spend *waiting to be retried*, whatever the
+#: provider asks for. The attempts themselves are bounded by the configured
+#: network timeout; this bounds what this product adds on top, so a student is
+#: never held for a sum of provider wishes. It is the "wait a minute" on the
+#: page, spent as waits rather than as a spinner.
+RETRY_BUDGET_SECONDS = 45.0
 
 _INSTRUCTION = (
     "You are reading one student's own course material to work out the topic "
@@ -643,6 +649,8 @@ def complete(prompt: str) -> str:
     base = settings.MODEL_BASE_URL
     if not base or not settings.MODEL_NAME:
         raise ModelUnavailable(*NOT_CONFIGURED)
+    waited = 0.0
+    begun = time.monotonic()
     for attempt in range(THROTTLE_ATTEMPTS):
         request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
             f"{base.rstrip('/')}/chat/completions",
@@ -666,17 +674,29 @@ def complete(prompt: str) -> str:
                 body: Any = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as failure:
             note_call(None)
-            if failure.code != THROTTLED or attempt == THROTTLE_ATTEMPTS - 1:
+            # The error is file-like and can hold the response it came from, so
+            # it is closed here rather than left for the collector: a throttled
+            # run makes these by the dozen.
+            failure.close()
+            throttled = failure.code == THROTTLED
+            wait = _backoff(failure, attempt, waited) if throttled else 0.0
+            out_of_time = (
+                time.monotonic() - begun + wait
+            ) > RETRY_BUDGET_SECONDS
+            if not throttled or out_of_time or attempt == THROTTLE_ATTEMPTS - 1:
                 raise ModelUnavailable(
-                    *(
-                        THROTTLE_MESSAGE
-                        if failure.code == THROTTLED
-                        else UNREACHABLE
-                    )
+                    *(THROTTLE_MESSAGE if throttled else UNREACHABLE)
                 ) from failure
-            time.sleep(_backoff(failure, attempt))
+            time.sleep(wait)
+            waited += wait
             continue
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            OSError,
+        ) as failure:
             note_call(None)
             raise ModelUnavailable(*UNREACHABLE) from failure
         note_call(_tokens(body))
@@ -684,19 +704,24 @@ def complete(prompt: str) -> str:
     raise ModelUnavailable(*UNREACHABLE)  # pragma: no cover - the loop returns or raises
 
 
-def _backoff(failure: urllib.error.HTTPError, attempt: int) -> float:
-    """How long to wait before trying a throttled call again.
+def _backoff(failure: urllib.error.HTTPError, attempt: int, waited: float) -> float:
+    """How long to wait before trying a throttled call again, in whole seconds.
 
     The provider's own ``Retry-After`` is believed where it gives one, in either
     of the two forms the header is allowed to take - seconds, or an HTTP date -
     because it is the only number here that knows how loaded the provider
-    actually is. A date further off than the ceiling is waited out to the
-    ceiling rather than ignored, so the wait is always at least as long as the
-    backoff it would have taken anyway. The exponential term is the floor
-    under it, so a provider that sends no header at all is still waited for
-    rather than hammered.
+    actually is. The exponential term is the floor under it, so a provider that
+    sends no header at all is still waited for rather than hammered.
+
+    What bounds it is the total already waited, not this wait alone: a provider
+    asking for a minute on every refusal would otherwise buy four minutes of a
+    student watching a spinner, which is longer than the page asks of them. The
+    last wait is clamped so the total never passes ``MAX_BACKOFF_SECONDS``.
     """
-    return max(_asked_for(failure), min(2.0**attempt, MAX_BACKOFF_SECONDS))
+    return min(
+        max(_asked_for(failure), min(2.0**attempt, MAX_BACKOFF_SECONDS)),
+        max(MAX_BACKOFF_SECONDS - waited, 0.0),
+    )
 
 
 def _asked_for(failure: urllib.error.HTTPError) -> float:
@@ -705,9 +730,15 @@ def _asked_for(failure: urllib.error.HTTPError) -> float:
     if given is None:
         return 0.0
     try:
-        return min(float(given), MAX_BACKOFF_SECONDS)
+        seconds = float(given)
     except (TypeError, ValueError):
         pass
+    else:
+        # ``nan`` is a float and comparing it silently answers False everywhere,
+        # which would carry a nan into ``sleep`` and raise there instead.
+        if seconds == seconds and 0 <= seconds < float("inf"):
+            return min(seconds, MAX_BACKOFF_SECONDS)
+        return 0.0
     try:
         when = parsedate_to_datetime(given)
     except (TypeError, ValueError):

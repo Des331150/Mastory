@@ -87,15 +87,22 @@ def note(step: str, **detail: Any) -> None:
 
 
 def flush() -> None:
-    """Write what has been collected so far, now.
+    """Write what has been collected so far, now, without risking what is there.
 
-    Written on every step rather than once at the end because the interesting
-    runs are the ones that fall over. A harness that only writes on success
-    loses the evidence of exactly the failure it was run to find.
+    Written after every step because the interesting runs are the ones that fall
+    over, and through a temporary file because a run killed mid-write would
+    otherwise replace a whole run's evidence with half a file. The evidence is
+    the only thing this script produces; losing it to an interrupted write is
+    the one failure it must not have.
     """
     if out is None:
         return
-    out.write_text(json.dumps(findings, indent=2, default=str))
+    scratch = out.with_suffix(out.suffix + ".part")
+    with scratch.open("w") as handle:
+        json.dump(findings, handle, indent=2, default=str)
+        handle.flush()
+        os.fsync(handle.fileno())
+    scratch.replace(out)
 
 
 def trap() -> None:
@@ -284,6 +291,11 @@ def main() -> int:
                     "page_says": text_of(response)[:300],
                 }
             )
+            # Written per topic, not per stage: a run that dies on topic twelve
+            # has still learned something about the first eleven, and holding
+            # them back until the end throws that away with the run.
+            findings["verification"]["topic_quizzes"] = per_topic_quiz
+            flush()
             continue
         questions = list(quiz.questions.order_by("ordinal"))
         entry = {
@@ -321,18 +333,45 @@ def main() -> int:
             follow=True,
         )
         entry["sitting_refused"] = 'class="error"' in response.content.decode()
+        findings["verification"]["topic_quizzes"] = per_topic_quiz
+        flush()
     findings["verification"]["topic_quizzes"] = per_topic_quiz
     findings["verification"]["topics_with_no_quiz"] = [
         q["topic"] for q in per_topic_quiz if not q["built"]
     ]
-    findings["verification"]["total_dropped"] = sum(
-        q.get("dropped", 0) for q in per_topic_quiz
+    # What the product stores, under the name it stores it under. Summing it into
+    # something called "dropped" is how this harness first reported a
+    # verification drop rate that was partly a question cap.
+    findings["verification"]["dropped_as_stored_total"] = sum(
+        q.get("dropped_as_stored", 0) or 0 for q in per_topic_quiz
+    )
+    # The figure the document can actually defend: topics whose quiz fell short
+    # of the target while losing nothing, which is the generator under-producing
+    # rather than verification rejecting.
+    findings["verification"]["quizzes_below_target"] = sum(
+        1
+        for q in per_topic_quiz
+        if q.get("built") and (q.get("kept") or 0) < question_limit()
+    )
+    findings["verification"]["short_because_under_produced"] = sum(
+        1
+        for q in per_topic_quiz
+        if q.get("built")
+        and (q.get("kept") or 0) < question_limit()
+        and not (q.get("dropped_as_stored") or 0)
+    )
+    findings["verification"]["dropped_note"] = (
+        "dropped_as_stored blends verification rejections with questions cut "
+        "only because a quiz holds four (material/quiz.py:237). It is not a "
+        "verification drop rate and cannot be made into one from stored data."
     )
     note(
         "topic_quizzes",
         built=sum(1 for q in per_topic_quiz if q["built"]),
         of=len(per_topic_quiz),
-        dropped=findings["verification"]["total_dropped"],
+        dropped_as_stored=findings["verification"]["dropped_as_stored_total"],
+        below_target=findings["verification"]["quizzes_below_target"],
+        under_produced=findings["verification"]["short_because_under_produced"],
     )
 
     # --- the mock exam -----------------------------------------------------
@@ -425,7 +464,14 @@ def main() -> int:
         "verdict in is the hand check; a run whose verdicts are still blank has "
         "not had one."
     )
-    findings["outcome"] = _outcome(topics, per_topic_quiz, exam, len(attempts))
+    findings["outcome"] = _outcome(
+        topics,
+        per_topic_quiz,
+        exam,
+        len(attempts),
+        readiness_status=response_status(findings, "readiness", "status"),
+        schedule_status=settings_response.status_code,
+    )
     findings["run_finished"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     flush()
@@ -433,23 +479,35 @@ def main() -> int:
     return 0
 
 
+def response_status(section: dict[str, Any], key: str, field: str) -> int:
+    """A recorded status code, or 0 where there is not one to be had."""
+    value = section.get(key, {}).get(field)
+    return int(value) if isinstance(value, int) else 0
+
+
 def _outcome(
     topics: list[Topic],
     per_topic_quiz: list[dict[str, Any]],
     exam: MockExam | None,
     attempts: int,
+    *,
+    readiness_status: int,
+    schedule_status: int,
 ) -> str:
     """What this run actually did, said without rounding up.
 
     Asked of the run rather than assumed by it. A run that stops after the exam
     is refused has not "run to the readiness report" however willing the
     readiness page was to render, and a label that says otherwise is the one
-    thing a findings document must never do.
+    thing a findings document must never do. Neither status is taken on trust:
+    a readiness endpoint answering 500 has not been reached.
     """
     built = sum(1 for q in per_topic_quiz if q.get("built"))
     missing = []
     if not topics:
         missing.append("no topic path")
+    if schedule_status >= 400 or not missing and schedule_status != 200:
+        missing.append(f"schedule page refused ({schedule_status})")
     if not built:
         missing.append("no topic quiz written")
     if exam is None:
@@ -458,9 +516,11 @@ def _outcome(
         missing.append("mock exam never sat")
     if not attempts:
         missing.append("no quiz sat")
+    if readiness_status != 200:
+        missing.append(f"readiness page refused ({readiness_status})")
     if not missing:
         return "upload, topic path, schedule, quizzes, mock exam and readiness"
-    return "partial: reached readiness, but " + "; ".join(missing)
+    return "partial: " + "; ".join(missing)
 
 
 def question_limit() -> int:
