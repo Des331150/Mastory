@@ -23,12 +23,16 @@ that knows a call happened at all.
 
 import json
 import logging
+import re
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 from django.conf import settings
@@ -48,6 +52,29 @@ UNSURE = "The model was not sure of this topic. Check it against your slides."
 #: How much of one slide the model is shown. Long slides are trimmed rather than
 #: dropped, so a topic can still be inferred from the part that was sent.
 _SLIDE_TEXT_LIMIT = 1200
+
+#: A reply that is a Markdown code fence and nothing else, with its opening tag
+#: and its language left optional. See ``_decoded``.
+_FENCE = re.compile(r"\A\s*```[^\n`]*\n(?P<body>.*?)\n?```\s*\Z", re.DOTALL)
+
+#: How many times one call is tried when the provider is throttling, and how long
+#: the whole of that waiting is allowed to take.
+#:
+#: The budget is on the total rather than on each wait, because the limit being
+#: ridden out is a window: providers with a free tier allow a fixed number of
+#: requests a minute and send no ``Retry-After`` for it, so waiting has to reach
+#: as far as the window that will have passed. Capping each sleep alone let a
+#: provider asking for a minute buy four minutes of a student watching a spinner.
+THROTTLED = 429
+THROTTLE_ATTEMPTS = 4
+MAX_BACKOFF_SECONDS = 45.0
+
+#: The most time one call may spend *waiting to be retried*, whatever the
+#: provider asks for. The attempts themselves are bounded by the configured
+#: network timeout; this bounds what this product adds on top, so a student is
+#: never held for a sum of provider wishes. It is the "wait a minute" on the
+#: page, spent as waits rather than as a spinner.
+RETRY_BUDGET_SECONDS = 45.0
 
 _INSTRUCTION = (
     "You are reading one student's own course material to work out the topic "
@@ -236,10 +263,28 @@ def _grounded_topics(reply: str, *, slides: Sequence[SlideExcerpt]) -> list[Topi
     return proposals
 
 
+def _decoded(reply: str) -> Any:
+    """The JSON a model sent, with a Markdown code fence taken off it first.
+
+    A model asked for JSON very often wraps the JSON in a fence, and the fence
+    is not part of the answer - parsing the reply exactly as it arrived turns a
+    correct reply into "not JSON", and drops a whole topic path or a whole quiz
+    over three backticks. Found on the first real course in issue 14: Gemini
+    answered a 233-slide topic request with fenced JSON, and nothing was taken
+    from it.
+
+    Only a reply that is entirely a fence is unwrapped. Prose around the JSON is
+    something the model chose to say, and cutting down to the outermost braces
+    would be guessing where the answer ends.
+    """
+    fenced = _FENCE.match(reply)
+    return json.loads(fenced.group(1) if fenced else reply)
+
+
 def _claimed_topics(reply: str) -> list[dict[str, Any]]:
     """The topic objects in a reply, or none at all if it is not one."""
     try:
-        parsed = json.loads(reply)
+        parsed = _decoded(reply)
     except json.JSONDecodeError:
         logger.warning("model reply was not JSON; no topics taken from it")
         return []
@@ -424,7 +469,7 @@ def _answer_is_supported(span: SpanExcerpt, question: QuestionProposal) -> bool:
 def _supported(reply: str) -> bool:
     """The yes or no out of a verification reply."""
     try:
-        parsed = json.loads(reply)
+        parsed = _decoded(reply)
     except json.JSONDecodeError:
         logger.warning("verification reply was not JSON; the question is dropped")
         return False
@@ -519,7 +564,7 @@ def _graded_question(
 def _claimed_questions(reply: str) -> list[dict[str, Any]]:
     """The question objects in a reply, or none at all if it is not one."""
     try:
-        parsed = json.loads(reply)
+        parsed = _decoded(reply)
     except json.JSONDecodeError:
         logger.warning("model reply was not JSON; no questions taken from it")
         return []
@@ -590,12 +635,23 @@ def complete(prompt: str) -> str:
     a refused call is the expensive one: it took the wall clock and the
     provider's money and gave back nothing, and a ledger that only counted the
     calls which came back would price a failing week at nothing.
+
+    A provider that is throttling us is waited for rather than given up on.
+    One real course in issue 14 needed about fifty calls inside a few minutes,
+    which is more than the free tier allows per minute; read as a plain failure
+    that throttling dropped every question in the second half of the course and
+    the student was told the model could not be reached.
+
+    What the ledger counts is HTTP attempts, not intentions: a call throttled
+    four times and answered on the fifth is five calls, because five requests
+    were made and throttling is counted against a provider's quota.
     """
     base = settings.MODEL_BASE_URL
     if not base or not settings.MODEL_NAME:
         raise ModelUnavailable(*NOT_CONFIGURED)
-    moved: int | None = None
-    try:
+    waited = 0.0
+    begun = time.monotonic()
+    for attempt in range(THROTTLE_ATTEMPTS):
         request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
             f"{base.rstrip('/')}/chat/completions",
             data=json.dumps(
@@ -616,12 +672,80 @@ def complete(prompt: str) -> str:
                 request, timeout=settings.MODEL_TIMEOUT_SECONDS
             ) as response:
                 body: Any = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as failure:
+        except urllib.error.HTTPError as failure:
+            note_call(None)
+            # The error is file-like and can hold the response it came from, so
+            # it is closed here rather than left for the collector: a throttled
+            # run makes these by the dozen.
+            failure.close()
+            throttled = failure.code == THROTTLED
+            wait = _backoff(failure, attempt, waited) if throttled else 0.0
+            out_of_time = (
+                time.monotonic() - begun + wait
+            ) > RETRY_BUDGET_SECONDS
+            if not throttled or out_of_time or attempt == THROTTLE_ATTEMPTS - 1:
+                raise ModelUnavailable(
+                    *(THROTTLE_MESSAGE if throttled else UNREACHABLE)
+                ) from failure
+            time.sleep(wait)
+            waited += wait
+            continue
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            OSError,
+        ) as failure:
+            note_call(None)
             raise ModelUnavailable(*UNREACHABLE) from failure
-        moved = _tokens(body)
+        note_call(_tokens(body))
         return _reply_text(body)
-    finally:
-        note_call(moved)
+    raise ModelUnavailable(*UNREACHABLE)  # pragma: no cover - the loop returns or raises
+
+
+def _backoff(failure: urllib.error.HTTPError, attempt: int, waited: float) -> float:
+    """How long to wait before trying a throttled call again, in whole seconds.
+
+    The provider's own ``Retry-After`` is believed where it gives one, in either
+    of the two forms the header is allowed to take - seconds, or an HTTP date -
+    because it is the only number here that knows how loaded the provider
+    actually is. The exponential term is the floor under it, so a provider that
+    sends no header at all is still waited for rather than hammered.
+
+    What bounds it is the total already waited, not this wait alone: a provider
+    asking for a minute on every refusal would otherwise buy four minutes of a
+    student watching a spinner, which is longer than the page asks of them. The
+    last wait is clamped so the total never passes ``MAX_BACKOFF_SECONDS``.
+    """
+    return min(
+        max(_asked_for(failure), min(2.0**attempt, MAX_BACKOFF_SECONDS)),
+        max(MAX_BACKOFF_SECONDS - waited, 0.0),
+    )
+
+
+def _asked_for(failure: urllib.error.HTTPError) -> float:
+    """How many seconds the provider asked us to wait, or zero where it did not."""
+    given = failure.headers.get("Retry-After") if failure.headers else None
+    if given is None:
+        return 0.0
+    try:
+        seconds = float(given)
+    except (TypeError, ValueError):
+        pass
+    else:
+        # ``nan`` is a float and comparing it silently answers False everywhere,
+        # which would carry a nan into ``sleep`` and raise there instead.
+        if seconds == seconds and 0 <= seconds < float("inf"):
+            return min(seconds, MAX_BACKOFF_SECONDS)
+        return 0.0
+    try:
+        when = parsedate_to_datetime(given)
+    except (TypeError, ValueError):
+        return 0.0
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return min(max((when - datetime.now(when.tzinfo)).total_seconds(), 0.0), MAX_BACKOFF_SECONDS)
 
 
 def _tokens(body: Any) -> int | None:
@@ -718,6 +842,11 @@ NOT_CONFIGURED = (
 UNREACHABLE = (
     "The language model could not be reached.",
     "Try again in a minute. You can add the topics yourself below in the "
+    "meantime.",
+)
+THROTTLE_MESSAGE = (
+    "The language model is too busy to answer right now.",
+    "Wait a minute and try again. You can add the topics yourself below in the "
     "meantime.",
 )
 

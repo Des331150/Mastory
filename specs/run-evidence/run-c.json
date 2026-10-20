@@ -1,0 +1,2119 @@
+{
+ "run_started": "2026-10-19T01:57:21+0000",
+ "run_finished": "2026-10-19T02:03:39+0000",
+ "source_pdf": "/tmp/opencode/ug-chs-handbook-2017.pdf",
+ "source_bytes": 1325354,
+ "source_pdf_pages": 233,
+ "model": {
+  "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+  "name": "gemini-3.5-flash-lite",
+  "usd_per_million_tokens": "0.30"
+ },
+ "timing": {
+  "upload_seconds": 95.0,
+  "topic_infer_seconds": 5.9,
+  "schedule_seconds": 0.7,
+  "exam_start_seconds": 95.57,
+  "exam_seconds": 95.57
+ },
+ "schedule": {
+  "exam_date": "2026-11-16",
+  "mode": "exam",
+  "sessions": 16,
+  "confirm_says": "REAL RUN: ug-chs-handbook-2017: topic path Mastory Your course material, readable Your topic path The topics REAL RUN: ug-chs-handbook-2017 covers, in the order the course teaches them. Read the slides &middot; Your week Topic path confirmed. You can now plan your revision. 1. College of Health Scie",
+  "settings_status": 200,
+  "settings_says": "REAL RUN: ug-chs-handbook-2017: your week Mastory Your course material, readable Your week Exam mode 28 days to go. Exam on 16 November 2026. How far you are You have done 0 of 16 sessions &middot; 0% of your plan This is how much of what you set out to do you have done. There is nothing to keep up with here but the days you meant to. Today's session College of Health Sciences Overview and Adminis"
+ },
+ "extraction": {
+  "files": [
+   {
+    "name": "ug-chs-handbook-2017.pdf",
+    "status": "ready",
+    "failure_reason": "",
+    "failure_advice": "",
+    "page_count": 233,
+    "stages": [
+     {
+      "stage": "pages_read",
+      "outcome": "done",
+      "detail": "read 233 pages"
+     },
+     {
+      "stage": "converting",
+      "outcome": "done",
+      "detail": "converted 233 pages to Markdown"
+     },
+     {
+      "stage": "verifying",
+      "outcome": "done",
+      "detail": "checked 233 sections"
+     }
+    ]
+   }
+  ],
+  "slides_stored": 233,
+  "spans_stored": 3118,
+  "slide_numbers_missing": [],
+  "slides_with_no_text": [],
+  "slides_with_under_120_chars": [
+   233
+  ],
+  "slides_with_no_markdown": [],
+  "images_extracted": 1,
+  "longest_slide_chars": 3901
+ },
+ "cost": {
+  "rows": [
+   {
+    "kind": "ingest",
+    "label": "ug-chs-handbook-2017.pdf",
+    "calls": 0,
+    "seconds": 94.16,
+    "tokens": 0
+   },
+   {
+    "kind": "topics",
+    "label": "",
+    "calls": 1,
+    "seconds": 5.72,
+    "tokens": 73270
+   },
+   {
+    "kind": "quiz",
+    "label": "College of Health Sciences Overview and Administration",
+    "calls": 8,
+    "seconds": 9.17,
+    "tokens": 4505
+   },
+   {
+    "kind": "quiz",
+    "label": "University Required Courses and General Education",
+    "calls": 3,
+    "seconds": 4.23,
+    "tokens": 3242
+   },
+   {
+    "kind": "quiz",
+    "label": "Institute of African Studies Administration and Certificate in English Proficiency",
+    "calls": 12,
+    "seconds": 44.38,
+    "tokens": null
+   },
+   {
+    "kind": "quiz",
+    "label": "Sports for Academic Credit Programme",
+    "calls": 2,
+    "seconds": 4.3,
+    "tokens": 1818
+   },
+   {
+    "kind": "quiz",
+    "label": "School of Biomedical and Allied Health Sciences: Pre-Clinical Curriculum and Regulations",
+    "calls": 4,
+    "seconds": 4.23,
+    "tokens": 2960
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Dental Laboratory Science Curriculum and Course Descriptions",
+    "calls": 4,
+    "seconds": 5.48,
+    "tokens": 4576
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Dietetics Curriculum and Course Descriptions",
+    "calls": 8,
+    "seconds": 45.41,
+    "tokens": null
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Physiotherapy Curriculum and Course Descriptions",
+    "calls": 5,
+    "seconds": 5.88,
+    "tokens": 4542
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Medical Laboratory Sciences Curriculum and Course Descriptions",
+    "calls": 2,
+    "seconds": 3.22,
+    "tokens": 3601
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Radiography (Diagnostic and Therapy) Curriculum and Course Descriptions",
+    "calls": 2,
+    "seconds": 2.07,
+    "tokens": 2950
+   },
+   {
+    "kind": "quiz",
+    "label": "BSc Occupational Therapy Curriculum and Course Descriptions",
+    "calls": 4,
+    "seconds": 5.02,
+    "tokens": 3879
+   },
+   {
+    "kind": "quiz",
+    "label": "School of Medicine and Dentistry Regulations, Departments, and Clinical Programs",
+    "calls": 3,
+    "seconds": 2.85,
+    "tokens": 4143
+   },
+   {
+    "kind": "quiz",
+    "label": "School of Nursing Programme Structure and Course Descriptions",
+    "calls": 1,
+    "seconds": 10.24,
+    "tokens": null
+   },
+   {
+    "kind": "quiz",
+    "label": "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
+    "calls": 1,
+    "seconds": 9.65,
+    "tokens": null
+   },
+   {
+    "kind": "quiz",
+    "label": "School of Public Health Bachelor of Public Health Programme and Course Descriptions",
+    "calls": 1,
+    "seconds": 10.15,
+    "tokens": null
+   },
+   {
+    "kind": "quiz",
+    "label": "Academic Calendar",
+    "calls": 3,
+    "seconds": 13.1,
+    "tokens": 2280
+   },
+   {
+    "kind": "exam",
+    "label": "",
+    "calls": 35,
+    "seconds": 95.34,
+    "tokens": null
+   }
+  ],
+  "total_calls": 99,
+  "total_seconds": 374.61,
+  "total_tokens": null,
+  "page_says": "REAL RUN: ug-chs-handbook-2017: what this has cost Mastory Your course material, readable REAL RUN: ug-chs-handbook-2017 What serving this course has cost Everything this course has caused 99 model calls, 374.61 seconds since you uploaded this course. The model did not report what its calls moved, so there is no cost figure here. What each call moved is what a provider&#x27;s reply says, and this one did not say. Reading material in: ug-chs-handbook-2017.pdf 0 calls, 94.16 seconds , 0 tokens , $0.000000 Working out the topic path 1 call, 5.72 seconds , 73270 tokens , $0.021981 Writing a topic quiz: College of Health Sciences Overview and Administration 8 calls, 9.17 seconds , 4505 tokens , $0.001352 Writing a topic quiz: University Required Courses and General Education 3 calls, 4.23 seconds , 3242 tokens , $0.000973 Writing a topic quiz: Institute of African Studies Administration and C",
+  "by_kind": {
+   "ingest": {
+    "calls": 0,
+    "seconds": 94.16,
+    "rows": 1
+   },
+   "topics": {
+    "calls": 1,
+    "seconds": 5.72,
+    "rows": 1
+   },
+   "quiz": {
+    "calls": 63,
+    "seconds": 179.38,
+    "rows": 16
+   },
+   "exam": {
+    "calls": 35,
+    "seconds": 95.34,
+    "rows": 1
+   }
+  }
+ },
+ "verification": {
+  "topics_with_no_quiz": [
+   "School of Nursing Programme Structure and Course Descriptions",
+   "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
+   "School of Public Health Bachelor of Public Health Programme and Course Descriptions"
+  ],
+  "topic_quizzes": [
+   {
+    "topic": "College of Health Sciences Overview and Administration",
+    "built": true,
+    "seconds": 9.19,
+    "low_confidence": false,
+    "kept": 4,
+    "distinct_spans": 4,
+    "sitting_refused": false,
+    "dropped_as_stored": 3,
+    "at_the_cap": true
+   },
+   {
+    "topic": "University Required Courses and General Education",
+    "built": true,
+    "seconds": 4.25,
+    "low_confidence": true,
+    "kept": 2,
+    "distinct_spans": 2,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "Institute of African Studies Administration and Certificate in English Proficiency",
+    "built": true,
+    "seconds": 44.39,
+    "low_confidence": false,
+    "kept": 4,
+    "distinct_spans": 4,
+    "sitting_refused": false,
+    "dropped_as_stored": 7,
+    "at_the_cap": true
+   },
+   {
+    "topic": "Sports for Academic Credit Programme",
+    "built": true,
+    "seconds": 4.32,
+    "low_confidence": true,
+    "kept": 1,
+    "distinct_spans": 1,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "School of Biomedical and Allied Health Sciences: Pre-Clinical Curriculum and Regulations",
+    "built": true,
+    "seconds": 4.26,
+    "low_confidence": false,
+    "kept": 3,
+    "distinct_spans": 3,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "BSc Dental Laboratory Science Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 5.5,
+    "low_confidence": false,
+    "kept": 3,
+    "distinct_spans": 3,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "BSc Dietetics Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 45.43,
+    "low_confidence": false,
+    "kept": 4,
+    "distinct_spans": 4,
+    "sitting_refused": false,
+    "dropped_as_stored": 3,
+    "at_the_cap": true
+   },
+   {
+    "topic": "BSc Physiotherapy Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 5.9,
+    "low_confidence": false,
+    "kept": 4,
+    "distinct_spans": 4,
+    "sitting_refused": false,
+    "dropped_as_stored": 2,
+    "at_the_cap": true
+   },
+   {
+    "topic": "BSc Medical Laboratory Sciences Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 3.24,
+    "low_confidence": true,
+    "kept": 1,
+    "distinct_spans": 1,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "BSc Radiography (Diagnostic and Therapy) Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 2.1,
+    "low_confidence": true,
+    "kept": 1,
+    "distinct_spans": 1,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   },
+   {
+    "topic": "BSc Occupational Therapy Curriculum and Course Descriptions",
+    "built": true,
+    "seconds": 5.04,
+    "low_confidence": false,
+    "kept": 3,
+    "distinct_spans": 3,
+    "sitting_refused": false,
+    "dropped_as_stored": 1,
+    "at_the_cap": false
+   },
+   {
+    "topic": "School of Medicine and Dentistry Regulations, Departments, and Clinical Programs",
+    "built": true,
+    "seconds": 2.89,
+    "low_confidence": true,
+    "kept": 0,
+    "distinct_spans": 0,
+    "sitting_refused": true,
+    "dropped_as_stored": 2,
+    "at_the_cap": false
+   },
+   {
+    "topic": "School of Nursing Programme Structure and Course Descriptions",
+    "built": false,
+    "seconds": 10.26,
+    "page_says": "REAL RUN: ug-chs-handbook-2017: School of Nursing Programme Structure and Course Descriptions quiz Mastory Your course material, readable School of Nursing Programme Structure and Course Descriptions Every question here is written from one paragraph of your own material and cites it, so you can chec",
+    "dropped_as_stored": null,
+    "at_the_cap": false
+   },
+   {
+    "topic": "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
+    "built": false,
+    "seconds": 9.69,
+    "page_says": "REAL RUN: ug-chs-handbook-2017: School of Pharmacy Regulations, Curriculum, and Course Descriptions quiz Mastory Your course material, readable School of Pharmacy Regulations, Curriculum, and Course Descriptions Every question here is written from one paragraph of your own material and cites it, so ",
+    "dropped_as_stored": null,
+    "at_the_cap": false
+   },
+   {
+    "topic": "School of Public Health Bachelor of Public Health Programme and Course Descriptions",
+    "built": false,
+    "seconds": 10.18,
+    "page_says": "REAL RUN: ug-chs-handbook-2017: School of Public Health Bachelor of Public Health Programme and Course Descriptions quiz Mastory Your course material, readable School of Public Health Bachelor of Public Health Programme and Course Descriptions Every question here is written from one paragraph of you",
+    "dropped_as_stored": null,
+    "at_the_cap": false
+   },
+   {
+    "topic": "Academic Calendar",
+    "built": true,
+    "seconds": 13.11,
+    "low_confidence": true,
+    "kept": 2,
+    "distinct_spans": 2,
+    "sitting_refused": false,
+    "dropped_as_stored": 0,
+    "at_the_cap": false
+   }
+  ],
+  "mock_exam": {
+   "written": false,
+   "page_says": "REAL RUN: ug-chs-handbook-2017: mock exam Mastory Your course material, readable Mock exam: REAL RUN: ug-chs-handbook-2017 The language model is too busy to answer right now. Wait a minute and try again. You can add the topics yourself below in the meantime. One exam, one attempt This is the whole course in one paper: questions written from your own slides, up to 2 of them for every topic, in the "
+  },
+  "dropped_as_stored_total": 18,
+  "quizzes_below_target": 9,
+  "short_because_under_produced": 7,
+  "dropped_note": "dropped_as_stored blends verification rejections with questions cut only because a quiz holds four (material/quiz.py:237). It is not a verification drop rate and cannot be made into one from stored data.",
+  "outcome_note": "Recorded by hand from run C. The harness labels its own outcome; this file predates that and the line above is the corrected value."
+ },
+ "readiness": {
+  "status": 200,
+  "attempts": 12,
+  "mean_score": 0.0,
+  "missed_pointers": 32,
+  "paragraphs_sent_back_to": 0
+ },
+ "pointer_map_check": [
+  {
+   "topic": "College of Health Sciences Overview and Administration",
+   "weight": 28,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    1,
+    2,
+    3,
+    4,
+    27,
+    28
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 1,
+     "opens_with": "UNIVERSITY OF GHANA <!-- Start of picture text -- wen<br<!-- End of picture text -- VOLUME"
+    },
+    {
+     "slide": 2,
+     "opens_with": "- \u00a9 The University of Ghana A publication of the Academic Affairs Directorate: compiled an"
+    },
+    {
+     "slide": 3,
+     "opens_with": "NOTE TO THE UNDERGRADUATE HANDBOOKS Undergraduate Handbooks of the University of Ghana are"
+    },
+    {
+     "slide": 4,
+     "opens_with": "TABLE OF CONTENTS |1. |University Required Courses..<br..<br..<br..|..|5-21| |---|---|---|"
+    },
+    {
+     "slide": 27,
+     "opens_with": "COLLEGE OF HEALTH SCIENCES Medical Sciences became part of the University of Ghana\u201fs educa"
+    },
+    {
+     "slide": 28,
+     "opens_with": "- \u00b0 to harmonize academic work of the constituent schools/institutes; - \u00b0 to foster active"
+    }
+   ],
+   "verdict": "WRONG",
+   "note": "Cites slides 1-4, which are the title page, copyright, note to students and table of contents, as well as slides 27-28 (the CoHS introduction). The title names only the second half, and the contents page belongs to no topic."
+  },
+  {
+   "topic": "University Required Courses and General Education",
+   "weight": 108,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 5,
+     "opens_with": "UNIVERSITY REQUIRED COURSES The University has, beginning from the 2010/2011 academic year"
+    },
+    {
+     "slide": 6,
+     "opens_with": "introduced. These will include the structure of the essay, unity, completeness and coheren"
+    },
+    {
+     "slide": 7,
+     "opens_with": "UGRC 134: Understanding Human Societies/Language in Society This module is aimed at giving"
+    },
+    {
+     "slide": 8,
+     "opens_with": "UGRC 143: Science and Technology in our Lives/Earth Resources The earth is endowed with ri"
+    },
+    {
+     "slide": 9,
+     "opens_with": "confirming an empirical hypothesis about human conduct, to maintain individual professiona"
+    },
+    {
+     "slide": 10,
+     "opens_with": "information from multiple sources and synthesizing them into coherent arguments in an essa"
+    },
+    {
+     "slide": 11,
+     "opens_with": "of tutorials per week. Also included is a practical activity, typically a film show. At th"
+    },
+    {
+     "slide": 12,
+     "opens_with": "past has shaped its contemporary social, economic and political conditions as well as key "
+    },
+    {
+     "slide": 13,
+     "opens_with": "and religious institutions of Africa has deep roots in indigenous dramatic traditions of A"
+    },
+    {
+     "slide": 14,
+     "opens_with": "and analyses cultures and cultural practices as dynamic, contested and rooted in socioecon"
+    },
+    {
+     "slide": 15,
+     "opens_with": "discussing issues such as values and worldviews, writing, performance, context and keys to"
+    },
+    {
+     "slide": 16,
+     "opens_with": "designed to introduce second year students who cannot speak, understand and read Ga to the"
+    }
+   ],
+   "verdict": "ok",
+   "note": "UGRC listing, slides 5-16."
+  },
+  {
+   "topic": "Institute of African Studies Administration and Certificate in English Proficiency",
+   "weight": 41,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    17,
+    18,
+    19,
+    20,
+    21
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 17,
+     "opens_with": "INSTITUTE OF AFRICAN STUDIES ADMINISTRATION Dzodzi Akuyo Tsikata - Associate Professor LL."
+    },
+    {
+     "slide": 18,
+     "opens_with": "|Edem Adotey|-|Research Fellow| |---|---|---| |BA, MPhil, PhD (Ghana)||| |Mjiba Frehiwot|-"
+    },
+    {
+     "slide": 19,
+     "opens_with": "|Nana Ama Agyeman|-|Lecturer| |---|---|---| |BA (Ghana), MPhil PhD(Trondheim)||| |Elijah A"
+    },
+    {
+     "slide": 20,
+     "opens_with": "LANG 005: LISTENING & SPEAKING SKILLS I (3 Credits) This course is designed to fill gaps i"
+    },
+    {
+     "slide": 21,
+     "opens_with": "LANG 012: LITERATURE IN ENGLISH II (4 Credits) This is a higher-level course designed to b"
+    }
+   ],
+   "verdict": "ok",
+   "note": "IAS administration and certificate in English proficiency, slides 17-21."
+  },
+  {
+   "topic": "Sports for Academic Credit Programme",
+   "weight": 35,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    22,
+    23,
+    24,
+    25,
+    26
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 22,
+     "opens_with": "Course Objectives \uf0b7 To provide candidates with opportunities to learn the basic elements o"
+    },
+    {
+     "slide": 23,
+     "opens_with": "\uf0b7 To appreciate the main actors of modern sport and physical activity, in their social and"
+    },
+    {
+     "slide": 24,
+     "opens_with": "and recreational exercisers to enhance performance and participation. \uf0b7 To define motivati"
+    },
+    {
+     "slide": 25,
+     "opens_with": "Course Content An Introduction to sports nutrition. Basic nutrition essentials for sportsm"
+    },
+    {
+     "slide": 26,
+     "opens_with": "leading discussions), Fundamentals of public speaking, Intercultural communication). Nonve"
+    }
+   ],
+   "verdict": "ok",
+   "note": "SPAC, slides 22-26."
+  },
+  {
+   "topic": "School of Biomedical and Allied Health Sciences: Pre-Clinical Curriculum and Regulations",
+   "weight": 105,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 29,
+     "opens_with": "SCHOOL OF BIOMEDICAL AND ALLIED HEALTH SCIENCES ADMINISTRATION |Solomon Fiifi Ofori-Acquah"
+    },
+    {
+     "slide": 30,
+     "opens_with": "Yaw Afrane - Associate Professor PhD Kwesi Agyei Bugyei - Associate Professor BVSc VMD, MS"
+    },
+    {
+     "slide": 31,
+     "opens_with": "Micheal Blay - Lecturer BSc.(Hons.) M.Phil. (Ghana) Seth Kwabena Amposah - Lecturer BSc M "
+    },
+    {
+     "slide": 32,
+     "opens_with": "and Lymphoreticular Systems, and Clinical Pharmacology, Emergency Medicine and Clinical Se"
+    },
+    {
+     "slide": 33,
+     "opens_with": "module for reasons adjudged by the Board of Examiners as unsatisfactory. 7.0 DISQUALIFICAT"
+    },
+    {
+     "slide": 34,
+     "opens_with": "length of period of interruption. The Dean shall cause the Head of Medical School Clinic/ "
+    },
+    {
+     "slide": 35,
+     "opens_with": "50%. Supplementary Examination shall not include continuous assessment marks. Supplementar"
+    },
+    {
+     "slide": 36,
+     "opens_with": "18.1 COURSE OBJECTIVES The main objective of the course is to equip students with the requ"
+    },
+    {
+     "slide": 37,
+     "opens_with": "assessments of the various modules. Clinical Seminars will be formally assessed as part of"
+    },
+    {
+     "slide": 38,
+     "opens_with": "<uSEMESTER ONE</u |COURSE CODE|TITLE|CREDITS| |---|---|---| |UGRC 150|Critical Thinkingand"
+    },
+    {
+     "slide": 39,
+     "opens_with": "<uSEMESTER FOUR</u |MODULE<brCODE|MODULE TITLE|CONTRIBUTING DEPARTMENTS| |---|---|---| |BA"
+    },
+    {
+     "slide": 40,
+     "opens_with": "<uSEMESTER SIX</u |MODULE<brCODE|MODULE TITLE|CONTRIBUTING<brDEPARTMENTS| |---|---|---| |B"
+    },
+    {
+     "slide": 41,
+     "opens_with": "cellular response to injury. Disorders of blood flow; Tumors and tumor markers. BAHS 235: "
+    },
+    {
+     "slide": 42,
+     "opens_with": "system including the central, autonomic and peripheral nervous system in normal states. St"
+    },
+    {
+     "slide": 43,
+     "opens_with": "<uClinico-Pathological Conferences/ Seminars:</u |Seminar Topic|Time|Competencies: At the "
+    }
+   ],
+   "verdict": "ok",
+   "note": "School administration list and pre-clinical regulations, slides 29-43."
+  },
+  {
+   "topic": "BSc Dental Laboratory Science Curriculum and Course Descriptions",
+   "weight": 128,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 44,
+     "opens_with": "CURRICULUM FOR ALLIED HEALTH SCIENCE RELATED PROGRAMMES FACULTY ALLIED HEALTH SCIENCES |Ge"
+    },
+    {
+     "slide": 45,
+     "opens_with": "|Vincent Kwaku Hewlett<br|-|<brLecturer| |---|---|---| |MBCh.B.(Ghana),FWACS, FGCP, ExMBA|"
+    },
+    {
+     "slide": 46,
+     "opens_with": "|Georgina Awuah-Mensah|-|<brAssistant Research Fellow| |---|---|---| |<brM.Phil||| |Samuel"
+    },
+    {
+     "slide": 47,
+     "opens_with": "behavioural and biomedical sciences; Relevance and role of continual professional developm"
+    },
+    {
+     "slide": 48,
+     "opens_with": "LEVEL 200 COURSES All the Courses at Level 200 are Compulsory SEMESTER 3 |Course Code|Cour"
+    },
+    {
+     "slide": 49,
+     "opens_with": "LEVEL 300 COURSES All the Courses at Level 300 are Compulsory SEMESTER 5 |Course Code|Cour"
+    },
+    {
+     "slide": 50,
+     "opens_with": "LEVEL 400 COURSES All the Courses at Level 400 are Compulsory SEMESTER 7 |Course Code|Cour"
+    },
+    {
+     "slide": 51,
+     "opens_with": "morphology and various nomenclature systems of the human dentition. The following areas wi"
+    },
+    {
+     "slide": 52,
+     "opens_with": "conditions needed to maximise the function of dentures. By the end of the course, students"
+    },
+    {
+     "slide": 53,
+     "opens_with": "blood with oral implications and required possible treatment alterations. DLAB 204: Oral R"
+    },
+    {
+     "slide": 54,
+     "opens_with": "of acrylic teeth. Setting up of full upper and lower complete dentures in class 1 skeletal"
+    },
+    {
+     "slide": 55,
+     "opens_with": "construct a wide range of conservative restorations.Interpretation of prescriptions. Princ"
+    },
+    {
+     "slide": 56,
+     "opens_with": "modalities;differentiate between treatment modalities; andrecognise the role of the Dental"
+    },
+    {
+     "slide": 57,
+     "opens_with": "DLAB 302: Maxillofacial Prosthesis II The aim of this Course is to enable students underst"
+    },
+    {
+     "slide": 58,
+     "opens_with": "required for conservative restorations. By the end of the Course, the students should be a"
+    },
+    {
+     "slide": 59,
+     "opens_with": "DLAB 405: Dental Laboratory Attachment in Complete Dentures This is a 4-week, whole day, l"
+    }
+   ],
+   "verdict": "ok",
+   "note": "DLS curriculum tables, slides 44-59."
+  },
+  {
+   "topic": "BSc Dietetics Curriculum and Course Descriptions",
+   "weight": 112,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 60,
+     "opens_with": "BSC DIETETICS OVERVIEW Dietetics is the interpretation and communication of the science of"
+    },
+    {
+     "slide": 61,
+     "opens_with": "ENTRY REQUIEMENT SSSCE/WASSCE Core Subjects Passes in the following three subjects; Englis"
+    },
+    {
+     "slide": 62,
+     "opens_with": "(i.e. during the long vacation). Students undertake introductory clinical training involvi"
+    },
+    {
+     "slide": 63,
+     "opens_with": "|DIET 307|Nutrition in the Life Cycle<br2| |---|---| |DIET 309|Genetics and Nutrition<br2|"
+    },
+    {
+     "slide": 64,
+     "opens_with": "Course Description STATS 101: Introductory Statistics Types of data, descriptive statistic"
+    },
+    {
+     "slide": 65,
+     "opens_with": "introduced. These will include the structure of the essay, unity, completeness and coheren"
+    },
+    {
+     "slide": 66,
+     "opens_with": "BAHS 112: Introductory Biochemistry Cell Theory; The Three Domains of Life; Prokaryotes an"
+    },
+    {
+     "slide": 67,
+     "opens_with": "as word processors, spreadsheets, graphic presentation software, creation and use of macro"
+    },
+    {
+     "slide": 68,
+     "opens_with": "grading of cancers (concept of tumour differentiation); metastases and routes of dissemina"
+    },
+    {
+     "slide": 69,
+     "opens_with": "diseases. This will include a knowledge of the history of microbes and their mode of trans"
+    },
+    {
+     "slide": 70,
+     "opens_with": "mechanisms involved in development of the diseases. It will also provide students with an "
+    },
+    {
+     "slide": 71,
+     "opens_with": "DIET 314: Community Nutrition This course aims to identify nutritional problems in the com"
+    },
+    {
+     "slide": 72,
+     "opens_with": "DIET 406: Diet Therapy III This course aims at equipping students with the principles unde"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Dietetics curriculum, slides 60-72."
+  },
+  {
+   "topic": "BSc Physiotherapy Curriculum and Course Descriptions",
+   "weight": 76,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 73,
+     "opens_with": "BSC PHYSIOTHERAPY PROGRAMME OBJECTIVES: At the end of the training, the physiotherapy grad"
+    },
+    {
+     "slide": 74,
+     "opens_with": "SEMESTER 2 |Course Code|Course Title<brCredit|Hours| |---|---|---| |BAHS 102|Human Anatomy"
+    },
+    {
+     "slide": 75,
+     "opens_with": "||LEVEL 300 COURSES<brSEMESTER 5|| |---|---|---| |Course Code|Course Title|Credit Hours| |"
+    },
+    {
+     "slide": 76,
+     "opens_with": "N. . PSTR 310 and PSTR 410 are 4 credit courses each ut they are split into \u0406 & \u0406\u0406 because"
+    },
+    {
+     "slide": 77,
+     "opens_with": "Hydrocarbons (Alkenes, Alkynes, Aromatics); Alcohols, Phenols, Ethers, and Thioalcohols; A"
+    },
+    {
+     "slide": 78,
+     "opens_with": "demystify the following topics for profound understanding: What is a computer? History of "
+    },
+    {
+     "slide": 79,
+     "opens_with": "BAHS 214: General Pathology This course introduces students to current understanding of th"
+    },
+    {
+     "slide": 80,
+     "opens_with": "will cover the following key topics: Health Promotion: Educational theories and models of "
+    },
+    {
+     "slide": 81,
+     "opens_with": "PSTR 309: Rheumatology This course provides students with knowledge of the diseases of mus"
+    },
+    {
+     "slide": 82,
+     "opens_with": "PSTR 401: Obstetrics and Gynaecology To enable the student acquire the knowledge and skill"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Physiotherapy curriculum, slides 73-82."
+  },
+  {
+   "topic": "BSc Medical Laboratory Sciences Curriculum and Course Descriptions",
+   "weight": 112,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 83,
+     "opens_with": "BSC MEDICAL LABORATORY SCIENCES PROGRAMME OBJECTIVES At the end of the programme, the stud"
+    },
+    {
+     "slide": 84,
+     "opens_with": "|MLAB 205|Introductory Biochemistry II|2| |---|---|---| |MLAB 207|Cell Biology|2| |MLAB 20"
+    },
+    {
+     "slide": 85,
+     "opens_with": "|SEMESTER 7|LEVEL 400 COURSES|| |---|---|---| |Course code|Course Title|Credit hours| |BAH"
+    },
+    {
+     "slide": 86,
+     "opens_with": "structures of the respiratory, digestive, nervous, lymphatic and circulatory system; and O"
+    },
+    {
+     "slide": 87,
+     "opens_with": "etc. The computing security problem. Advanced features of microcomputer applications packa"
+    },
+    {
+     "slide": 88,
+     "opens_with": "pathways (PPP) - Schema of PPP \u2013 relation between PPP and glycolysis, PPP in protection of"
+    },
+    {
+     "slide": 89,
+     "opens_with": "and documentation; Transportation, receipt and handling of specimen; Normal flora and tran"
+    },
+    {
+     "slide": 90,
+     "opens_with": "MLAB 303: Basic Clinical and Laboratory Haematology Haemopoeitic tissue and stem cells, ha"
+    },
+    {
+     "slide": 91,
+     "opens_with": "Bacterial specimens collection, transportation and storage; Bacterial specimens collection"
+    },
+    {
+     "slide": 92,
+     "opens_with": "MLAB 315: Histotechnology I Special Techniques in Tissue processing; Double embedding; Res"
+    },
+    {
+     "slide": 93,
+     "opens_with": "a manager; Managerial activities, features of a good plan why we need to plan, nature of p"
+    },
+    {
+     "slide": 94,
+     "opens_with": "MLAB 406: Vocational Training in Microbiology The vocational training serves as a period o"
+    },
+    {
+     "slide": 95,
+     "opens_with": "infection in immunocompromised host; Procedures for permanent preparation of arthropods Co"
+    }
+   ],
+   "verdict": "ok",
+   "note": "MLS curriculum, slides 83-95."
+  },
+  {
+   "topic": "BSc Radiography (Diagnostic and Therapy) Curriculum and Course Descriptions",
+   "weight": 149,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 96,
+     "opens_with": "BSC RADIOGRAPHY DIAGNOSTIC AND THERAPY RADIOGRAPHY PROGRAMME OBJECTIVES DIAGNOSTIC RADIOGR"
+    },
+    {
+     "slide": 97,
+     "opens_with": "<uSemester 2</u |Course Code|Course Detail|Total | |---|---|---| |BAHS 102|Human Anatomy|3"
+    },
+    {
+     "slide": 98,
+     "opens_with": "DIAGNOSTIC RADIOGRAPHY LEVEL 300 <uSemester 5</u |Course Code|Course Detail|Total| |---|--"
+    },
+    {
+     "slide": 99,
+     "opens_with": "<uSemester 8</u |Course Code|Course Detail|Total | |---|---|---| |BAHS 412|Applied Health "
+    },
+    {
+     "slide": 100,
+     "opens_with": "LEVEL 400 <uSEMESTER 7</u |Course Code|Course Detail|Total | |---|---|---| |BAHS 411|Princ"
+    },
+    {
+     "slide": 101,
+     "opens_with": "BAHS 113: Introduction to Computer Studies The course is to provide the students with basi"
+    },
+    {
+     "slide": 102,
+     "opens_with": "BAHS 104: Human Biology Practical The course aims to help students to appreciate the relat"
+    },
+    {
+     "slide": 103,
+     "opens_with": "BAHS 112: Introductory Psychology for Allied Health Sciences This course is designed to in"
+    },
+    {
+     "slide": 104,
+     "opens_with": "computing security problem. Advanced features of microcomputers applications packages such"
+    },
+    {
+     "slide": 105,
+     "opens_with": "development: learning in old age, dementia. Late adulthood: psychosocial development : the"
+    },
+    {
+     "slide": 106,
+     "opens_with": "undertake clinical attachment at a Diagnostic Imaging Department/Unit in an accredited Hea"
+    },
+    {
+     "slide": 107,
+     "opens_with": "research, the research presentation, the research report); Formats and styles for reports "
+    },
+    {
+     "slide": 108,
+     "opens_with": "acceptable ways to their clients, employers and society. The course should arm the student"
+    },
+    {
+     "slide": 109,
+     "opens_with": "care organizations; Process and quality management; Communication, networking & continuous"
+    },
+    {
+     "slide": 110,
+     "opens_with": "epidemiology of cancer. It is also designed to provide understanding to students about gen"
+    },
+    {
+     "slide": 111,
+     "opens_with": "the largest contributor to the collective dose from all man-made radiation sources. It has"
+    },
+    {
+     "slide": 112,
+     "opens_with": "acceptable ways to their clients, employers and society. The course should arm the student"
+    },
+    {
+     "slide": 113,
+     "opens_with": "Semester 8 BAHS 412: Applied Health Sciences Management The role of the supervisor, Leader"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Radiography curriculum, slides 96-113."
+  },
+  {
+   "topic": "BSc Occupational Therapy Curriculum and Course Descriptions",
+   "weight": 87,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 114,
+     "opens_with": "process; Plan, implement and evaluate programs of therapy which help patients/clients acqu"
+    },
+    {
+     "slide": 115,
+     "opens_with": "LEVEL 200 COURSES All the courses at Level 200 are compulsory ||SEMESTER 3<br|| |---|---|-"
+    },
+    {
+     "slide": 116,
+     "opens_with": "|PSTR 304|Neuro-Rehabilitation II|2| |---|---|---| |SAHS 302|Health Law and Ethics|2| |OTT"
+    },
+    {
+     "slide": 117,
+     "opens_with": "disabling conditions and situations. Students will be expected to appreciate information g"
+    },
+    {
+     "slide": 118,
+     "opens_with": "guide students to explore and describe materials which are locally available, and their po"
+    },
+    {
+     "slide": 119,
+     "opens_with": "identification and management. OTTR 407: Occupational Therapy and Geriatrics This area wil"
+    },
+    {
+     "slide": 120,
+     "opens_with": "STAT 101: Introductory Statistics Types of data, descriptive statistics and plots, theoret"
+    },
+    {
+     "slide": 121,
+     "opens_with": "Disks); Peripherals (Input Devices, Output Devices , Future Peripherals); System software;"
+    },
+    {
+     "slide": 122,
+     "opens_with": "different anatomical regions of the body; and associates them with clinical conditions enc"
+    },
+    {
+     "slide": 123,
+     "opens_with": "PSTR 301: Kinesiology The course is to enable the student appreciate the study of analysis"
+    },
+    {
+     "slide": 124,
+     "opens_with": "leadership,conceptual framework on leadership,ten functions of leaders,leadership competen"
+    }
+   ],
+   "verdict": "ok",
+   "note": "OT curriculum, slides 114-124."
+  },
+  {
+   "topic": "School of Medicine and Dentistry Regulations, Departments, and Clinical Programs",
+   "weight": 203,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 125,
+     "opens_with": "SCHOOL OF MEDICINE AND DENTISTRY CENTRAL ADMINISTRATION Margaret Lartey - Professor/Dean M"
+    },
+    {
+     "slide": 126,
+     "opens_with": "Jennifer Welbeck - Associate Professor MB ChB (Ghana) FRCP (Canada), FWACP, Lorna Awo Renn"
+    },
+    {
+     "slide": 127,
+     "opens_with": "Akye Essuman - Lecturer MB ChB (Ghana.) FWACP Henry J.O. Lawson - Lecturer MB ChB (Ghana.)"
+    },
+    {
+     "slide": 128,
+     "opens_with": "Jacob Asare-Brobbey - Lecturer/Part-Time MB ChB, FWACP Fred Asiedu-Frimpong - Lecturer/Par"
+    },
+    {
+     "slide": 129,
+     "opens_with": "Michael Yaw Ntumy MB ChB, FWACS - Lecturer DEPARTMENT OF PSYCHIATRY Sammy Kwame Ohene - Se"
+    },
+    {
+     "slide": 130,
+     "opens_with": "Joseph Felix Kwadwo Tandoh - Senior Lecturer/ Part Time BA (Cantab.) MA (Cantab.) MB B Chi"
+    },
+    {
+     "slide": 131,
+     "opens_with": "Imoro Zeiba Braimah - Lecturer MB ChB, FGCS Antoinette A.A. Bediako-Bowan - Lecturer MBCh."
+    },
+    {
+     "slide": 132,
+     "opens_with": "DEPARTMENT OF ORTHODONTICS AND PAEDODONTICS Kwabena G. Amoah - Lecturer MD, MSc . Head of "
+    },
+    {
+     "slide": 133,
+     "opens_with": "2.1.2 BDS (d) First Clinical Year (BDS Final Part I) - 45 Weeks (e) Second Clinical Year ("
+    },
+    {
+     "slide": 134,
+     "opens_with": "|||Inputs from other Clinical Departments)|| |---|---|---|---| |||Medical Ethics<br These "
+    },
+    {
+     "slide": 135,
+     "opens_with": "|b.|Semester 8: 18 Weeks|| |---|---|---| ||Coordinated Course II (Human Disease II)<br-<br"
+    },
+    {
+     "slide": 136,
+     "opens_with": "- b. Semester 12: 20 Weeks Oral Medicine and Dental Therapeutics II Oral & Maxillofacial S"
+    },
+    {
+     "slide": 137,
+     "opens_with": "& II) Candidates shall be examined at the end of Coordinated Course I and II and shall be "
+    },
+    {
+     "slide": 138,
+     "opens_with": "- 9.3.1 A candidate shall not proceed to the next Clinical Year until he or she has comple"
+    },
+    {
+     "slide": 139,
+     "opens_with": "and be required to repeat part or the whole of the course/subject of instruction leading t"
+    },
+    {
+     "slide": 140,
+     "opens_with": "- 14.2 All External Examiners shall be required to submit a written report on all aspects "
+    },
+    {
+     "slide": 141,
+     "opens_with": "18.1.1 UNIVERSITY REQUIREMENTS - (i) evidence of regular enrolment in the degree programme"
+    },
+    {
+     "slide": 142,
+     "opens_with": "Knowledge At the end of the training the student must be able to demonstrate knowledge and"
+    },
+    {
+     "slide": 143,
+     "opens_with": "usually selected basic school in Accra where they are taught to identify common oral disea"
+    },
+    {
+     "slide": 144,
+     "opens_with": "Caries and periodontal diseases. Developmental anomalies of the oral and maxillofacial tis"
+    },
+    {
+     "slide": 145,
+     "opens_with": "DEPARTMENT OF ORTHODONTICS AND PAEDODONTICS Ortho/Pedo Course An introduction program is d"
+    },
+    {
+     "slide": 146,
+     "opens_with": "Comprehensive Practice (Full Care Patient Project) This project allows the student of coor"
+    },
+    {
+     "slide": 147,
+     "opens_with": "disease. Interesting case studies on health service related issues can also be presented. "
+    },
+    {
+     "slide": 148,
+     "opens_with": "DEPARTMENT OF MEDICINE AND THERAPEUTICS Medicine and Therapeutics Course The Department of"
+    },
+    {
+     "slide": 149,
+     "opens_with": "DEPARTMENT OF SURGERY Surgery is one of the key pillars in medical education. . The main o"
+    },
+    {
+     "slide": 150,
+     "opens_with": "SEMESTER 3 |CODE|COURSE TITLE|CREDITS| |---|---|---| |GEMP 421|Body Fluids, Renal and Repr"
+    },
+    {
+     "slide": 151,
+     "opens_with": "understanding of the cell, fundamental processes of the flow of biological information, in"
+    },
+    {
+     "slide": 152,
+     "opens_with": "pericarditis, atherosclerosis, arteriolosclerosis, hypertensive vascular diseases, vasculi"
+    },
+    {
+     "slide": 153,
+     "opens_with": "Principles and practices of occupational health, Environmental health, food hygiene and wa"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Medicine and dentistry regulations and clinical programmes, slides 125-153."
+  },
+  {
+   "topic": "School of Nursing Programme Structure and Course Descriptions",
+   "weight": 113,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 154,
+     "opens_with": "SCHOOL OF NURSING INTRODUCTION Nursing is a dynamic and challenging profession which serve"
+    },
+    {
+     "slide": 155,
+     "opens_with": "DEPARTMENT OF RESEARCH, EDUCATION AND ADMINISTRATION Vivian Afrah Lawer Puplampu - Lecture"
+    },
+    {
+     "slide": 156,
+     "opens_with": "Part-Time Lecturer Michael Agyekum Addo BPharm (KNUST), MSc (KNUST), MPSGH - BSC NURSING W"
+    },
+    {
+     "slide": 157,
+     "opens_with": "LEVEL 200 FIRST SEMESTER CORE ||(Diploma Holders willenter at this point)|| |---|---|---| "
+    },
+    {
+     "slide": 158,
+     "opens_with": "UGRC 150: Critical Thinking and Practical Reasoning at this level. LEVEL 300 FIRST SEMESTE"
+    },
+    {
+     "slide": 159,
+     "opens_with": "in the long vacation Students who entered the programme as diploma holders will offer UGRC"
+    },
+    {
+     "slide": 160,
+     "opens_with": "Paediatric Nursing |NURS 464<brCommunity H<br|Childhood Chronic and Life ThreateningDiseas"
+    },
+    {
+     "slide": 161,
+     "opens_with": "BAHS 108: Basic Physiology Practicals To expose students to experimental methodology to en"
+    },
+    {
+     "slide": 162,
+     "opens_with": "NURS 118: Fundamentals of Nursing This course is to introduce students to the basic concep"
+    },
+    {
+     "slide": 163,
+     "opens_with": "NURS 234: Surgical Conditions of Integumentary, Gastrointestinal and Endocrine Systems The"
+    },
+    {
+     "slide": 164,
+     "opens_with": "diseases of public health importance. Disease notification and health regulations in publi"
+    },
+    {
+     "slide": 165,
+     "opens_with": "prevention principles and the nursing process. NURS 332: Medical Conditions of Nervous and"
+    },
+    {
+     "slide": 166,
+     "opens_with": "operatively. They will be placed in general and specialized theatres during the semester. "
+    },
+    {
+     "slide": 167,
+     "opens_with": "integumentary, cardiovascular, respiratory, gastrointestinal and genitourinary systems wil"
+    },
+    {
+     "slide": 168,
+     "opens_with": "means will be covered. As part of this course, students will learn to make practical use o"
+    },
+    {
+     "slide": 169,
+     "opens_with": "NURS 466: Home-Based Nursing and National Health Programme This course prepares students f"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Nursing programme structure, slides 154-169."
+  },
+  {
+   "topic": "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
+   "weight": 273,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    182,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    198,
+    199,
+    200,
+    201,
+    202
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 170,
+     "opens_with": "SCHOOL OF PHARMACY ADMINISTRATION Isaac Julius Asiedu-Gyekye - Senior Lecturer/ Ag. Dean M"
+    },
+    {
+     "slide": 171,
+     "opens_with": "Emelia Oppong Bekoe - Lecturer BPharm (KNUST), MPharm (KNUST), PhD (Germany), MPSGh, DEPAR"
+    },
+    {
+     "slide": 172,
+     "opens_with": "|Raymond Ashaley Tetteh<br-|Part-Time Lecturer| |---|---| |MSc Pharm (Romania), MSc Clinic"
+    },
+    {
+     "slide": 173,
+     "opens_with": "- 1.2 ADMISSION TO THE SCHOOL OF PHARMACY - 1.2.1 Further to the General Regulations regar"
+    },
+    {
+     "slide": 174,
+     "opens_with": "- 1.6 GRADING SYSTEM FOR COURSES & SUBJECTS - 1.6.1 Student performance in a subject/cours"
+    },
+    {
+     "slide": 175,
+     "opens_with": "- 1.7.4 Non-Completion of Course : - i. A grade I, denoting Incomplete, shall be awarded t"
+    },
+    {
+     "slide": 176,
+     "opens_with": "subject in pharmacy. The core pharmacy subjects currently offered in the B.Pharm Programme"
+    },
+    {
+     "slide": 177,
+     "opens_with": "- 1.9.4 A student can proceed to the next stage of the programme if and only if he/she has"
+    },
+    {
+     "slide": 178,
+     "opens_with": "2.4 ELIGIBILITY FOR EXAMINATIONS - 2.4.1 A student shall attend all such lectures, tutoria"
+    },
+    {
+     "slide": 179,
+     "opens_with": "2.7 Deferment Of Examination - 2.7.1 On Grounds of Ill-Health: A student who has satisfied"
+    },
+    {
+     "slide": 180,
+     "opens_with": "iii. a pass in all University required courses iv. satisfactory performance in the appropr"
+    },
+    {
+     "slide": 181,
+     "opens_with": "- 3.7.3 The FGPA for FIRST CLASS shall be 3.60 or better. |3.7.4|The full scheme of classi"
+    },
+    {
+     "slide": 182,
+     "opens_with": "5.1 AIMS The purpose of the degree programmes of the School of Pharmacy is to produce phar"
+    },
+    {
+     "slide": 183,
+     "opens_with": "|PHAR 143|Human Anatomy & Physiology (Practical)|1| |---|---|---| |PHAR 151|Computer Liter"
+    },
+    {
+     "slide": 184,
+     "opens_with": "UGRC 220 Liberal and African Studies 3 TOTAL CREDITS 21 |6.3<brLEVEL 300|YEAR THREE|| |---"
+    },
+    {
+     "slide": 185,
+     "opens_with": "|PHAR 453|Logistics and Health Supply Chain Management|2| |---|---|---| |TOTAL CREDITS||19"
+    },
+    {
+     "slide": 186,
+     "opens_with": "PHAR 112: Organic Pharmaceutical Chemistry I In this course students will acquire the abil"
+    },
+    {
+     "slide": 187,
+     "opens_with": "metabolism including bio-transformation and conjugation, mechanisms and therapeutic signif"
+    },
+    {
+     "slide": 188,
+     "opens_with": "carried out under the mentorship of an academic supervisor, the student will present a sem"
+    },
+    {
+     "slide": 189,
+     "opens_with": "Integration : Definite integrals, area under the curve, infinite limits, approximate integ"
+    },
+    {
+     "slide": 190,
+     "opens_with": "PHAR 221: Pharmaceutical Microbiology II In this course students will be made aware of the"
+    },
+    {
+     "slide": 191,
+     "opens_with": "The course will cover good manufacturing practices in general, and specifically, the follo"
+    },
+    {
+     "slide": 192,
+     "opens_with": "Department of Pharmacognosy and Herbal Medicine PHAR 131: Pharmacognosy In this course stu"
+    },
+    {
+     "slide": 193,
+     "opens_with": "gas liquid chromatography (GLC), High Performance Liquid Chromatography (HPLC), gel filtra"
+    },
+    {
+     "slide": 194,
+     "opens_with": "PHAR 142: Basic Biochemistry Biochemistry and biochemical concepts form an important basis"
+    },
+    {
+     "slide": 195,
+     "opens_with": "PHAR 242: Autonomic Pharmacology Students will acquire understanding of the structure and "
+    },
+    {
+     "slide": 196,
+     "opens_with": "ambient conditions for the experiment. In this course students will gain hands-on experien"
+    },
+    {
+     "slide": 197,
+     "opens_with": "classification, general pharmacological properties including pharmacokinetics, pharmacodyn"
+    },
+    {
+     "slide": 198,
+     "opens_with": "UGRC 110: Academic Writing I The main objective of Academic Writing I is to equip students"
+    },
+    {
+     "slide": 199,
+     "opens_with": "attitudes that will make them focused, motivated and open to change. Students will also de"
+    },
+    {
+     "slide": 200,
+     "opens_with": "on state and civil society responses to gender inequalities focusing on legal and cultural"
+    },
+    {
+     "slide": 201,
+     "opens_with": "the continent. Philosophy in African Cultures This course aims to introduce students to ph"
+    },
+    {
+     "slide": 202,
+     "opens_with": "the statistical concepts and methods in drug development, drug use, drug safety monitoring"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Pharmacy regulations and curriculum, slides 170-202."
+  },
+  {
+   "topic": "School of Public Health Bachelor of Public Health Programme and Course Descriptions",
+   "weight": 223,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 203,
+     "opens_with": "SCHOOL OF PUBLIC HEALTH BACKGROUND The Bachelor of Public Health programme was developed i"
+    },
+    {
+     "slide": 204,
+     "opens_with": "|Anthony Danso-Appiah|-<brLecturer| |---|---| |BSc (Ghana), MSc, PhD, DSc (Rotterdam)|| |A"
+    },
+    {
+     "slide": 205,
+     "opens_with": "|Seth K. Afagbedzi|-|Assistant Lecturer| |---|---|---| |BSc(UCC),MPhil (Ghana)||| |Samuel "
+    },
+    {
+     "slide": 206,
+     "opens_with": "implementation, analysis and interpretation of the project. The project is to be completed"
+    },
+    {
+     "slide": 207,
+     "opens_with": "2.2.1 REGISTRATION For a student to obtain credits in any course, he or she must be admitt"
+    },
+    {
+     "slide": 208,
+     "opens_with": "2.6 MINIMUM AND MAXIMUM WORKLOAD PER SEMESTER - 2.6.1 A full-time student shall be require"
+    },
+    {
+     "slide": 209,
+     "opens_with": "student shall not be permitted to sit for the semester examination. 4.0 Credit Hours Requi"
+    },
+    {
+     "slide": 210,
+     "opens_with": "<uSUMMARY OF COURSES FOR THE BACHELOR OF PUBLIC HEALTH PROGRAMME</u <markThe study program"
+    },
+    {
+     "slide": 211,
+     "opens_with": "|GSPH 324|Public Health Seminar I|2| |---|---|---| |GSPH 303|Reproductive Health: Maternal"
+    },
+    {
+     "slide": 212,
+     "opens_with": "|GSPH 413|Scientific Communication includingReport Writing|2| |---|---|---| |GSPH 414|Publ"
+    },
+    {
+     "slide": 213,
+     "opens_with": "|GSPH 449|Communication for Nutrition and HealthyLifestyle|2| |---|---|---| |GSPH 451|Nutr"
+    },
+    {
+     "slide": 214,
+     "opens_with": "Components of population change, factors in historical decline and mortality and morbidity"
+    },
+    {
+     "slide": 215,
+     "opens_with": "coverage survey GSPH 302: Infant and Young Child Feeding Nutritive needs of infants and yo"
+    },
+    {
+     "slide": 216,
+     "opens_with": "individual, family and community. Community involvement in the formulation and implementat"
+    },
+    {
+     "slide": 217,
+     "opens_with": "GSPH 323: Non-Communicable Diseases Definitions, Types of non-communicable diseases and th"
+    },
+    {
+     "slide": 218,
+     "opens_with": "adjusted mortality rates, demographic transition and Hoover theory. GSPH 333: Database Man"
+    },
+    {
+     "slide": 219,
+     "opens_with": "GSPH 347: Health Communications Theory and Practice Communicating is key to the implementa"
+    },
+    {
+     "slide": 220,
+     "opens_with": "contamination of water bodies, pollution adaptations of human communities to climatic chan"
+    },
+    {
+     "slide": 221,
+     "opens_with": "management.Classification of solid wastes by characteristics and source. Sources of solid "
+    },
+    {
+     "slide": 222,
+     "opens_with": "economic factors on nutrition; how urbanization affects nutrition; mode and objectives of "
+    },
+    {
+     "slide": 223,
+     "opens_with": "mother to child transmission, antenatal couple counselling; anti-retroviral therapy and pr"
+    },
+    {
+     "slide": 224,
+     "opens_with": "GSPH 410: Project Work Students do individual project work under the supervision of facult"
+    },
+    {
+     "slide": 225,
+     "opens_with": "GSPH 418: Global Health Security Definition of global health security, tropical infectious"
+    },
+    {
+     "slide": 226,
+     "opens_with": "monitoring and promotion of development. GSPH 429: Health Aspects of Housing Definitions: "
+    },
+    {
+     "slide": 227,
+     "opens_with": "hazardousness and facilitate disposal. Collection and transportation (cartage, sewerage).T"
+    },
+    {
+     "slide": 228,
+     "opens_with": "records; standardization of electronic health records; implementing security and access co"
+    },
+    {
+     "slide": 229,
+     "opens_with": "GSPH 451: Nutrition Transition in Ghana The concept of nutrition transition, obesity trend"
+    },
+    {
+     "slide": 230,
+     "opens_with": "GSPH 461: Principles and Practice of Community Organization Community involvement in the i"
+    }
+   ],
+   "verdict": "ok",
+   "note": "Public health programme and course descriptions, slides 203-230."
+  },
+  {
+   "topic": "Academic Calendar",
+   "weight": 9,
+   "flagged": false,
+   "flag_note": "",
+   "slides": [
+    231,
+    232,
+    233
+   ],
+   "what_those_slides_say": [
+    {
+     "slide": 231,
+     "opens_with": "|<br20|ACADEMIC CALENDAR<br17-2018 ACADEMIC YEAR<brFIRST SEMESTER| |---|---| |CERTIFICATE/"
+    },
+    {
+     "slide": 232,
+     "opens_with": "ACADEMIC CALENDAR 2017/2018 ACADEMIC YEAR |S|ECOND SEMESTER| |---|---| ||ALL STUDENTS| |St"
+    },
+    {
+     "slide": 233,
+     "opens_with": "233"
+    }
+   ],
+   "verdict": "THIN",
+   "note": "Slides 231-233: three pages and six spans in total. Correctly named, but too small to support a quiz - it produced two questions."
+  }
+ ],
+ "topics": {
+  "count": 16,
+  "flagged": [],
+  "titles": [
+   {
+    "title": "College of Health Sciences Overview and Administration",
+    "weight": 28,
+    "slides": [
+     1,
+     2,
+     3,
+     4,
+     27,
+     28
+    ]
+   },
+   {
+    "title": "University Required Courses and General Education",
+    "weight": 108,
+    "slides": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16
+    ]
+   },
+   {
+    "title": "Institute of African Studies Administration and Certificate in English Proficiency",
+    "weight": 41,
+    "slides": [
+     17,
+     18,
+     19,
+     20,
+     21
+    ]
+   },
+   {
+    "title": "Sports for Academic Credit Programme",
+    "weight": 35,
+    "slides": [
+     22,
+     23,
+     24,
+     25,
+     26
+    ]
+   },
+   {
+    "title": "School of Biomedical and Allied Health Sciences: Pre-Clinical Curriculum and Regulations",
+    "weight": 105,
+    "slides": [
+     29,
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     36,
+     37,
+     38,
+     39,
+     40,
+     41,
+     42,
+     43
+    ]
+   },
+   {
+    "title": "BSc Dental Laboratory Science Curriculum and Course Descriptions",
+    "weight": 128,
+    "slides": [
+     44,
+     45,
+     46,
+     47,
+     48,
+     49,
+     50,
+     51,
+     52,
+     53,
+     54,
+     55,
+     56,
+     57,
+     58,
+     59
+    ]
+   },
+   {
+    "title": "BSc Dietetics Curriculum and Course Descriptions",
+    "weight": 112,
+    "slides": [
+     60,
+     61,
+     62,
+     63,
+     64,
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     71,
+     72
+    ]
+   },
+   {
+    "title": "BSc Physiotherapy Curriculum and Course Descriptions",
+    "weight": 76,
+    "slides": [
+     73,
+     74,
+     75,
+     76,
+     77,
+     78,
+     79,
+     80,
+     81,
+     82
+    ]
+   },
+   {
+    "title": "BSc Medical Laboratory Sciences Curriculum and Course Descriptions",
+    "weight": 112,
+    "slides": [
+     83,
+     84,
+     85,
+     86,
+     87,
+     88,
+     89,
+     90,
+     91,
+     92,
+     93,
+     94,
+     95
+    ]
+   },
+   {
+    "title": "BSc Radiography (Diagnostic and Therapy) Curriculum and Course Descriptions",
+    "weight": 149,
+    "slides": [
+     96,
+     97,
+     98,
+     99,
+     100,
+     101,
+     102,
+     103,
+     104,
+     105,
+     106,
+     107,
+     108,
+     109,
+     110,
+     111,
+     112,
+     113
+    ]
+   },
+   {
+    "title": "BSc Occupational Therapy Curriculum and Course Descriptions",
+    "weight": 87,
+    "slides": [
+     114,
+     115,
+     116,
+     117,
+     118,
+     119,
+     120,
+     121,
+     122,
+     123,
+     124
+    ]
+   },
+   {
+    "title": "School of Medicine and Dentistry Regulations, Departments, and Clinical Programs",
+    "weight": 203,
+    "slides": [
+     125,
+     126,
+     127,
+     128,
+     129,
+     130,
+     131,
+     132,
+     133,
+     134,
+     135,
+     136,
+     137,
+     138,
+     139,
+     140,
+     141,
+     142,
+     143,
+     144,
+     145,
+     146,
+     147,
+     148,
+     149,
+     150,
+     151,
+     152,
+     153
+    ]
+   },
+   {
+    "title": "School of Nursing Programme Structure and Course Descriptions",
+    "weight": 113,
+    "slides": [
+     154,
+     155,
+     156,
+     157,
+     158,
+     159,
+     160,
+     161,
+     162,
+     163,
+     164,
+     165,
+     166,
+     167,
+     168,
+     169
+    ]
+   },
+   {
+    "title": "School of Pharmacy Regulations, Curriculum, and Course Descriptions",
+    "weight": 273,
+    "slides": [
+     170,
+     171,
+     172,
+     173,
+     174,
+     175,
+     176,
+     177,
+     178,
+     179,
+     180,
+     181,
+     182,
+     183,
+     184,
+     185,
+     186,
+     187,
+     188,
+     189,
+     190,
+     191,
+     192,
+     193,
+     194,
+     195,
+     196,
+     197,
+     198,
+     199,
+     200,
+     201,
+     202
+    ]
+   },
+   {
+    "title": "School of Public Health Bachelor of Public Health Programme and Course Descriptions",
+    "weight": 223,
+    "slides": [
+     203,
+     204,
+     205,
+     206,
+     207,
+     208,
+     209,
+     210,
+     211,
+     212,
+     213,
+     214,
+     215,
+     216,
+     217,
+     218,
+     219,
+     220,
+     221,
+     222,
+     223,
+     224,
+     225,
+     226,
+     227,
+     228,
+     229,
+     230
+    ]
+   },
+   {
+    "title": "Academic Calendar",
+    "weight": 9,
+    "slides": [
+     231,
+     232,
+     233
+    ]
+   }
+  ],
+  "infer_seconds": 5.9,
+  "infer_page_says": ""
+ },
+ "pointer_map_check_note": "Read against the file on 2026-10-19. verdict is ok / WRONG / THIN, decided by opening every cited slide and comparing it with the topic title. 14 ok, 1 wrong, 1 thin; no topic was left unchecked.",
+ "outcome": "partial: no mock exam written",
+ "evidence_note": "Findings for run C, the reference run. Run before the round-2 harness fixes, so its outcome line and its drop aggregate were corrected by hand afterwards; per-topic dropped values are as stored by the application."
+}
