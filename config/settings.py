@@ -71,6 +71,11 @@ DATABASES = {
 # the local fallback behaving like the backends it stands in for.
 if "sqlite" in DATABASES["default"]["ENGINE"]:  # pragma: no cover - backend note
     DATABASES["default"].setdefault("OPTIONS", {})["transaction_mode"] = "IMMEDIATE"
+    # A collector of a claim waits for the holder's generation to end, and the
+    # five seconds pysqlite defaults to is not long enough for that on a slow
+    # day. Postgres blocks on the row lock for as long as the work takes; this
+    # is the fallback giving the student the same waiting.
+    DATABASES["default"]["OPTIONS"].setdefault("timeout", 30)
     # SQLite's default test database is an in-memory file shared by connections
     # through cache=shared, whose table latches answer a connection that touches
     # a table mid-transaction with "database table is locked" instead of making
