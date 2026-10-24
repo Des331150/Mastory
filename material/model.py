@@ -627,18 +627,21 @@ def normalise(text: str) -> str:
     goes for a full-width form. A word in a non-Latin script then stays a whole
     word: a combining mark takes its place in the word it belongs to instead of
     reading as a break, so a Devanagari matra does not split its own word in
-    half. Zero-width format characters - joiners, byte order marks - are
-    dropped rather than filled, because a character the eye cannot see is not a
-    place where one word ends and another begins. Punctuation and case are
-    still folded away, so "the null space." still compares as "the null space".
+    half. Everything the eye cannot see or the ear cannot read - invisible
+    format characters included - is still where one word ends and another
+    begins, because a fold that glued "not" to the word it was denying would
+    read a refusal as an agreement. Punctuation and case are still folded
+    away, so "the null space." still compares as "the null space".
     """
-    folded = unicodedata.normalize("NFKD", unicodedata.normalize("NFKD", text).casefold())
+    folded = unicodedata.normalize(
+        "NFKD", unicodedata.normalize("NFKD", text).casefold()
+    )
 
     def folded_form(char: str) -> str:
         category = unicodedata.category(char)
         if char.isalnum() or category.startswith("M"):
             return char
-        return "" if category == "Cf" else " "
+        return " "
 
     return " ".join("".join(folded_form(char) for char in folded).split())
 

@@ -453,7 +453,9 @@ class FoldTests(TestCase):
 
     Asserted on ``model.normalise`` directly, because the fold depends on the
     strings alone; the HTTP tests below check that this same fold is the one
-    grading actually runs, which a fold test on its own cannot see.
+    grading actually runs, which a fold test on its own cannot see. Every
+    assertion here carries the folded form out loud, because two sides of an
+    equality that both mangle the same way can agree and prove nothing.
     """
 
     def test_a_subscript_and_a_typed_digit_fold_the_same(self) -> None:
@@ -462,20 +464,19 @@ class FoldTests(TestCase):
         self.assertEqual(model.normalise("H₂O"), "h2o")
 
     def test_a_full_width_form_folds_onto_its_plain_letters(self) -> None:
-        self.assertEqual(
-            model.normalise("ＥＩＧＥＮＶＥＣＴＯＲ"), model.normalise("eigenvector")
-        )
+        self.assertEqual(model.normalise("ＥＩＧＥＮＶＥＣＴＯＲ"), "eigenvector")
 
     def test_a_non_latin_word_stays_whole_rather_than_being_split(self) -> None:
         """A Devanagari matra is not a place where one word ends and another
         begins, so a Hindi word folds to itself and not to a row of pieces."""
+        self.assertEqual(model.normalise("अभिमत"), "अभिमत")
         self.assertEqual(model.normalise("मन्त्र").split(), ["मन्त्र"])
-        self.assertEqual(model.normalise("मन्त्र"), model.normalise("मन्त्र"))
 
     def test_two_ways_of_writing_a_nukta_fold_the_same(self) -> None:
         """क़ can arrive precomposed or as क with a separate nukta mark, and
         the two must not read as different letters."""
         self.assertEqual(model.normalise("क़"), model.normalise("क\u093c"))
+        self.assertEqual(model.normalise("क़"), "क़")
 
     def test_punctuation_and_case_are_still_folded_away(self) -> None:
         self.assertEqual(
@@ -485,6 +486,13 @@ class FoldTests(TestCase):
 
     def test_words_that_differ_still_compare_differently(self) -> None:
         self.assertNotEqual(model.normalise("eigenvalues"), model.normalise("eigenvectors"))
+
+    def test_an_invisible_joiner_cannot_glue_a_denial_to_its_answer(self) -> None:
+        """A fold that deleted the zero-width joiner would hand the marking
+        step one word where the student wrote a refusal of it: not·the answer
+        is a denial, and the line between the two has to survive the fold."""
+        self.assertNotEqual(model.normalise("not\u200dthe answer"), "notthe answer")
+        self.assertEqual(model.normalise("not\u200dthe answer"), "not the answer")
 
 
 class ScriptFoldMarkingTests(QuizTestCase):
@@ -509,7 +517,10 @@ class ScriptFoldMarkingTests(QuizTestCase):
                 number = request["span"]["span"]
                 return number in self.verified
             span = request["span"]["text"]
-            return all(model.normalise(a) in model.normalise(span) for a in request["question"]["answers"])
+            return all(
+                model.normalise(a) in model.normalise(span)
+                for a in request["question"]["answers"]
+            )
 
     def _rewrite_a_paragraph_of_the_topic(self) -> None:
         span = Span.objects.filter(slide__number=2, ordinal=0).first()
