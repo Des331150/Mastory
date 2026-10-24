@@ -279,7 +279,11 @@ def main() -> int:
     per_topic_quiz: list[dict[str, Any]] = []
     for topic in topics:
         started = time.monotonic()
-        response = client.get(f"/courses/{course_id}/topics/{topic.pk}/quiz/")
+        # The visit no longer writes: the student presses "Write my quiz" and
+        # the run presses the same button the page would send.
+        response = client.post(
+            f"/courses/{course_id}/topics/{topic.pk}/quiz/rewrite/", follow=True
+        )
         seconds = round(time.monotonic() - started, 2)
         quiz = Quiz.objects.filter(topic=topic).order_by("-created_at").first()
         if quiz is None:

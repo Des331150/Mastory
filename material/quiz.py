@@ -43,6 +43,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
+from django.contrib.auth.models import User
 from django.db import transaction
 
 from material import marking, model, progress, reading, spend
@@ -209,12 +210,15 @@ def _written(topic: Topic, spans: Sequence[Span]) -> model.QuestionSet:
 
 
 def build(topic: Topic) -> Quiz:
-    """A fresh quiz for this topic, written from its own paragraphs.
+    """A fresh quiz for this topic, written from its own paragraphs, on request.
 
     Replaces whatever was there, which is what taking it again means: the
     questions are written again, so an answer worked out last time is not an
-    answer memorised this time. Questions that cannot be verified are dropped,
-    and the count of them is kept so the page can say what it left out.
+    answer memorised this time. Replacing is the one thing asking for different
+    questions is *supposed* to cost, so the writing happens before any lock is
+    taken - an explicit retake pays for itself even if another retake got there
+    first. Questions that cannot be verified are dropped, and the count of them
+    is kept so the page can say what it left out.
     """
     spans = topic_spans(topic)
     if not spans:
@@ -223,36 +227,117 @@ def build(topic: Topic) -> Quiz:
             "to write. Point it at the slides that cover it first."
         )
     written = _written(topic, spans)
-    kept = written.questions[:QUESTION_LIMIT]
-    by_index = {index: span for index, span in enumerate(spans, start=1)}
     with transaction.atomic():
+        _held_user()
         owned(topic.quizzes.all()).delete()
-        quiz = Quiz.objects.create(
-            user_id=current_user_id(),
-            topic=topic,
-            # Everything written and not asked counts as left out, including the
-            # questions that verified and were dropped only because a short quiz
-            # holds four. A count that covered some of the ways a question goes
-            # missing would let the page claim nothing was.
-            dropped=written.dropped + len(written.questions) - len(kept),
-            low_confidence=len(kept) < SHORT_QUIZ_UNDER,
+        return _stored(topic, spans, written, _kept_questions(written))
+
+
+def claim(topic: Topic) -> Quiz:
+    """A quiz for this topic, written once no matter who is already waiting.
+
+    The student's bits of the page do not generate anything: a link preview, a
+    prefetcher or a second tab hitting the same page must not pay for a quiz the
+    student has not asked for, and each of those reads is exactly what viewing
+    is. So the quiz is only written when the student presses the button, and
+    pressing it twice in two tabs must still cost one round of writing: the
+    model is expensive here, and the loser of the race has paid for nothing the
+    student would see or want.
+
+    The press that has no quiz behind it is the first write, and it is a claim:
+    the check that no quiz is there yet and the writing are one round held inside
+    a lock on the student, so two first requests cannot each write and each
+    delete the other's quiz. Whoever ends up waiting on the lock finds the
+    winner's quiz already there and takes that instead - one quiz, one round of
+    writing, and the same questions everywhere it is looked at.
+
+    Holding the lock across the writing is what keeps the loser of the race to
+    a single round rather than a second paid one, and it is deliberately unlike
+    taking the mock exam. An exam writes every topic of a course and the model
+    calls run to a minute or more, so a lock over all of them would hold one
+    request hostage to another's page; a topic quiz is one topic and a handful
+    of calls, and the requests racing are the same student's tabs. Letting one
+    wait for the other is what keeps the bill to a single write.
+    """
+    spans = topic_spans(topic)
+    if not spans:
+        raise Rejected(
+            "This topic points at no paragraphs to ask about, so there is no quiz "
+            "to write. Point it at the slides that cover it first."
         )
-        Question.objects.bulk_create(
-            [
-                Question(
-                    user_id=quiz.user_id,
-                    quiz=quiz,
-                    span=by_index[proposal.span_index],
-                    ordinal=ordinal,
-                    kind=proposal.kind,
-                    prompt=proposal.prompt,
-                    choices=list(proposal.choices),
-                    answers=list(proposal.answers),
-                )
-                for ordinal, proposal in enumerate(kept)
-            ]
-        )
+    unreachable: model.ModelUnavailable | None = None
+    with transaction.atomic():
+        _held_user()
+        existing = latest(topic)
+        if existing is not None:
+            return existing
+        try:
+            written = _written(topic, spans)
+            return _stored(topic, spans, written, _kept_questions(written))
+        except model.ModelUnavailable as failure:
+            # Nothing had been written when the model refused, so there is no
+            # quiz to roll back; what the round leaves behind is its charge, and
+            # a fault that let this transaction be torn down would take that
+            # row with it. The charge is committed with this transaction, and
+            # the failure is raised after the commit - which is what keeps the
+            # failure the student sees the failure the student has always seen.
+            unreachable = failure
+    if unreachable is not None:
+        raise unreachable
+
+
+def _kept_questions(written: model.QuestionSet) -> Sequence[model.QuestionProposal]:
+    """The written questions the quiz will actually ask, cap applied."""
+    return written.questions[:QUESTION_LIMIT]
+
+
+def _stored(
+    topic: Topic,
+    spans: Sequence[Span],
+    written: model.QuestionSet,
+    kept: Sequence[model.QuestionProposal],
+) -> Quiz:
+    """The quiz with its questions, created inside the caller's transaction.
+
+    Everything written and not asked counts as left out, including the questions
+    that verified and were dropped only because a short quiz holds four. A count
+    that covered some of the ways a question goes missing would let the page
+    claim nothing was.
+    """
+    by_index = {index: span for index, span in enumerate(spans, start=1)}
+    quiz = Quiz.objects.create(
+        user_id=current_user_id(),
+        topic=topic,
+        dropped=written.dropped + len(written.questions) - len(kept),
+        low_confidence=len(kept) < SHORT_QUIZ_UNDER,
+    )
+    Question.objects.bulk_create(
+        [
+            Question(
+                user_id=quiz.user_id,
+                quiz=quiz,
+                span=by_index[proposal.span_index],
+                ordinal=ordinal,
+                kind=proposal.kind,
+                prompt=proposal.prompt,
+                choices=list(proposal.choices),
+                answers=list(proposal.answers),
+            )
+            for ordinal, proposal in enumerate(kept)
+        ]
+    )
     return quiz
+
+
+def _held_user() -> None:
+    """The student's row, held for the length of the transaction.
+
+    A quiz belongs to one student and one topic, and the race this lock settles
+    is between that one student's own requests. Locking the student - rather
+    than the topic, which other students are working with at the same time -
+    keeps the queue to the tabs that can actually collide with each other.
+    """
+    User.objects.select_for_update().get(pk=current_user_id())
 
 
 def questions(quiz: Quiz) -> list[Question]:

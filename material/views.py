@@ -484,44 +484,48 @@ def topic_confirm(request: HttpRequest, course_id: int) -> HttpResponse:
 def topic_quiz(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
     """The quiz for one topic: the questions that survived verification.
 
-    Built on first use and kept afterwards, because the student has to be able
-    to come back to the same questions and mark what they gave. A topic with
-    nothing pointed at it says so rather than writing an empty quiz.
+    Reading only. Nothing here writes, because a GET has no way to say it is a
+    student rather than a link preview, a prefetcher or a second tab - and
+    building as a side effect of opening the page paid for a quiz for every one
+    of those visitors. The quiz is written by the button on the page, and kept
+    from then on, because the student has to be able to come back to the same
+    questions and mark what they gave.
     """
     topic = _topic(course_id, topic_id)
     course = topic.course
-    existing = quiz_service.latest(topic)
-    if existing is not None:
-        return _quiz_page(request, course, topic, existing)
-    try:
-        written = quiz_service.build(topic)
-    except (topic_service.Rejected, model.ModelUnavailable) as exc:
-        return _quiz_page(request, course, topic, None, error=_reason(exc))
-    return _quiz_page(request, course, topic, written)
+    return _quiz_page(request, course, topic, quiz_service.latest(topic))
 
 
 @require_POST
 def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
-    """Write the quiz again, so the questions are not the ones just memorised.
+    """Write the quiz, or write the quiz again, the way the page's button does.
 
     Held, not refused, when the student has failed twice and has not been back
     to the paragraphs: the sitting they have already got is left alone and the
     page says what would open it. The check runs before anything is generated,
     so a blocked retake costs no model call and destroys no quiz.
+
+    The first press has no quiz behind it, and it claims rather than replaces:
+    two first requests still produce one quiz and one round of writing, because
+    whoever loses the race finds the winner's questions already there. A later
+    press replaces, which is the one case where paying to write again is the
+    work the student asked for.
     """
     topic = _topic(course_id, topic_id)
     course = topic.course
     reread = quiz_service.reread(topic)
     if reread.required:
         return _quiz_page(request, course, topic, quiz_service.latest(topic), reread=reread)
+    existing = quiz_service.latest(topic)
+    write = quiz_service.claim if existing is None else quiz_service.build
     try:
-        written = quiz_service.build(topic)
+        written = write(topic)
     except (topic_service.Rejected, model.ModelUnavailable) as exc:
         return _quiz_page(
             request,
             course,
             topic,
-            quiz_service.latest(topic),
+            existing,
             error=_reason(exc),
         )
     return _quiz_page(request, course, topic, written)

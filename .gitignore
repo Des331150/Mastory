@@ -4,4 +4,6 @@ __pycache__/
 .mypy_cache/
 db.sqlite3
 media/
-*.egg-info/
+*.egg-info/test_db.sqlite3
+db.sqlite3-journal
+test_db.sqlite3-journal

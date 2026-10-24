@@ -111,11 +111,17 @@ class SpendTestCase(TestCase):
         return f"/courses/1/topics/{self.topic_id(title)}/quiz/"
 
     def open_quiz(self, title: str) -> QuizModel:
-        """Open this topic's quiz with a fake that remembers what it was asked."""
+        """Write this topic's quiz with a fake that remembers what it was asked.
+
+        Pressing the button the page offers, not opening the page: the visit
+        writes nothing, so a fake that remembers what it was asked must be
+        installed before the press and asked once by the write.
+        """
         fake = QuizModel(DEFAULT_QUESTION)
         fake.use(self)
-        response = self.client.get(self.quiz_url(title))
+        response = self.client.post(f"{self.quiz_url(title)}rewrite/", follow=True)
         self.assertEqual(response.status_code, 200)
+        self.assertNotIn('class="error"', response.content.decode())
         return fake
 
     def start_exam(self, fake: QuizModel) -> None:
@@ -354,7 +360,9 @@ class PricedTestCase(SpendTestCase):
             raise model.ModelUnavailable("The model would not answer.", "Try again.")
 
         with mock.patch.object(model, "complete", answering):
-            response = self.client.get(self.quiz_url("Eigenvalues"))
+            response = self.client.post(
+                f"{self.quiz_url('Eigenvalues')}rewrite/", follow=True
+            )
         self.assertEqual(response.status_code, 200)
         self.assertIn("The model would not answer", flat(response.content.decode()))
 

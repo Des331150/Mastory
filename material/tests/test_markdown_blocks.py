@@ -188,7 +188,7 @@ class CitedParagraphTestCase(TestCase):
         QuizModel(
             fake_question(1, "What is taken as the vector?", answer="remainder")
         ).use(self)
-        response = self.client.get("/courses/1/topics/1/quiz/")
+        response = self.client.post("/courses/1/topics/1/quiz/rewrite/", follow=True)
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 

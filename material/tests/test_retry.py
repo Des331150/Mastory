@@ -116,9 +116,14 @@ class RetryTestCase(TestCase):
     # -- sitting and taking it again -----------------------------------------
 
     def quiz(self, question: dict[str, Any] | None = None) -> str:
-        """The quiz as it stands, written if the student has not seen one."""
+        """The quiz as it stands, writing it from this question if there is none."""
         QuizModel(question or FROM_THE_MATERIAL).use(self)
-        return self.page()
+        html = self.page()
+        if not self.question_ids(html):
+            # The visit does not write: the first write is the button, and the
+            # page it hands back is the quiz to sit.
+            html = self.rewrite(question)
+        return html
 
     def page(self) -> str:
         response = self.client.get(self.quiz_url())
@@ -143,6 +148,9 @@ class RetryTestCase(TestCase):
         """
         QuizModel(FROM_THE_MATERIAL).use(self)
         html = self.page()
+        if not self.question_ids(html):
+            # The visit does not write; the first write is the button.
+            html = self.rewrite()
         self.sat = html
         action = re.search(r'action="([^"]+)"', flat(html))
         assert action is not None, "the quiz page offers no form to mark"

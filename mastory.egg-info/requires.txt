@@ -1,0 +1,9 @@
+django>=5.2
+psycopg[binary]>=3.2
+dj-database-url>=2.2
+pymupdf4llm>=0.0.17
+markdown>=3.7
+
+[dev]
+mypy>=1.11
+django-stubs[compatible-mypy]>=5.0

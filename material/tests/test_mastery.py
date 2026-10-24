@@ -179,12 +179,24 @@ class StandingTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
+    def written(self, title: str = "Eigenvalues") -> str:
+        """The page holding a quiz, pressing the write button if there is none.
+
+        Opening the page does not write the questions: a GET could be a link
+        preview as well as it could be a student, so the first sit presses the
+        same form the student presses.
+        """
+        html = self.page(title)
+        if self.question_ids(html):
+            return html
+        return self.rewrite(title)
+
     def sit(self, n_right: int = 4, *, title: str = "Eigenvalues") -> str:
         """Sit this topic's quiz once, marking ``n_right`` of the questions right."""
         model = QuizModel(FROM_THE_MATERIAL)
         model.use(self)
         with on_a_monday():
-            html = self.page(title)
+            html = self.written(title)
             return self.mark(html, self.with_n_right(html, n_right))
 
     def sit_again(

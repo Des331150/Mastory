@@ -61,6 +61,26 @@ DATABASES = {
     )
 }
 
+# A transaction on SQLite only serialises against other transactions once it has
+# the database's write lock, and a deferred BEGIN takes it at the first write
+# rather than the first statement. Work whose whole point is "check under a lock,
+# and let whoever is already holding it go first" - a quiz claim, a mock exam
+# claim - would then check on stale pages and wait for nothing. BEGIN IMMEDIATE
+# takes the write lock at the door, which is what reading Postgres's row lock
+# would have done. Postgres is what Mastory trains for and deploys; this is only
+# the local fallback behaving like the backends it stands in for.
+if "sqlite" in DATABASES["default"]["ENGINE"]:  # pragma: no cover - backend note
+    DATABASES["default"].setdefault("OPTIONS", {})["transaction_mode"] = "IMMEDIATE"
+    # SQLite's default test database is an in-memory file shared by connections
+    # through cache=shared, whose table latches answer a connection that touches
+    # a table mid-transaction with "database table is locked" instead of making
+    # it wait. A test of two connections would then be testing that artefact
+    # rather than the claim it came to see. The suite's database is a file, whose
+    # locks wait - as Postgres's row locks do.
+    DATABASES["default"].setdefault("TEST", {}).setdefault(
+        "NAME", str(BASE_DIR / "test_db.sqlite3")
+    )
+
 if not DATABASE_URL:  # pragma: no cover - operator note
     # Said through the log rather than through ``warnings``: settings are
     # imported more than once per process, so a warning prints itself twice per

@@ -11,11 +11,15 @@ criterion, and the one that cannot be tested by asserting on a function.
 """
 
 import re
+import threading
+import traceback
+from unittest import mock
 
-from django.test import TestCase
+from django.test import Client, TestCase, TransactionTestCase
 
 from material import model, progress
-from material.models import Span, Topic
+from material import quiz as quiz_service
+from material.models import Quiz, Span, Spend, Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
@@ -86,9 +90,11 @@ class QuizTestCase(TestCase):
         return f"/courses/1/topics/{self.topic_id(title)}/quiz/"
 
     def quiz(self, model: QuizModel, title: str = "Eigenvalues") -> str:
-        """The quiz the student sees, written by this fake model if there is none."""
+        """The quiz the student sees, written by pressing the page's button."""
         model.use(self)
-        return self.page(title)
+        response = self.client.post(f"{self.quiz_url(title)}rewrite/", follow=True)
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
 
     def rewrite(self, model: QuizModel, title: str = "Eigenvalues") -> str:
         """The quiz the student sees after asking for different questions."""
@@ -443,9 +449,14 @@ class NothingToAskTests(QuizTestCase):
         self.client.post("/courses/1/topics/add/", {"title": "Empty topic"})
         html = self.client.get("/courses/1/topics/").content.decode()
         empty = topic_pk(html, "Empty topic")
-        response = self.client.get(f"/courses/1/topics/{empty}/quiz/")
+        # The visit offers the button rather than asking the model what there
+        # is nothing to ask about yet; the press is where the answer comes from.
+        response = self.client.post(f"/courses/1/topics/{empty}/quiz/rewrite/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("No questions to sit", flat(response.content.decode()))
+        self.assertIn(
+            "This topic points at no paragraphs to ask about",
+            flat(response.content.decode()),
+        )
 
 
 class FoldTests(TestCase):
@@ -570,3 +581,122 @@ class ScriptFoldMarkingTests(QuizTestCase):
         for question in self.question_ids(html):
             block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
             self.assertIn("Right", flat(block))
+
+
+class UnwrittenQuizTests(QuizTestCase):
+    """What the page does before any quiz exists, when it is only opened."""
+
+    def topic(self) -> Topic:
+        return Topic.objects.get(title="Eigenvalues")
+
+    def test_a_visit_writes_nothing_and_it_says_so(self) -> None:
+        """Opening the page is not a request for a quiz. A GET could be a link
+        preview, a chat bot insisting on reading the page, or a second tab, and
+        none of those has asked for anything - so a visit that never pressed the
+        button leaves the topic without questions and the meter without a row.
+        """
+        fake = QuizModel(FROM_THE_MATERIAL)
+        fake.use(self)
+        page = self.page()
+
+        self.assertNotIn('<li class="question', page)
+        self.assertIn("Write my quiz", page)
+        self.assertIsNone(quiz_service.latest(self.topic()), "a GET wrote a quiz")
+        self.assertEqual(fake.prompts, [], "a GET asked the model for questions")
+
+    def test_a_second_visit_shows_the_first_questions_and_pays_for_nothing(self) -> None:
+        """The quiz is written once, and the student who comes back gets the
+        questions they saw. A page that built the same topic's quiz again on the
+        way in would mark twice, and the second build would be the model's work
+        nobody asked for."""
+        first = self.question_ids(self.quiz(QuizModel(FROM_THE_MATERIAL)))
+        written = quiz_service.latest(self.topic())
+        assert written is not None, "the first write left no quiz for this topic"
+
+        with mock.patch.object(
+            model, "complete", side_effect=AssertionError("the model was asked again")
+        ):
+            page = self.page()
+
+        self.assertEqual(self.question_ids(page), first)
+        self.assertEqual(quiz_service.latest(self.topic()), written)
+
+
+class ContestedFirstWriteTests(TransactionTestCase):
+    """Two tabs pressing for the same topic's first quiz at the same time.
+
+    Everything else in the suite rides the request/response cycle with a client
+    sharing the test's transaction, which cannot see what two open connections
+    do to each other. The pay-for-it-once guarantee is exactly a claim between
+    connections, so this one goes all the way out of the transaction and back.
+    """
+
+    serialized_rollback = True
+
+    def question_ids(self, html: str) -> list[str]:
+        return re.findall(r'id="question-(\d+)"', html)
+
+    def setUp(self) -> None:
+        super().setUp()
+        use_temporary_media_root(self)
+        client = Client()
+        client.post("/courses/new/", {"files": [pdf_upload(LINEAR_ALGEBRA_PDF)]})
+        claims = [fake_topic(title, slides) for title, slides in TOPICS]
+        with use_fake_model(*claims):
+            client.post("/courses/1/topics/infer/")
+        client.post("/courses/1/topics/confirm/")
+        self.topic = Topic.objects.get(title="Eigenvalues")
+
+    def test_two_presses_at_once_write_one_quiz_for_one_round_of_the_model(self) -> None:
+        """Both pages must show the same four questions, one quiz row must exist,
+        and the model must have been paid once: a prefetch, a preview bot and a
+        second tab each hitting the first write are the same student asking once,
+        not three billings for work they would have thrown two away of."""
+        fake = QuizModel(FROM_THE_MATERIAL)
+        pages: dict[int, str] = {}
+        barrier = threading.Barrier(2)
+
+        def press(tab: int) -> None:
+            barrier.wait()
+            try:
+                response = Client().post(
+                    f"/courses/1/topics/{self.topic.pk}/quiz/rewrite/", follow=True
+                )
+                pages[tab] = response.content.decode()
+            except Exception:  # noqa: BLE001 - surfaced as the failure below
+                pages.setdefault(tab, "")
+                traceback.print_exc()
+
+        with mock.patch.object(model, "complete", fake):
+            threads = [threading.Thread(target=press, args=(tab,)) for tab in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        quizzes = Quiz.objects.filter(topic=self.topic)
+        self.assertEqual(quizzes.count(), 1, "two first visits wrote two quizzes")
+        for tab in range(2):
+            self.assertEqual(
+                self.question_ids(pages[tab]),
+                self.question_ids(pages[0]),
+                "the tab behind the winner was answering replaced questions",
+            )
+
+        # What one round of the model costs against this fake, measured by
+        # writing the same topic's quiz again on a single connection.
+        Quiz.objects.all().delete()
+        Spend.objects.all().delete()
+        solo = QuizModel(FROM_THE_MATERIAL)
+        with mock.patch.object(model, "complete", solo):
+            quiz_service.claim(self.topic)
+        self.assertEqual(
+            len(fake.prompts),
+            len(solo.prompts),
+            "two tabs asking for the first quiz were billed for two rounds",
+        )
+        self.assertEqual(
+            len(fake.prompts),
+            len(solo.prompts),
+            "two tabs asking for the first quiz were billed for two rounds",
+        )

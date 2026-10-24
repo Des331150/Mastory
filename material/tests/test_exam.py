@@ -119,6 +119,15 @@ class ExamTestCase(TestCase):
         """This course's exam, which in these tests is the only one this student has."""
         return MockExam.objects.get(course__pk=1)
 
+    def write_quiz(self, topic_id: str) -> str:
+        """A topic's quiz, written the way the page's button writes it: on press,
+        with whatever fake model the test has installed at that moment."""
+        response = self.client.post(
+            f"/courses/1/topics/{topic_id}/quiz/rewrite/", follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
     def paper(self, model: QuizModel | None = None) -> str:
         """The paper waiting to be sat, written on first ask and never rewritten."""
         if not MockExam.objects.filter(course__pk=1).exists():
@@ -386,7 +395,7 @@ class ScoringTests(ExamTestCase):
         quiz.use(self)
         topics = self.client.get("/courses/1/topics/").content.decode()
         topic = topic_pk(topics, "Eigenvalues")
-        page = self.client.get(f"/courses/1/topics/{topic}/quiz/").content.decode()
+        page = self.write_quiz(topic)
         quiz_question = re.findall(r'id="question-(\d+)"', page)[0]
         which = re.search(r'name="quiz" value="(\d+)"', page)
         assert which is not None, "the topic quiz page offers no form to mark"
@@ -651,8 +660,5 @@ class TopicQuizIsNotSpentTests(ExamTestCase):
         html = self.paper()
         self.hand_in(html, self.right(html))
         topics = self.client.get("/courses/1/topics/").content.decode()
-        quiz = self.client.get(
-            f"/courses/1/topics/{topic_pk(topics, 'Eigenvalues')}/quiz/"
-        )
-        self.assertEqual(quiz.status_code, 200)
-        self.assertIn("Write different questions", quiz.content.decode())
+        quiz = self.write_quiz(topic_pk(topics, "Eigenvalues"))
+        self.assertIn("Write different questions", quiz)

@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: mastory
+Version: 0.1.0
+Requires-Python: >=3.12
+Requires-Dist: django>=5.2
+Requires-Dist: psycopg[binary]>=3.2
+Requires-Dist: dj-database-url>=2.2
+Requires-Dist: pymupdf4llm>=0.0.17
+Requires-Dist: markdown>=3.7
+Provides-Extra: dev
+Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: django-stubs[compatible-mypy]>=5.0; extra == "dev"

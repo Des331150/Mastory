@@ -90,11 +90,11 @@ def temporary_media_root() -> Iterator[Path]:
             yield Path(directory)
 
 
-def use_temporary_media_root(test_case: TestCase) -> None:
+def use_temporary_media_root(test_case: object) -> None:
     """Give a TestCase a scratch MEDIA_ROOT for the duration of each test."""
     manager = temporary_media_root()
     manager.__enter__()
-    test_case.addCleanup(manager.__exit__, None, None, None)
+    test_case.addCleanup(manager.__exit__, None, None, None)  # type: ignore[attr-defined]
 
 
 def fake_topic(title: str, slides: list[int], confidence: float = 0.9) -> Claim:
@@ -178,6 +178,22 @@ class QuizSittings:
         assert response.status_code == 200, f"the quiz for {title!r} did not open"
         return flat(response.content.decode())
 
+    def first_write(self, title: str, course_id: int = 1) -> str:
+        """The quiz page after pressing the button that writes the questions.
+
+        A visit does not write: a GET could be a link preview, so the writing is
+        the form on the page and the page the press hands back is the form to
+        answer.
+        """
+        response = self.client.post(  # type: ignore[attr-defined]
+            f"{self.quiz_url(title, course_id)}rewrite/", follow=True
+        )
+        assert response.status_code == 200
+        assert 'class="error"' not in response.content.decode(), (
+            f"the first write of {title!r} was refused"
+        )
+        return flat(response.content.decode())
+
     def sit(
         self,
         title: str,
@@ -203,6 +219,10 @@ class QuizSittings:
         day = moment or A_MONDAY
         with on_a_monday(day):
             html = self.quiz_page(title, course_id)
+            if not re.findall(r'id="question-\d+"', html):
+                # No quiz is sitting on the page: the visit does not write one,
+                # so the sit presses the button the way the student does.
+                html = self.first_write(title, course_id)
             questions = re.findall(r'id="question-(\d+)"', html)
             assert questions, f"there are no questions on {title!r}'s quiz to answer"
             correct = round(right * len(questions))

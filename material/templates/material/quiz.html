@@ -98,7 +98,27 @@
     </section>
   {% endif %}
 
-  {% if not questions %}
+  {% if not quiz %}
+    {% comment %}
+      Nothing is written while the student is reading this page: a GET has no
+      way to say it is them rather than a link preview or a second tab, so the
+      writing is a press of this button and it is paid for once however many
+      tabs press it at the same time.
+    {% endcomment %}
+    <section class="panel">
+      <h2>Nothing to sit yet</h2>
+      <p class="muted">
+        The questions for this topic are not written yet. They are written here,
+        on request, from the paragraphs this topic points at - and kept
+        afterwards, so coming back shows the same questions and asks the model
+        for nothing.
+      </p>
+      <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
+        {% csrf_token %}
+        <button type="submit">Write my quiz</button>
+      </form>
+    </section>
+  {% elif not questions %}
     <section class="panel">
       <h2>No questions to sit</h2>
       <p class="muted">
