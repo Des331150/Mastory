@@ -134,7 +134,7 @@
               {% if slides %}
                 <a class="session-link" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}"
                    >Read {{ session.topic.title }}</a>
-                <a class="session-link" href="{% url 'topic-quiz' course.pk session.topic.pk }}"
+                <a class="session-link" href="{% url 'topic-quiz' course.pk session.topic.pk %}"
                    >Quiz for {{ session.topic.title }}</a>
               {% else %}
                 <a class="session-link" href="{% url 'topic-path' course.pk %}"

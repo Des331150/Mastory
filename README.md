@@ -46,7 +46,7 @@ material/
   planning.py  the week of sessions: weighting, the weekly budget, and the two modes
   progress.py  what the student has done: the share of their plan, the log, and quiz attempts
   mastery.py   how much of a topic the student knows, weighed from its sittings
-  quiz.py      a topic's quiz: written from spans, cited to them, marked against them, and retaken
+  quiz.py      a topic's quiz: written from spans, cited to them, marked against them, and retaken — written when the student presses for it, held under a lock so two tabs still pay once
   exam.py      the mock exam: one paper over the whole course, written once and sat once
   marking.py   what an answer is worth, shared by both kinds of paper
   reading.py   whether the student has opened a cited paragraph
