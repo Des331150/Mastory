@@ -446,3 +446,116 @@ class NothingToAskTests(QuizTestCase):
         response = self.client.get(f"/courses/1/topics/{empty}/quiz/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("No questions to sit", flat(response.content.decode()))
+
+
+class FoldTests(TestCase):
+    """The comparison form two ways of writing a thing fold onto.
+
+    Asserted on ``model.normalise`` directly, because the fold depends on the
+    strings alone; the HTTP tests below check that this same fold is the one
+    grading actually runs, which a fold test on its own cannot see.
+    """
+
+    def test_a_subscript_and_a_typed_digit_fold_the_same(self) -> None:
+        """H₂O read off a PDF and H2O typed by hand are the same word."""
+        self.assertEqual(model.normalise("H₂O"), model.normalise("H2O"))
+        self.assertEqual(model.normalise("H₂O"), "h2o")
+
+    def test_a_full_width_form_folds_onto_its_plain_letters(self) -> None:
+        self.assertEqual(
+            model.normalise("ＥＩＧＥＮＶＥＣＴＯＲ"), model.normalise("eigenvector")
+        )
+
+    def test_a_non_latin_word_stays_whole_rather_than_being_split(self) -> None:
+        """A Devanagari matra is not a place where one word ends and another
+        begins, so a Hindi word folds to itself and not to a row of pieces."""
+        self.assertEqual(model.normalise("मन्त्र").split(), ["मन्त्र"])
+        self.assertEqual(model.normalise("मन्त्र"), model.normalise("मन्त्र"))
+
+    def test_two_ways_of_writing_a_nukta_fold_the_same(self) -> None:
+        """क़ can arrive precomposed or as क with a separate nukta mark, and
+        the two must not read as different letters."""
+        self.assertEqual(model.normalise("क़"), model.normalise("क\u093c"))
+
+    def test_punctuation_and_case_are_still_folded_away(self) -> None:
+        self.assertEqual(
+            model.normalise("the null space."), model.normalise("the null space")
+        )
+        self.assertEqual(model.normalise("The Null Space"), "the null space")
+
+    def test_words_that_differ_still_compare_differently(self) -> None:
+        self.assertNotEqual(model.normalise("eigenvalues"), model.normalise("eigenvectors"))
+
+
+class ScriptFoldMarkingTests(QuizTestCase):
+    """The fold driven through the student's own seat: a question written from
+    their paragraph, verified, and marked - on material that carries a
+    subscript or a non-Latin word, the way a real course does."""
+
+    #: One paragraph of the topic's own slides, rewritten as a Hindi slide
+    #: would carry it: the same words with a Devanagari sentence and a
+    #: subscript formula in it.
+    HINDI_WITH_SUBSCRIPT = (
+        "यदि Av = λv है, तो v को अभिमत वेक्टर कहा जाता है । "
+        "पानी का रासायनिक सूत्र H₂O है ।"
+    )
+
+    class FoldQuizModel(QuizModel):
+        """A model that answers about a paragraph the way it reads the words,
+        not the codepoints: a same word in another script is the same word."""
+
+        def _verify(self, request):
+            if self.verified is not None:
+                number = request["span"]["span"]
+                return number in self.verified
+            span = request["span"]["text"]
+            return all(model.normalise(a) in model.normalise(span) for a in request["question"]["answers"])
+
+    def _rewrite_a_paragraph_of_the_topic(self) -> None:
+        span = Span.objects.filter(slide__number=2, ordinal=0).first()
+        assert span is not None, "the topic's slides carry no paragraph to rewrite"
+        Span.objects.filter(pk=span.pk).update(text=self.HINDI_WITH_SUBSCRIPT)
+
+    def test_a_short_answer_written_in_devanagari_is_graded_right(self) -> None:
+        self._rewrite_a_paragraph_of_the_topic()
+        model = QuizModel(
+            fake_question(
+                1, "v को अभिमत वेक्टर क्यों कहा जाता है?",
+                kind="short_answer", answers=["अभिमत"],
+            )
+        )
+        html = self.quiz(model)
+        question = self.question_ids(html)[0]
+        marked = self.submit(html, {question: "अभिमत"})
+        block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
+        self.assertIn("Right", flat(block))
+
+    def test_a_formula_written_with_a_subscript_grades_the_typed_form_right(self) -> None:
+        """The paragraph says H₂O and the student's keyboard has no subscript:
+        the answer that was verified is the one they can still type."""
+        self._rewrite_a_paragraph_of_the_topic()
+        model = QuizModel(
+            fake_question(1, "पानी का रासायनिक सूत्र क्या है?",
+                          kind="short_answer", answers=["H₂O"])
+        )
+        html = self.quiz(model)
+        question = self.question_ids(html)[0]
+        marked = self.submit(html, {question: "H2O"})
+        block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
+        self.assertIn("Right", flat(block))
+
+    def test_an_answer_differing_only_by_script_is_graded_right(self) -> None:
+        """A model that writes the answer in full-width letters cannot turn the
+        question into one no student can answer."""
+        model = ScriptFoldMarkingTests.FoldQuizModel(
+            fake_question(1, "What is the vector v called in Av = lambda v?",
+                          kind="short_answer", answers=["ＥＩＧＥＮＶＥＣＴＯＲ"])
+        )
+        html = self.quiz(model)
+        self.assertTrue(self.question_ids(html))
+        marked = self.submit(
+            html, {q: "eigenvector" for q in self.question_ids(html)}
+        )
+        for question in self.question_ids(html):
+            block = next(b for b in self.blocks(marked) if f'id="question-{question}"' in b)
+            self.assertIn("Right", flat(block))

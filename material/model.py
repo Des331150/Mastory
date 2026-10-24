@@ -25,6 +25,7 @@ import json
 import logging
 import re
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 from collections.abc import Iterator, Sequence
@@ -611,7 +612,7 @@ def _text(value: Any) -> str:
 
 
 def normalise(text: str) -> str:
-    """Two strings written the same way, compared without case or punctuation.
+    """Two strings that mean the same thing, compared without case or punctuation.
 
     Used both to check an answer against the span it cites and to mark a
     student's answer, so that the answer a question was verified against and
@@ -619,9 +620,27 @@ def normalise(text: str) -> str:
     grading could contradict the very text the question was checked against -
     a verified answer written ``2.`` in the span and typed ``2`` by the student
     would be marked wrong.
+
+    Folds the compatibility forms onto their plain letters first, so the same
+    word compares the same however it was written: a subscript ``H₂O`` over a
+    PDF and an ``H2O`` typed by hand both fold to ``h2o`` (NFKD), and the same
+    goes for a full-width form. A word in a non-Latin script then stays a whole
+    word: a combining mark takes its place in the word it belongs to instead of
+    reading as a break, so a Devanagari matra does not split its own word in
+    half. Zero-width format characters - joiners, byte order marks - are
+    dropped rather than filled, because a character the eye cannot see is not a
+    place where one word ends and another begins. Punctuation and case are
+    still folded away, so "the null space." still compares as "the null space".
     """
-    spaced = [char if char.isalnum() else " " for char in text.casefold()]
-    return " ".join("".join(spaced).split())
+    folded = unicodedata.normalize("NFKD", unicodedata.normalize("NFKD", text).casefold())
+
+    def folded_form(char: str) -> str:
+        category = unicodedata.category(char)
+        if char.isalnum() or category.startswith("M"):
+            return char
+        return "" if category == "Cf" else " "
+
+    return " ".join("".join(folded_form(char) for char in folded).split())
 
 
 def complete(prompt: str) -> str:
