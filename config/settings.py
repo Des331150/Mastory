@@ -53,6 +53,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Postgres in every deployed environment, named by DATABASE_URL. SQLite is the
 # local fallback only, for running the suite without a Postgres server to hand.
+# What a round of model work may take is named up here because the fallback's
+# database below sizes its waits by it.
+MODEL_TIMEOUT_SECONDS = float(os.environ.get("MASTORY_MODEL_TIMEOUT_SECONDS", "60"))
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 DATABASES = {
@@ -71,19 +75,21 @@ DATABASES = {
 # the local fallback behaving like the backends it stands in for.
 if "sqlite" in DATABASES["default"]["ENGINE"]:  # pragma: no cover - backend note
     DATABASES["default"].setdefault("OPTIONS", {})["transaction_mode"] = "IMMEDIATE"
-    # A collector of a claim waits for the holder's generation to end, and the
-    # five seconds pysqlite defaults to is not long enough for that on a slow
-    # day. Postgres blocks on the row lock for as long as the work takes; this
-    # is the fallback giving the student the same waiting.
-    DATABASES["default"]["OPTIONS"].setdefault("timeout", 30)
+    # A collector of a claim waits for the holder's generation to end, which can
+    # take as long as the model's own budget says a round may take. The five
+    # seconds pysqlite defaults to would turn that waiting into a fault page
+    # rather than the winner's quiz; Postgres blocks on the row lock for as long
+    # as the work takes, and this is the fallback giving the student the same.
+    DATABASES["default"]["OPTIONS"].setdefault("timeout", MODEL_TIMEOUT_SECONDS)
     # SQLite's default test database is an in-memory file shared by connections
     # through cache=shared, whose table latches answer a connection that touches
     # a table mid-transaction with "database table is locked" instead of making
     # it wait. A test of two connections would then be testing that artefact
-    # rather than the claim it came to see. The suite's database is a file, whose
-    # locks wait - as Postgres's row locks do.
+    # rather than the claim it came to see. One test database per process, on a
+    # file, whose locks wait as Postgres's row locks do: distinct names keep two
+    # suites run at the same time out of each other's database.
     DATABASES["default"].setdefault("TEST", {}).setdefault(
-        "NAME", str(BASE_DIR / "test_db.sqlite3")
+        "NAME", str(BASE_DIR / f"test_db_{os.getpid()}.sqlite3")
     )
 
 if not DATABASE_URL:  # pragma: no cover - operator note

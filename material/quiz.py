@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from django.contrib.auth.models import User
-from django.db import transaction
+from django.db import connection, transaction
 
 from material import marking, model, progress, reading, spend
 from material.models import PASS_MARK, Question, Quiz, Span, Spend, Topic
@@ -281,6 +281,9 @@ def claim(topic: Topic) -> Quiz:
             # row with it. The charge is committed with this transaction, and
             # the failure is raised after the commit - which is what keeps the
             # failure the student sees the failure the student has always seen.
+            # A fault in the rows the quiz is made of is not caught here: the
+            # transaction itself is broken then, and the only honest thing left
+            # is Django's rollback of everything, charge included.
             unreachable = failure
     if unreachable is not None:
         raise unreachable
@@ -336,8 +339,18 @@ def _held_user() -> None:
     is between that one student's own requests. Locking the student - rather
     than the topic, which other students are working with at the same time -
     keeps the queue to the tabs that can actually collide with each other.
+
+    The lock is taken without the row's keys: every insert elsewhere in the
+    product that names this student takes a share of the row's keys only for as
+    long as it takes to be told the row still exists, and holding that hostage
+    for a minute of model work would park every page the student opens in
+    another tab. Two claims still serialise, because a row locked without keys
+    is still locked against itself.
     """
-    User.objects.select_for_update().get(pk=current_user_id())
+    claim = User.objects.select_for_update()
+    if connection.features.has_select_for_no_key_update:
+        claim = claim.select_for_update(no_key=True)
+    claim.get(pk=current_user_id())
 
 
 def questions(quiz: Quiz) -> list[Question]:

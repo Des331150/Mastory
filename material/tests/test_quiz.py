@@ -621,6 +621,22 @@ class UnwrittenQuizTests(QuizTestCase):
         self.assertEqual(self.question_ids(page), first)
         self.assertEqual(quiz_service.latest(self.topic()), written)
 
+    def test_a_first_write_the_model_refuses_is_still_written_down(self) -> None:
+        """A first write the model cannot answer is the expensive sort: it took
+        the wall clock and gave the student nothing. The claim holds the lock
+        across the writing, so the charge a failed round leaves behind is
+        written against the claim's transaction - and a failure that let that
+        transaction be torn down would take the row with it."""
+        with mock.patch.object(model, "complete", side_effect=model.ModelUnavailable(
+            "The model would not answer.", "Try again."
+        )):
+            response = self.client.post(f"{self.quiz_url()}rewrite/", follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("The model would not answer", flat(response.content.decode()))
+        self.assertFalse(quiz_service.latest(self.topic()), "a refusal wrote a quiz")
+        rows = Spend.objects.filter(kind=Spend.Kind.QUIZ)
+        self.assertEqual(len(rows), 1, "the generation that failed was not written down")
+
 
 class ContestedFirstWriteTests(TransactionTestCase):
     """Two tabs pressing for the same topic's first quiz at the same time.
@@ -690,11 +706,6 @@ class ContestedFirstWriteTests(TransactionTestCase):
         solo = QuizModel(FROM_THE_MATERIAL)
         with mock.patch.object(model, "complete", solo):
             quiz_service.claim(self.topic)
-        self.assertEqual(
-            len(fake.prompts),
-            len(solo.prompts),
-            "two tabs asking for the first quiz were billed for two rounds",
-        )
         self.assertEqual(
             len(fake.prompts),
             len(solo.prompts),
