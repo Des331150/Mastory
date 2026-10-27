@@ -469,3 +469,73 @@ class NoGamificationTests(SessionLogTestCase):
         html = self.plan_page().lower()
         for forbidden in ["behind", "overdue", "in arrears", "you are losing"]:
             self.assertNotIn(forbidden, html)
+
+class OneAnswerPerSessionTests(SessionLogTestCase):
+    """One answer to "where does this session stand", on every line of one page.
+
+    The deciding element of a session used to read the topic's columns while the
+    panel above it read the session's own state - two answers that only agreed
+    because of the order ``Topic.state`` happened to check things in. These
+    tests read all three places that name a session's standing - the lit
+    button, the state panel, the standing table row - and ask for the same
+    word every time.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.set_availability()
+
+    def buttons(self, html: str, topic: str) -> list[tuple[str, str]]:
+        """The words the two buttons for one session show, in page order."""
+        return [
+            ("on" if flag else "", word)
+            for flag, word in re.findall(
+                r'class="session-action( on)?">\s*([^<]+?)\s*</button>',
+                self.session_block(html, topic),
+            )
+        ]
+
+    def standing_state(self, html: str, topic: str) -> str:
+        """What the standing table says about one topic's record."""
+        row = next(
+            block for block in html.split('<li class="standing-row"')[1:]
+            if topic in block
+        )
+        found = re.search(r'<p class="standing-complete" data-state="([a-z ]+)"', row)
+        assert found is not None, f"the standing row of {topic!r} names no state"
+        return found.group(1)
+
+    def test_a_marked_session_says_done_everywhere_it_is_named(self) -> None:
+        self.mark("Eigenvalues", "done")
+        html = self.plan_page()
+        self.assertEqual(self.buttons(html, "Eigenvalues"), [("on", "Done"), ("", "Mark skipped")])
+        self.assertEqual(self.session_state(html, "Eigenvalues"), "done")
+        self.assertEqual(self.standing_state(html, "Eigenvalues"), "done")
+
+    def test_a_skipped_session_says_skipped_everywhere_it_is_named(self) -> None:
+        self.mark("Eigenvalues", "skipped")
+        html = self.plan_page()
+        self.assertEqual(self.buttons(html, "Eigenvalues"), [("", "Mark done"), ("on", "Skipped")])
+        self.assertEqual(self.session_state(html, "Eigenvalues"), "skipped")
+        self.assertEqual(self.standing_state(html, "Eigenvalues"), "skipped")
+
+    def test_marking_done_over_a_skip_lights_one_button_and_names_one_state(self) -> None:
+        """The state where the old reads could disagree, driven on the page.
+
+        Skipping first puts both words in play; pressing done must retire the
+        skip - the page then saying one word about this session on every line.
+        """
+        self.mark("Eigenvalues", "skipped")
+        self.mark("Eigenvalues", "done")
+        html = self.plan_page()
+        self.assertEqual(self.buttons(html, "Eigenvalues"), [("on", "Done"), ("", "Mark skipped")])
+        self.assertEqual(self.session_state(html, "Eigenvalues"), "done")
+        self.assertEqual(self.standing_state(html, "Eigenvalues"), "done")
+
+    def test_a_fresh_session_lights_neither_button_and_names_no_record(self) -> None:
+        html = self.plan_page()
+        self.assertEqual(
+            self.buttons(html, "Eigenvalues"), [("", "Mark done"), ("", "Mark skipped")]
+        )
+        self.assertEqual(self.session_state(html, "Eigenvalues"), "not yet")
+        self.assertEqual(self.standing_state(html, "Eigenvalues"), "planned")
