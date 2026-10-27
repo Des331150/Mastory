@@ -268,13 +268,15 @@ class WeightedSessionTests(ScheduleTestCase):
         )
 
     def test_a_smaller_topic_is_never_given_a_longer_session_than_a_bigger_one(self) -> None:
+        """Built on a Monday, so all three topics share one unclipped week."""
         self.confirmed_path(
             fake_topic("Barely a topic", [5]),
             fake_topic("A topic", [4]),
             fake_topic("A long chapter", [2, 3, 4, 5]),
         )
-        self.set_availability(days=3, hours=6)
-        html = self.plan_page()
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=3, hours=6)
+            html = self.plan_page()
         lengths = {
             title: self.session_minutes(html, title) for title in self.session_titles(html)
         }
@@ -619,8 +621,10 @@ class SessionCountTests(ScheduleTestCase):
         self.assertLessEqual(self.fullest_week_sessions(self.plan_page()), 2)
 
     def test_a_budget_that_stretches_offers_one_session_for_each_study_day(self) -> None:
-        self.set_availability(days=5, hours=10)
-        self.assertEqual(self.fullest_week_sessions(self.plan_page()), 5)
+        """Built on a Monday, so the first week is a full five-day one."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=5, hours=10)
+            self.assertEqual(self.fullest_week_sessions(self.plan_page()), 5)
 
     def test_the_days_the_student_studies_still_cap_the_sessions_offered(self) -> None:
         self.set_availability(days=2, hours=20)
