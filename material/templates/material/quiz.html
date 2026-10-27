@@ -48,6 +48,10 @@
       {% if topic.completed_on %}
         Finished, on {{ topic.completed_on|date:"j F Y" }}.
       {% elif topic.skipped_on %}
+        {# The elif chain names the columns in the same order Topic.state reads
+           them - completed, skipped, cut - because the word beside the date is
+           the state's word, and another state added to the model has to be
+           named here in the same breath rather than re-decided. #}
         Skipped on {{ topic.skipped_on|date:"j F Y" }}. Skipping is not failing at
         it, and it costs you nothing.
       {% elif topic.cut %}

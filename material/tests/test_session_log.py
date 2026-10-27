@@ -470,6 +470,7 @@ class NoGamificationTests(SessionLogTestCase):
         for forbidden in ["behind", "overdue", "in arrears", "you are losing"]:
             self.assertNotIn(forbidden, html)
 
+
 class OneAnswerPerSessionTests(SessionLogTestCase):
     """One answer to "where does this session stand", on every line of one page.
 
@@ -539,3 +540,26 @@ class OneAnswerPerSessionTests(SessionLogTestCase):
         )
         self.assertEqual(self.session_state(html, "Eigenvalues"), "not yet")
         self.assertEqual(self.standing_state(html, "Eigenvalues"), "planned")
+
+    def test_a_record_the_public_paths_cannot_produce_says_one_word(self) -> None:
+        """The state the ticket was written for: both dates set at once.
+
+        No public path reaches it today - marking and finishing both clear
+        exactly one column away - but the next path to write a second date is
+        the one that would take the page's two reads apart, so the page is
+        pinned against it directly. Reached through the record, not the HTTP
+        seam, because the thing under test is how the page reads whatever the
+        record says, and the point is the reading, not the path to it.
+
+        The template this replaced lit both buttons here and let the panel say
+        done; one read now governs: done, on every line.
+        """
+        topic = self.topic("Eigenvalues")
+        topic.completed_on = topic.skipped_on = date.today()
+        topic.save()
+        html = self.plan_page()
+        self.assertEqual(
+            self.buttons(html, "Eigenvalues"), [("on", "Done"), ("", "Mark skipped")]
+        )
+        self.assertEqual(self.session_state(html, "Eigenvalues"), "done")
+        self.assertEqual(self.standing_state(html, "Eigenvalues"), "done")
