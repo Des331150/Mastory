@@ -236,11 +236,11 @@ class QuizSittings:
                     f"question {question_id} offers nothing to get wrong"
                 )
                 answers[question_id] = choices[0 if index < correct else -1]
-            action = re.search(r'action="([^"]+)"', html)
+            action = quiz_action(html)
             which = re.search(r'name="quiz" value="(\d+)"', html)
-            assert action is not None and which is not None, "no form to hand in"
+            assert which is not None, "no form to hand in"
             response = self.client.post(  # type: ignore[attr-defined]
-                action.group(1),
+                action,
                 {
                     "quiz": which.group(1),
                     **{f"q-{key}": value for key, value in answers.items()},
@@ -301,6 +301,22 @@ def _question_block(html: str, opening: str) -> str:
         if opening in chunk:
             return chunk.split('<li class="question')[0]
     raise AssertionError(f"the page has no question with {opening}")
+
+
+def quiz_action(html: str) -> str:
+    """The address the quiz's own hand-in form posts to, found on the page.
+
+    Found by what the form carries - the hidden ``quiz`` field - rather than by
+    being the first form on the page: the quiz page also carries the standing
+    panel, whose finished topic has a button of its own, and a page reading its
+    forms left to right would hand the answers in against that one.
+    """
+    for form in re.findall(r"<form[^>]*>.*?</form>", html, re.DOTALL):
+        if 'name="quiz"' in form:
+            action = re.search(r'action="([^"]+)"', form)
+            assert action is not None, "the quiz's own form does not say where it posts"
+            return action.group(1)
+    raise AssertionError("no form to hand a quiz in with")
 
 
 def topic_pk(html: str, title: str) -> str:

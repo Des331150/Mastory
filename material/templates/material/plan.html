@@ -207,6 +207,26 @@
                 mastery not measured yet
               {% endif %}
             </p>
+            {% comment %}
+              A topic with no session has no session button to press, so its
+              standing row carries one. The buttons do what every button on
+              this page does: they say what they do, and the one a state shows
+              is the one that takes it back out, so the toggle works both ways
+              and the mark is never a trap.
+            {% endcomment %}
+            {% if row.topic.pk not in sessioned %}
+              {% if row.state == "done" %}
+                <form method="post" action="{% url 'topic-mark' course.pk row.topic.pk %}">
+                  {% csrf_token %}
+                  <button type="submit">Put this back into your work</button>
+                </form>
+              {% elif row.state == "planned" %}
+                <form method="post" action="{% url 'topic-mark' course.pk row.topic.pk %}">
+                  {% csrf_token %}
+                  <button type="submit">Finished it</button>
+                </form>
+              {% endif %}
+            {% endif %}
           </li>
         {% endfor %}
       </ul>

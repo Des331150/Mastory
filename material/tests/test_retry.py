@@ -32,6 +32,7 @@ from material.tests.helpers import (
     fake_question,
     fake_topic,
     pdf_upload,
+    quiz_action,
     topic_pk,
     use_fake_model,
     use_temporary_media_root,
@@ -152,8 +153,8 @@ class RetryTestCase(TestCase):
             # The visit does not write; the first write is the button.
             html = self.rewrite()
         self.sat = html
-        action = re.search(r'action="([^"]+)"', flat(html))
-        assert action is not None, "the quiz page offers no form to mark"
+        action = quiz_action(html)
+        assert action, "the quiz page offers no form to mark"
         which = re.search(r'name="quiz" value="(\d+)"', html)
         assert which is not None, "the form does not say which quiz it is for"
         answers = {
@@ -161,7 +162,7 @@ class RetryTestCase(TestCase):
             for block, question_id in zip(self.blocks(html), self.question_ids(html))
         }
         response = self.client.post(
-            action.group(1),
+            action,
             {"quiz": which.group(1), **{f"q-{key}": value for key, value in answers.items()}},
             follow=True,
         )

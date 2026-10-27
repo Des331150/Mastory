@@ -262,6 +262,14 @@ answers both rather than one.
   finished by its quiz before any week was built has no session, and is not
   listed beside the topics that missed out.
 
+  It is also not stuck there. Its standing row (or the quiz page's standing
+  panel, where it was sat) carries the button the session would have: pressed
+  once, the topic is back in the outstanding work, and a plan that already
+  exists is built again so the work actually carries it. Pressed again, the
+  topic is finished again - the same toggle every other mark follows. The
+  sittings are left exactly as they were; un-finishing is a decision, not an
+  erasure.
+
 `Attempt.passes` is deliberately not folded into mastery. A right answer the cited
 paragraph does not word that way is a different signal, and the readiness report
 leaves it unweighed too: readiness is the weighted mean of topic mastery, so it

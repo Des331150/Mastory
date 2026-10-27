@@ -32,6 +32,7 @@ from material.tests.helpers import (
     flat,
     on_a_monday,
     pdf_upload,
+    quiz_action,
     topic_pk,
     use_fake_model,
     use_temporary_media_root,
@@ -157,12 +158,12 @@ class StandingTestCase(TestCase):
         than built, so the sitting is marked on the quiz the student was actually
         looking at, as a browser would send it.
         """
-        action = re.search(r'action="([^"]+)"', flat(html))
-        assert action is not None, "the quiz page offers no form to mark"
+        action = quiz_action(html)
+        assert action, "the quiz page offers no form to mark"
         which = re.search(r'name="quiz" value="(\d+)"', html)
         assert which is not None, "the form does not say which quiz it is for"
         response = self.client.post(
-            action.group(1),
+            action,
             {
                 "nonsense": "",
                 "quiz": which.group(1),

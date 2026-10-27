@@ -627,6 +627,11 @@ def _quiz_page(
             "result": result,
             "reread": quiz_service.reread(topic) if reread is None else reread,
             "standing": mastery.one(topic),
+            # Whether the topic already has a day on the week. A topic with a
+            # session has a session button to press for its record; one finished
+            # by its quiz before a week was built has neither, so this panel
+            # carries its button instead.
+            "has_session": topic.sessions.exists(),
             # A quiz that has been sat is not one the student may answer again,
             # so the page does not offer them a button for it.
             "spent": current is not None and quiz_service.spent(topic, current),
@@ -873,6 +878,46 @@ def plan_cut(request: HttpRequest, course_id: int, topic_id: int) -> HttpRespons
 
 
 @require_POST
+def topic_mark(request: HttpRequest, course_id: int, topic_id: int) -> HttpResponse:
+    """Put a topic with no session into the record, or take it back out.
+
+    The session buttons follow one rule: the button for the state a topic is in
+    takes it back out. A topic finished by sitting its quiz before a week was
+    ever built has no session to press, so its button lives where the topic is
+    named instead - the standing row on the plan page, or the standing panel on
+    the quiz page - and follows the same rule: finished, pressing it puts the
+    topic back into outstanding work; outstanding, pressing it finishes it, as a
+    session button would have.
+
+    One POST and back to the page the button came from, because a student
+    correcting a mark is not on a form.
+
+    Taking the topic back out also builds the week again. A plan that already
+    exists deliberately leaves a recorded topic with no day, so without the
+    rebuild the topic would go from stranded to merely listed - the student put
+    it back into their work and the work did not change.
+    """
+    topic = _topic(course_id, topic_id)
+    course = topic.course
+    try:
+        topics = topic_service.require_confirmation(course)
+        if topic.completed_on is not None:
+            progress.unfinish(topic)
+            plan = planning.plan_for(course)
+            if plan is not None:
+                planning.generate(course, planning.availability_of(plan))
+        else:
+            progress.complete(topic, on=planning.today())
+    except topic_service.Unconfirmed as exc:
+        return _schedule_blocked(request, course, exc.reason)
+    except topic_service.Rejected as exc:
+        return _plan_page(request, course, topics=topics, error=exc.reason)
+    if request.POST.get("next") == "quiz":
+        return redirect("topic-quiz", course_id=course.pk, topic_id=topic.pk)
+    return redirect("plan", course_id=course.pk)
+
+
+@require_POST
 def session_mark(request: HttpRequest, course_id: int, session_id: int) -> HttpResponse:
     """Put one session into the student's record, or take it back out of it.
 
@@ -940,6 +985,15 @@ def _plan_page(
             "overview": overview,
             "summary": progress.summarise(overview.sessions) if overview else None,
             "standing": mastery.standing(topics),
+            # The topics that a day on the week carries. A topic with no day has
+            # no session button to press, so its standing row carries one, and
+            # this read is what stops the row offering a second toggle to a
+            # topic whose session already has one.
+            "sessioned": (
+                {session.topic_id for session in overview.sessions}
+                if overview
+                else set()
+            ),
             "entered": entered or _saved_settings(plan),
             "error": error,
         },

@@ -26,6 +26,7 @@ from material.tests.helpers import (
     fake_question,
     fake_topic,
     pdf_upload,
+    quiz_action,
     topic_pk,
     use_fake_model,
     use_temporary_media_root,
@@ -138,8 +139,7 @@ class QuizTestCase(TestCase):
         rather than built, so the sitting is marked on the topic the student was
         actually sitting, as a browser would send it.
         """
-        action = re.search(r'action="([^"]+)"', flat(html))
-        assert action is not None, "the quiz page offers no form to mark"
+        action = quiz_action(html)
         which = re.search(r'name="quiz" value="(\d+)"', html)
         assert which is not None, "the form does not say which quiz it is for"
         payload = {
@@ -147,7 +147,7 @@ class QuizTestCase(TestCase):
             "quiz": which.group(1),
             **{f"q-{key}": value for key, value in answers.items()},
         }
-        response = self.client.post(action.group(1), payload, follow=True)
+        response = self.client.post(action, payload, follow=True)
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
@@ -425,12 +425,11 @@ class TakingItAgainTests(QuizTestCase):
         html = self.quiz(QuizModel(FROM_THE_MATERIAL))
         self.rewrite(QuizModel(fake_question(1, "What is the spectrum of A?",
                                              answer="the set of its eigenvalues")))
-        action = re.search(r'action="([^"]+)"', flat(html))
-        assert action is not None
+        action = quiz_action(html)
         which = re.search(r'name="quiz" value="(\d+)"', html)
         assert which is not None
         response = self.client.post(
-            action.group(1),
+            action,
             {
                 "nonsense": "",
                 "quiz": which.group(1),

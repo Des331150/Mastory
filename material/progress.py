@@ -182,6 +182,30 @@ def complete(topic: Topic, *, on: date) -> Topic:
     return topic
 
 
+def unfinish(topic: Topic) -> Topic:
+    """Take a finished topic back out of the record, into outstanding work.
+
+    One half of the session button's toggle. A topic a session carries can be
+    pressed back out through that session, but one finished by sitting its quiz
+    before a week was ever built has no session to press - and without this it
+    is finished for good, reachable by doing exactly what the product tells the
+    student to do. A record the student backed into and cannot back out of is
+    not a record, it is a trap.
+
+    ``completed_on`` is the only field this touches. A topic with a completion
+    date has no skip underneath it - done and skipped cannot both stand - and
+    the attempt rows are left exactly as they sat: the sitting happened,
+    un-finishing the topic does not unsit it, and mastery is meant to keep
+    answering with it. The day this leaves the record is a decision the student
+    makes again, so the log giving back its entry is the honest one.
+    """
+    if topic.completed_on is None:
+        raise Rejected("An unfinished topic has nothing to take back out.")
+    topic.completed_on = None
+    topic.save(update_fields=["completed_on"])
+    return topic
+
+
 def record_attempt(
     topic: Topic, *, score: float, passes: int, missed: Sequence[Span] = ()
 ) -> Attempt:

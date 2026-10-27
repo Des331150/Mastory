@@ -57,6 +57,21 @@
         Not finished yet.
       {% endif %}
     </p>
+    {% comment %}
+      A topic with a session has a session button for its record, so its standing
+      panel carries nothing here. One finished by its quiz before a week was
+      built has no session to press, and the panel where the student sat it is
+      where its button lives: one press, and the topic is back in the work. A
+      topic that is not finished does not need one here - sitting this quiz is
+      the way a topic becomes finished.
+    {% endcomment %}
+    {% if not has_session and standing.state == "done" %}
+      <form method="post" action="{% url 'topic-mark' course.pk topic.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="quiz">
+        <button type="submit">Put this back into your work</button>
+      </form>
+    {% endif %}
     {% if standing.mastery.measured %}
       <p class="standing-mastery" data-mastery="{{ standing.mastery.percent }}">
         Mastery {{ standing.mastery.percent }}%, from {{ standing.mastery.sittings }} sitting{{ standing.mastery.sittings|pluralize }}

@@ -52,6 +52,11 @@ urlpatterns = [
         name="plan-cut",
     ),
     path(
+        "courses/<int:course_id>/topics/<int:topic_id>/mark/",
+        views.topic_mark,
+        name="topic-mark",
+    ),
+    path(
         "courses/<int:course_id>/topics/add/",
         views.topic_add,
         name="topic-add",
