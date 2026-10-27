@@ -266,8 +266,10 @@ answers both rather than one.
   panel, where it was sat) carries the button the session would have: pressed
   once, the topic is back in the outstanding work, and a plan that already
   exists is built again so the work actually carries it. Pressed again, the
-  topic is finished again - the same toggle every other mark follows. The
-  sittings are left exactly as they were; un-finishing is a decision, not an
+  topic is finished again - the same toggle every other mark follows. (A planned
+  topic with no day - one the exam arrived before - reads the same toggle the
+  other way: "Finished it" records work that has no session button of its own.)
+  The sittings are left exactly as they were; un-finishing is a decision, not an
   erasure.
 
 `Attempt.passes` is deliberately not folded into mastery. A right answer the cited
