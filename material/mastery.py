@@ -12,7 +12,8 @@ almost every decision here follows from that:
   would hand them a week built out of topics they have already finished.
 - **Mastery is the separate number.** Zero to one, read off the sittings, and
   shown next to completion rather than instead of it.
-- **The best sitting is the one mastery is built from, discounted for time.** A
+- **The best sitting is the one mastery is built from, counted down a step for
+  every sitting since.** A
   student who once knew this and has not forgotten still knows it, and a running
   average would spend that knowledge on the sittings they have since muddled
   through. The discount is what makes it an honest reading rather than a flattering

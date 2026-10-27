@@ -192,7 +192,7 @@ Two things this deliberately is not. It does not teach: when a student asks some
 
 ### Readiness
 
-- Per topic: **completion** (binary, gates the schedule, passes at any score) and **mastery** (0–1 from the best scored attempt, with later attempts weighted more heavily).
+- Per topic: **completion** (binary, gates the schedule, passes at any score) and **mastery** (0–1, the best scored attempt counted down a step for every sitting that has come after it). The decay counted in **sittings, not days**: one hundred per cent once still reads one hundred minus a step per sitting since, mastery can never fall below the latest sitting's raw score, and a later sitting raises the figure only by beating the discounted best. Recency means attempt order, so five sittings in one evening are five pieces of evidence, not five weeks of forgetting. Chosen over time decay and a recency-weighted mean in issue #19; the copy on the quiz and plan pages states the same rule.
 - Course readiness is the weighted mean of topic mastery, and the app does not present it as "the exam will be easy" but as "these are your weakest topics".
 - **Insufficient data is stated.** With mastery data for four of twenty topics, readiness is unmeasurable and the app says so rather than printing a number.
 - The final artefact is the **mock exam**, with the mastery table and weakest-topic ranking as supporting output.
