@@ -263,8 +263,9 @@ answers both rather than one.
   listed beside the topics that missed out.
 
 `Attempt.passes` is deliberately not folded into mastery. A right answer the cited
-paragraph does not word that way is a different signal, and weighing the two is
-what the readiness report is for.
+paragraph does not word that way is a different signal, and the readiness report
+leaves it unweighed too: readiness is the weighted mean of topic mastery, so it
+says exactly what mastery says, averaged over topics.
 
 ## Quizzes
 

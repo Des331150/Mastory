@@ -20,8 +20,8 @@ almost every decision here follows from that:
   one: the figure is the best sitting scaled down once per sitting since, which is
   why a student who scored everything right once and has sat it five times since is
   not shown at 100%.
-- **Later sittings count for more.** Each sitting is weighted by how many sittings
-  came after it, so a lucky early guess is worth less than the same score earned
+- **Later sittings count for more.** The earlier a sitting, the less of its score
+  this keeps, so a lucky early guess is worth less than the same score earned
   later. Without this, one good afternoon on day one would outrank real progress
   made since.
 
