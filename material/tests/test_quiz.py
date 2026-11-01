@@ -650,6 +650,18 @@ class UnwrittenQuizTests(QuizTestCase):
         html = flat(response.content.decode())
         self.assertIn("too busy", html)
         self.assertNotIn("add the topics yourself", html)
+        self.assertIn("one press writes the quiz", html)
+        self.assertNotIn("the exam is only written once you ask", html)
+
+    def test_a_quiz_the_work_itself_refuses_carries_no_page_remedy(self) -> None:
+        """A topic pointing at no paragraphs is refused by the quiz's rules,
+        not failed by the model: pressing again would refuse again, and the
+        model failure's own remedy must not be borrowed for it."""
+        self.topic().pointers.all().delete()
+        response = self.client.post(f"{self.quiz_url()}rewrite/", follow=True)
+        html = flat(response.content.decode())
+        self.assertIn("no paragraphs to ask about", html)
+        self.assertNotIn("Press the button again", html)
 
 
 class ContestedFirstWriteTests(TransactionTestCase):

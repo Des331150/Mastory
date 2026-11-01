@@ -339,7 +339,22 @@ class PageOwnCopyTests(ExamTestCase):
         self.assertNotIn("add the topics yourself", html)
 
     def test_the_exam_refusal_names_the_press_the_page_does_have(self) -> None:
-        self.assertIn("Press the button again in a minute", self.refusal())
+        html = self.refusal()
+        self.assertIn("the exam is only written once you ask", html)
+        # The quiz page's own remedy saying so here would be the leak again,
+        # one seam over: two pages trading the same sentence read the same.
+        self.assertNotIn("one press writes the quiz", html)
+
+    def test_a_refusal_of_the_work_itself_carries_no_page_remedy(self) -> None:
+        """An exam already sat is refused by the exam's rules, not failed by
+        the model, and "press again" would be a sentence arguing with the
+        refusal above it."""
+        with use_fake_model():
+            html = self.paper()
+            self.hand_in(html, self.right(html))
+            again = flat(self.client.post("/courses/1/exam/start/").content.decode())
+        self.assertIn("one attempt", again)
+        self.assertNotIn("Press the button again", again)
 
 
 class ScoringTests(ExamTestCase):

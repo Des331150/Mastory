@@ -362,7 +362,9 @@ def topic_infer(request: HttpRequest, course_id: int) -> HttpResponse:
     course = _course(course_id)
     try:
         topic_service.infer(course)
-    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+    except topic_service.Rejected as exc:
+        return _topics_page(request, course, error=_reason(exc))
+    except model.ModelUnavailable as exc:
         return _topics_page(
             request, course, error=_reason(exc, TOPIC_PAGE_OFFERS)
         )
@@ -522,12 +524,24 @@ def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> H
     write = quiz_service.claim if existing is None else quiz_service.build
     try:
         written = write(topic)
-    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+    except topic_service.Rejected as exc:
         return _quiz_page(
             request,
             course,
             topic,
             existing,
+            error=_reason(exc),
+        )
+    except model.ModelUnavailable as exc:
+        return _quiz_page(
+            request,
+            course,
+            topic,
+            existing,
+            # The model failed, so the page's own remedy applies. A rejection
+            # of the work itself - a topic pointing at no paragraphs - refuses
+            # pressing again, and must not borrow a sentence promising the
+            # second press would help.
             error=_reason(exc, QUIZ_PAGE_OFFERS),
         )
     return _quiz_page(request, course, topic, written)
@@ -684,12 +698,23 @@ def exam_start(request: HttpRequest, course_id: int) -> HttpResponse:
         )
     try:
         written = exam_service.build(course)
-    except (topic_service.Rejected, model.ModelUnavailable) as exc:
+    except topic_service.Rejected as exc:
         # Whichever way this went wrong, the course's exam is shown in whichever
         # state it is really in: a refusal that rendered an empty page would take
         # the student's own paper off the screen.
         return _exam_page(
-            request, course, exam_service.latest(course), error=_reason(exc, EXAM_PAGE_OFFERS)
+            request, course, exam_service.latest(course), error=_reason(exc)
+        )
+    except model.ModelUnavailable as exc:
+        # The model failed, so this page's remedy applies. A rejection issued
+        # by the exam's own rules - an exam already sat, or no paragraphs to
+        # ask about - says so itself, and must not borrow a sentence promising
+        # the next press would succeed.
+        return _exam_page(
+            request,
+            course,
+            exam_service.latest(course),
+            error=_reason(exc, EXAM_PAGE_OFFERS),
         )
     return _exam_page(request, course, written)
 
@@ -1044,7 +1069,7 @@ QUIZ_PAGE_OFFERS = (
 )
 EXAM_PAGE_OFFERS = (
     "Press the button again in a minute: the exam is only written once you "
-    "ask, so asking again costs nothing."
+    "ask, so asking again is the whole remedy."
 )
 
 
@@ -1056,7 +1081,12 @@ def _reason(exc: Exception, *offered: str) -> str:
     anyone. What the failure cannot say is what this page offers while the
     model is not answering, so that is handed in by the caller: one sentence of
     the page's own, rather than one refusal repeating "you can add the topics
-    yourself" onto pages that have no topic list on them.
+    yourself" onto pages that have no topic list on it.
+
+    Only a model failure may have one handed in. A rejection issued by the
+    work's own rules is a refusal to press again, and a page remedy promising
+    that a second press would help is a sentence arguing with the refusal
+    above it.
     """
     reason = str(getattr(exc, "reason", exc))
     advice = getattr(exc, "advice", "")
