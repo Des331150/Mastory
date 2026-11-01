@@ -30,6 +30,7 @@ from material import planning
 from material.models import Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
+    StudentTestCase,
     fake_topic,
     pdf_upload,
     topic_pk,
@@ -76,7 +77,7 @@ def flat(text: str) -> str:
     return " ".join(text.split())
 
 
-class BehindScheduleTestCase(TestCase):
+class BehindScheduleTestCase(StudentTestCase):
     """One course uploaded, a confirmed topic path, and the days going by."""
 
     def setUp(self) -> None:

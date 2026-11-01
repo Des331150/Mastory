@@ -36,6 +36,7 @@ from material.models import Topic
 from material.topics import Rejected
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
+    StudentTestCase,
     fake_topic,
     pdf_upload,
     use_fake_model,
@@ -72,7 +73,7 @@ def flat(text: str) -> str:
     return " ".join(text.split())
 
 
-class SessionLogTestCase(TestCase):
+class SessionLogTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and three sessions planned."""
 
     def setUp(self) -> None:

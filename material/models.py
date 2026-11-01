@@ -6,8 +6,8 @@ went, and the exam that spans the whole course: Course -> MockExam ->
 MockQuestion, and ``Spend``: one row per piece of work the student caused, with
 what it cost.
 
-Every table carries a ``user_id`` so that adding real authentication in v1 is a
-filter rather than a refactor.
+Every table carries a ``user_id``; the signed-in identity scopes it through
+``material.users`` without making the domain model depend on a request.
 """
 
 from datetime import date

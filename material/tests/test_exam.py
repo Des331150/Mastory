@@ -21,6 +21,7 @@ from material.models import Course, MockExam, MockQuestion, Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
     fake_question,
     fake_topic,
     pdf_upload,
@@ -89,7 +90,7 @@ class OnlyTheFirstTopic(QuizModel):
         return super()._write(request)
 
 
-class ExamTestCase(TestCase):
+class ExamTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and no exam written yet."""
 
     def setUp(self) -> None:
@@ -550,9 +551,8 @@ class OwnershipTests(ExamTestCase):
     def a_second_students_exam(self) -> int:
         """An exam row belonging to somebody else, written straight to the table.
 
-        v0 has one hardcoded user, so the only way to hold another student's rows
-        is to put them there: that is what makes every ``user_id`` filter in the
-        exam code load-bearing rather than decorative.
+        The row is written directly so every ``user_id`` filter in the exam
+        code stays load-bearing even if the other student has not signed in.
         """
         other = get_user_model().objects.create(username="somebody-else")
         course = Course.objects.create(user=other, title="Somebody else's course")

@@ -15,6 +15,7 @@ from django.test import TestCase
 from material.tests.helpers import (
     CELL_BIOLOGY_PDF,
     LINEAR_ALGEBRA_PDF,
+    StudentTestCase,
     pdf_upload,
     use_temporary_media_root,
 )
@@ -27,7 +28,7 @@ def stream_of(response: Any) -> bytes:
     return b"".join(response.streaming_content)
 
 
-class UploadedCourseTestCase(TestCase):
+class UploadedCourseTestCase(StudentTestCase):
     """A test case with a scratch MEDIA_ROOT and one course already uploaded."""
 
     def setUp(self) -> None:
@@ -122,7 +123,7 @@ class ImageTests(UploadedCourseTestCase):
         self.assertTrue(stream_of(response).startswith(b"\x89PNG"))
 
 
-class ConversionFailureTests(TestCase):
+class ConversionFailureTests(StudentTestCase):
     def setUp(self) -> None:
         super().setUp()
         use_temporary_media_root(self)
@@ -235,13 +236,13 @@ class OriginalFileTests(UploadedCourseTestCase):
 
 
 class IdentityTests(UploadedCourseTestCase):
-    def test_v0_has_exactly_one_user_and_no_sign_in(self) -> None:
-        self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(self.client.get("/").status_code, 200)
-
-    def test_no_login_or_logout_surface_exists(self) -> None:
-        for path in ("/accounts/login/", "/logout/"):
-            self.assertEqual(self.client.get(path).status_code, 404)
+    def test_the_page_names_the_student_it_was_served_to(self) -> None:
+        """A page shows whose material it is working on, in the masthead it
+        every page shares, because a student reading through a surface that
+        never says who it belongs to has no way to notice a session that is
+        not theirs."""
+        page = self.client.get("/").content.decode()
+        self.assertIn("student", page)
 
     def test_every_table_in_the_schema_carries_a_user_id(self) -> None:
         tables = {

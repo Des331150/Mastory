@@ -23,6 +23,7 @@ from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     RecordingModel,
     broken_pdf_upload,
+    StudentTestCase,
     fake_topic,
     pdf_upload,
     topic_pk,
@@ -31,7 +32,7 @@ from material.tests.helpers import (
 )
 
 
-class TopicPathTestCase(TestCase):
+class TopicPathTestCase(StudentTestCase):
     """A scratch MEDIA_ROOT, one course uploaded, and a model under test's control."""
 
     def setUp(self) -> None:

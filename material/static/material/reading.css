@@ -30,6 +30,15 @@ a { color: var(--accent); }
 .masthead .wordmark { font-weight: 700; text-decoration: none; color: var(--ink); }
 .masthead .tagline { color: var(--muted); font-size: 14px; }
 
+/* The account sits at the far end of the masthead, and ends a session from the
+   same spot it is read from. The form is a press, not a link, so it keeps the
+   button's own look. */
+.masthead .account { margin-left: auto; display: flex; gap: 10px; align-items: baseline; }
+
+/* The pages of signing in and up are forms a student types into and nothing
+   else, so they sit narrower than the app's own panels. */
+.panel.narrow { max-width: 420px; }
+
 main { padding: 24px 28px 64px; }
 
 .panel {

@@ -15,6 +15,7 @@ from django.test import TestCase
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
     fake_question,
     fake_topic,
     pdf_upload,
@@ -41,7 +42,7 @@ def flat(text: str) -> str:
     return " ".join(text.split())
 
 
-class UnfinishTestCase(TestCase):
+class UnfinishTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and no week built."""
 
     def setUp(self) -> None:

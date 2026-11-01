@@ -20,6 +20,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Iterator
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -27,6 +28,8 @@ from django.utils.timezone import make_aware
 
 from material import model, planning
 from material.models import MockExam
+
+User = get_user_model()
 
 #: One topic as the fake model claims it: a title, the slides it cites by their
 #: course position, and how sure it is.
@@ -95,6 +98,33 @@ def use_temporary_media_root(test_case: object) -> None:
     manager = temporary_media_root()
     manager.__enter__()
     test_case.addCleanup(manager.__exit__, None, None, None)  # type: ignore[attr-defined]
+
+
+#: The password of the one account each HTTP test signs in with, chosen to pass
+#: the checks a real signup is put through (not the username, not a common word,
+#: not all digits) so a refusal a test received was earned by the case under it.
+TEST_PASSWORD = "uncommon-eigenvectors-42"
+TEST_USERNAME = "test-student"
+
+
+class StudentTestCase(TestCase):
+    """A TestCase whose client is signed in as one student.
+
+    Every request the app serves belongs to somebody: the identity middleware
+    sends an anonymous visit to sign in rather than serving a page to nobody.
+    The HTTP-seam tests below all inherit this base, so their setUp posts carry
+    ``user_id`` for real, the way they would on the internet. A test module
+    that reached a page without signing in would be reading the login page, so
+    inheriting this base is also how a future module is told it missed it.
+
+    A test needing a second student logs them in for a while (an example lives
+    in ``test_metric``), rather than standing up a second TestCase.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.student = User.objects.create_user(TEST_USERNAME, password=TEST_PASSWORD)
+        self.client.force_login(self.student)
 
 
 def fake_topic(title: str, slides: list[int], confidence: float = 0.9) -> Claim:

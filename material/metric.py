@@ -258,11 +258,12 @@ def metric(course: Course) -> Metric:
 def correlation() -> Correlation:
     """Both sides of the claim, counted across every student in the record.
 
-    Deliberately not scoped to the one hardcoded user: the claim is about
-    students in the plural, and a reading scoped to one student could never put
-    anybody on both sides, which would be a comparison with a half nothing can
-    reach. v1 adds real authentication, and this is the one reading that stops
-    being the whole record on that day.
+    Deliberately not scoped to the signed-in student, unlike every other
+    reading: the claim is about students in the plural, and a reading scoped to
+    one student could never put anybody on both sides, which would be a
+    comparison with a half nothing can reach. Real authentication now names
+    who a request belongs to, and this remains the one reading that answers to
+    every account the deployment holds rather than the one it was served to.
 
     Every number here is derived, and derived from the same rows the rest of the
     product reads: a sitting from ``Attempt``, and a mock score re-marked by

@@ -25,6 +25,7 @@ from material.models import Slide, SourceFile, Span
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
     fake_question,
     fake_topic,
     pdf_upload,
@@ -101,7 +102,7 @@ def converter_for(*pages: str | tuple[str, str]) -> Iterator[None]:
         yield
 
 
-class MarkdownBlocksTestCase(TestCase):
+class MarkdownBlocksTestCase(StudentTestCase):
     """One course whose pages are the constructs above, uploaded through HTTP."""
 
     def setUp(self) -> None:
@@ -166,7 +167,7 @@ class MarkdownBlocksTestCase(TestCase):
         self.assertIn('<div class="block">', section)
 
 
-class CitedParagraphTestCase(TestCase):
+class CitedParagraphTestCase(StudentTestCase):
     """A quiz citation from the list slide still lands on the paragraph it names.
 
     The list is the third paragraph of its slide - the heading and the sentence

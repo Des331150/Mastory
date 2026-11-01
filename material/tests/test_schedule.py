@@ -31,6 +31,7 @@ from django.utils import timezone
 from material import planning
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
+    StudentTestCase,
     fake_topic,
     pdf_upload,
     topic_pk,
@@ -39,7 +40,7 @@ from material.tests.helpers import (
 )
 
 
-class ScheduleTestCase(TestCase):
+class ScheduleTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and no plan yet."""
 
     def setUp(self) -> None:

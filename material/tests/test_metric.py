@@ -12,10 +12,9 @@ the course, so it prints only when every topic has a sitting. A test that only
 ever saw it agree with readiness would pass with the gate deleted, which is why
 half a course is asserted to be enough for one figure and not the other.
 
-The correlation needs a student on each side to be checkable at all, and v0 has
-one identity: a test can be somebody else for a while, because the hardcoded user
-is a setting rather than a login. That is what the last test case is for, and it
-is the reason the page can say what it does about not having a comparison yet.
+The correlation needs a student on each side to be checkable at all, so the
+last test case signs in as a second student and proves the report reads both
+accounts while course pages remain scoped to the active session.
 """
 
 from collections.abc import Iterator
@@ -23,11 +22,11 @@ from contextlib import contextmanager
 from fractions import Fraction
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
-
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     MockSittings,
+    StudentTestCase,
+    TEST_PASSWORD,
     attribute,
     fake_topic,
     flat,
@@ -51,7 +50,7 @@ TOPICS = (
 NAMES = [title for title, _ in TOPICS]
 
 
-class MetricTestCase(MockSittings, TestCase):
+class MetricTestCase(MockSittings, StudentTestCase):
     """One course uploaded, its topic path confirmed, and nothing sat yet."""
 
     def setUp(self) -> None:
@@ -338,11 +337,15 @@ class CorrelationTests(MetricTestCase):
     def as_another_student(self) -> Iterator[None]:
         """The product driven as a second student, on a course of their own.
 
-        v0's identity is a setting rather than a login, so a test can be somebody
-        else for a while. What they write are ordinary rows, which is the point:
-        the claim is about students in the plural and cannot be checked against
-        one of them.
+        Two students are two sessions, not two settings, so this signs the
+        client in as somebody else and signs the first student back in after.
+        What they write are ordinary rows on their own calls, which is the
+        point: the claim is about students in the plural and cannot be checked
+        against one of them.
         """
-        user = get_user_model().objects.create(username="somebody-else")
-        with override_settings(HARDCODED_USER_ID=user.pk):
-            yield
+        other = get_user_model().objects.create_user(
+            "somebody-else", password=TEST_PASSWORD
+        )
+        self.client.force_login(other)
+        yield
+        self.client.force_login(self.student)

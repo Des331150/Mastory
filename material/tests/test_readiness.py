@@ -28,6 +28,7 @@ from material.tests.helpers import (
     DEFAULT_QUESTION,
     LINEAR_ALGEBRA_PDF,
     QuizSittings,
+    StudentTestCase,
     fake_topic,
     flat,
     on_a_monday,
@@ -51,7 +52,7 @@ NAMES = [title for title, _ in TOPICS]
 PREDICTIONS = ("you will pass", "the exam will be easy", "guaranteed")
 
 
-class ReportTestCase(QuizSittings, TestCase):
+class ReportTestCase(QuizSittings, StudentTestCase):
     """One course uploaded, its topic path confirmed, and no sittings yet."""
 
     def setUp(self) -> None:
@@ -450,7 +451,7 @@ class UnmeasuredCourseTestCase(ReportTestCase):
         self.assertEqual(response.status_code, 200)
 
 
-class EmptyCourseTestCase(TestCase):
+class EmptyCourseTestCase(StudentTestCase):
     """A course whose material has not been given a topic path at all."""
 
     def setUp(self) -> None:

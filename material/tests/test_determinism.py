@@ -4,10 +4,14 @@ import re
 
 from django.test import TestCase
 
-from material.tests.helpers import pdf_upload, use_temporary_media_root
+from material.tests.helpers import (
+    StudentTestCase,
+    pdf_upload,
+    use_temporary_media_root,
+)
 
 
-class DeterminismTests(TestCase):
+class DeterminismTests(StudentTestCase):
     def setUp(self) -> None:
         super().setUp()
         use_temporary_media_root(self)

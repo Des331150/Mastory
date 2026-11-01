@@ -1,8 +1,11 @@
 from django.urls import path
 
-from material import views
+from material import accounts, views
 
 urlpatterns = [
+    path("accounts/signup/", accounts.sign_up, name="signup"),
+    path("accounts/login/", accounts.sign_in, name="login"),
+    path("accounts/logout/", accounts.sign_out, name="logout"),
     path("", views.course_list, name="course-list"),
     path("courses/new/", views.course_create, name="course-create"),
     path("courses/<int:course_id>/", views.course_detail, name="course-detail"),

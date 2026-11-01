@@ -20,6 +20,11 @@ python3 -m venv .venv
 .venv/bin/python manage.py runserver
 ```
 
+If this database already contains material from before sign-in was added, set a
+password for its existing `student` account with
+`.venv/bin/python manage.py changepassword student`, then sign in as `student`.
+Its courses and progress remain attached to that account.
+
 Set `DATABASE_URL` to a Postgres connection string in any deployed environment:
 
 ```sh
@@ -53,7 +58,9 @@ material/
   services.py  what an upload does: hash, cache, convert, store, retain the original
   render.py    Markdown -> HTML, stable anchors, search matching and highlighting
   views.py     the student-facing HTTP surface
-  users.py     the single hardcoded user; every query is scoped by user_id
+  accounts.py  the pages of signing in and up, and what a refusal says there
+  users.py     the signed-in student: identity bound once per request; every
+               query is scoped by user_id
 ```
 
 There is one test seam: HTTP. `material/tests/` drives the real application

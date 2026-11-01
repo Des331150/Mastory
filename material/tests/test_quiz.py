@@ -16,6 +16,7 @@ import traceback
 from typing import Any
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, TransactionTestCase
 
 from material import model, progress
@@ -24,6 +25,8 @@ from material.models import Quiz, Span, Spend, Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
+    TEST_PASSWORD,
     fake_question,
     fake_topic,
     pdf_upload,
@@ -71,7 +74,7 @@ def content_words(text: str) -> set[str]:
     return {word for word in model.normalise(visible).split() if len(word) > 2}
 
 
-class QuizTestCase(TestCase):
+class QuizTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and a topic to quiz."""
 
     def setUp(self) -> None:
@@ -638,6 +641,9 @@ class UnwrittenQuizTests(QuizTestCase):
         self.assertEqual(len(rows), 1, "the generation that failed was not written down")
 
 
+User = get_user_model()
+
+
 class ContestedFirstWriteTests(TransactionTestCase):
     """Two tabs pressing for the same topic's first quiz at the same time.
 
@@ -655,7 +661,11 @@ class ContestedFirstWriteTests(TransactionTestCase):
     def setUp(self) -> None:
         super().setUp()
         use_temporary_media_root(self)
+        self.student = User.objects.create_user(
+            "concurrent-student", password=TEST_PASSWORD
+        )
         client = Client()
+        client.force_login(self.student)
         client.post("/courses/new/", {"files": [pdf_upload(LINEAR_ALGEBRA_PDF)]})
         claims = [fake_topic(title, slides) for title, slides in TOPICS]
         with use_fake_model(*claims):
@@ -671,11 +681,14 @@ class ContestedFirstWriteTests(TransactionTestCase):
         fake = QuizModel(FROM_THE_MATERIAL)
         pages: dict[int, str] = {}
         barrier = threading.Barrier(2)
+        clients = [Client(), Client()]
+        for client in clients:
+            client.force_login(self.student)
 
         def press(tab: int) -> None:
             barrier.wait()
             try:
-                response = Client().post(
+                response = clients[tab].post(
                     f"/courses/1/topics/{self.topic.pk}/quiz/rewrite/", follow=True
                 )
                 pages[tab] = response.content.decode()

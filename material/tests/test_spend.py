@@ -39,6 +39,7 @@ from material.tests.helpers import (
     DEFAULT_QUESTION,
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
     attribute,
     fake_topic,
     flat,
@@ -64,7 +65,7 @@ TOPICS = (
 A_PRICE = 1_000_000.0
 
 
-class SpendTestCase(TestCase):
+class SpendTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and no artefact written."""
 
     def setUp(self) -> None:

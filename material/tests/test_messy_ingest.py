@@ -12,7 +12,7 @@ import re
 import unittest
 from typing import Any
 
-from django.test import TestCase, override_settings
+from django.test import override_settings
 
 from material import services
 from material.tests.helpers import (
@@ -27,11 +27,12 @@ from material.tests.helpers import (
     ocr_is_available,
     pdf_upload,
     pdf_uploads,
+    StudentTestCase,
     use_temporary_media_root,
 )
 
 
-class IngestTestCase(TestCase):
+class IngestTestCase(StudentTestCase):
     """A scratch MEDIA_ROOT and nothing uploaded yet."""
 
     def setUp(self) -> None:

@@ -1,7 +1,7 @@
 """The student-facing views: upload, read, search, the retained original, and
 the topic path the student corrects.
 
-Every query is scoped by the hardcoded user's ``user_id``.
+Every query is scoped by the signed-in student's ``user_id``.
 """
 
 import mimetypes

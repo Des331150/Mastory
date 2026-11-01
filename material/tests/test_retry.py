@@ -29,6 +29,7 @@ from material.models import Topic
 from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
+    StudentTestCase,
     fake_question,
     fake_topic,
     pdf_upload,
@@ -64,7 +65,7 @@ def flat(text: str) -> str:
     return " ".join(text.split())
 
 
-class RetryTestCase(TestCase):
+class RetryTestCase(StudentTestCase):
     """One course, one confirmed topic, and a quiz the student can keep failing."""
 
     def setUp(self) -> None:
@@ -556,6 +557,7 @@ class BrowserFidelityTests(RetryTestCase):
 
     def strict(self) -> Client:
         client = Client(enforce_csrf_checks=True)
+        client.force_login(self.student)
         client.post("/courses/new/", {"files": [pdf_upload(LINEAR_ALGEBRA_PDF)]})
         with use_fake_model(*(fake_topic(title, slides) for title, slides in TOPICS)):
             client.post("/courses/1/topics/infer/")

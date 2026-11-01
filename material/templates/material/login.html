@@ -1,0 +1,25 @@
+{% extends "material/base.html" %}
+
+{% block title %}{{ title }} into Mastory{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>{{ title }}</h1>
+  <p class="muted">Signing in is how Mastory knows whose material a page is
+    working on. What you see is yours and only yours.</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">
+    {% csrf_token %}
+    <label for="id_username">Username</label>
+    <input id="id_username" type="text" name="username" value="{{ username }}"
+           autocomplete="username" autofocus required />
+
+    <label for="id_password">Password</label>
+    <input id="id_password" type="password" name="password"
+           autocomplete="current-password" required />
+
+    <button type="submit">{{ title }}</button>
+  </form>
+  <p class="muted small">No account yet? <a href="{% url 'signup' %}">Sign up</a> first.</p>
+</section>
+{% endblock %}

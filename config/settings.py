@@ -23,15 +23,22 @@ ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "django.contrib.staticfiles",
     "material",
 ]
 
+# Sessions first, then authentication, in the order Django's own layout pairs
+# them: the session is read before anything can ask who it belongs to. The last
+# entry binds who the request is for, once, for everything after it - see
+# ``material/users.py``, which owns that seam.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "material.users.HardcodedUserMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "material.users.SignedInMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -44,6 +51,9 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                # The masthead reads the student the session names, and shows
+                # them the way out, on every page the app serves.
+                "django.contrib.auth.context_processors.auth",
             ],
         },
     },
@@ -117,13 +127,29 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Media holds the retained originals and the images extracted from them.
+# The login page ``material.accounts`` serves, so that Django's own machinery
+# agrees with the app's middleware about where an anonymous visit is sent.
+LOGIN_URL = "/accounts/login/"
+
+# ``0001_hardcoded_user`` still records the account the pre-authentication app
+# used to create. Keep its migration input available so a fresh database can
+# replay history; requests no longer read this id for identity.
+HARDCODED_USER_ID = int(os.environ.get("MASTORY_USER_ID", "1"))
+
+# The checks a password is put through before any account is made, so the bar
+# an account must clear is one bar wherever a signup happens (see
+# ``accounts._refusal``). Django's standard four; the minimum length keeps a
+# single keystroke from being an account.
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation."
+     "UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 MEDIA_ROOT = Path(os.environ.get("MASTORY_MEDIA_ROOT", BASE_DIR / "media"))
 MEDIA_URL = "media/"
-
-# v0 has one hardcoded user and no authentication system. Every query is still
-# written as if ``user_id`` existed, so v1 adds auth without touching domain
-# logic.
-HARDCODED_USER_ID = int(os.environ.get("MASTORY_USER_ID", "1"))
 
 # What converting one page may cost before the file is abandoned, the envelope
 # around it whatever its size, and the ceiling that stops an adversarial file

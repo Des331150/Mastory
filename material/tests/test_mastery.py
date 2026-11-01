@@ -28,6 +28,7 @@ from material.tests.helpers import (
     LINEAR_ALGEBRA_PDF,
     QuizModel,
     QuizSittings,
+    StudentTestCase,
     fake_topic,
     flat,
     on_a_monday,
@@ -63,7 +64,7 @@ LATER = A_MONDAY + timedelta(weeks=2)
 FROM_THE_MATERIAL = DEFAULT_QUESTION
 
 
-class StandingTestCase(TestCase):
+class StandingTestCase(StudentTestCase):
     """One course uploaded, its topic path confirmed, and a topic to quiz."""
 
     def setUp(self) -> None:

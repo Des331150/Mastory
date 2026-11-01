@@ -19,6 +19,13 @@
     <header class="masthead">
       <a class="wordmark" href="{% url 'course-list' %}">Mastory</a>
       <span class="tagline">Your course material, readable</span>
+      {% if user.is_authenticated %}
+        <form class="account" method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <span class="muted">{{ user.username }}</span>
+          <button type="submit" class="quiet">Log out</button>
+        </form>
+      {% endif %}
     </header>
     <main>{% block content %}{% endblock %}</main>
   </body>
