@@ -125,19 +125,22 @@ MEDIA_URL = "media/"
 # logic.
 HARDCODED_USER_ID = int(os.environ.get("MASTORY_USER_ID", "1"))
 
-# What converting one page may cost before the file is abandoned, and what the
-# whole file around it is allowed regardless of its size. The deadline is
-# `base + per_page * page_count` and not a single flat number, because a flat two
-# minutes owed its margin to a specific file: it left a 233-page handbook between
-# 14% and 30% of the limit, varying 26% between runs of the same bytes, so a
-# slightly wider course would have been abandoned by the size of its file alone.
-# What the student is asked to wait is still bounded: the part that scales is the
-# per-page conversion, which is work the student can see in the stage names, and
-# the base is what reading the file in and verifying it cost at any size.
+# What converting one page may cost before the file is abandoned, the envelope
+# around it whatever its size, and the ceiling that stops an adversarial file
+# holding a student for a day. The deadline is
+# `min(base + per_page * page_count, max)` and not a single flat number, because
+# a flat two minutes owed its margin to a specific file: it left a 233-page
+# handbook between 14% and 30% of the limit, varying 26% between runs of the
+# same bytes, so a slightly wider course would have been abandoned by the size
+# of its file alone. What the student is asked to wait still has an end: the
+# part that scales is the per-page conversion, which is the work the stage
+# names, and both the per-file base and the ceiling are read live off the
+# settings so a deployment can price its own machine.
 INGEST_PAGE_CONVERSION_SECONDS = float(
     os.environ.get("MASTORY_INGEST_SECONDS_PER_PAGE", "0.75")
 )
 INGEST_FILE_BASE_SECONDS = float(os.environ.get("MASTORY_INGEST_BASE_SECONDS", "10"))
+INGEST_FILE_MAX_SECONDS = float(os.environ.get("MASTORY_INGEST_MAX_SECONDS", "600"))
 
 # Every model call in Mastory goes through ``material.model``, which talks to an
 # OpenAI-compatible chat completions endpoint. Unset means no model is

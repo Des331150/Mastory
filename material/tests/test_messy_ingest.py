@@ -307,33 +307,54 @@ class TimeoutTests(IngestTestCase):
         self.assertNotIn("<section", self.read())
 
 
+def default_budget() -> Any:
+    """The envelope as the deployment would see it, named once for the tests.
+
+    Named rather than written twice because a third copy of the numbers is a
+    third place for them to drift: the tests below ask about the shape of the
+    envelope, not about whatever values happen to be in the environment.
+    """
+    return override_settings(
+        INGEST_PAGE_CONVERSION_SECONDS=0.75,
+        INGEST_FILE_BASE_SECONDS=10,
+        INGEST_FILE_MAX_SECONDS=600,
+    )
+
+
 class TimeLimitTests(IngestTestCase):
-    """A limit that widens with the course, rather than fixing a margin by file."""
+    """A limit that widens with the course, rather than fixing a margin by file.
 
-    def test_the_budget_widens_with_the_page_count(self) -> None:
-        with override_settings(
-            INGEST_PAGE_CONVERSION_SECONDS=0.75, INGEST_FILE_BASE_SECONDS=10
-        ):
-            self.assertEqual(services.conversion_budget(0), 10.0)
-            narrow = services.conversion_budget(5)
-            wide = services.conversion_budget(233)
-        self.assertEqual(narrow, 10.0 + 0.75 * 5)
-        # The scale owes nothing to the file's shape: doubling the pages doubles
-        # only the per-page half, which is what keeps a wider course from
-        # arriving with a narrower margin than the one that just fit.
-        self.assertEqual(wide, 10.0 + 0.75 * 233)
+    The envelope itself is arithmetic on settings, so a test that restates that
+    arithmetic would be the code agreeing with itself. What is asserted instead
+    is the shape the issue complained about: a wider course is owed more, not
+    less; the one file whose wait is known arrives under the default envelope
+    with room to finish; and no upload can buy the request a wait of its own
+    choosing. The HTTP-seam tests above hold the enforcement itself - the stop
+    at a page boundary, the report of the pages read - and that seam has no
+    window on a clock it does not own.
+    """
 
-    def test_a_default_budget_leaves_a_233_page_file_room_to_finish(self) -> None:
+    def test_a_wider_course_is_owed_a_wider_wait_than_the_narrow_one(self) -> None:
+        with default_budget():
+            self.assertLess(
+                services.conversion_budget(233), services.conversion_budget(466)
+            )
+
+    def test_a_233_page_file_arrives_under_the_default_envelope(self) -> None:
         # The first real course took 82.7-104.6 s across four runs, against a
         # flat 120 s limit: a 14-30% margin that varied 26% run to run. The
-        # default envelope is now built from that same evidence, and this is the
+        # default envelope is built from that same evidence, and this is the
         # one number a wider upload would meet first.
-        with override_settings(
-            INGEST_PAGE_CONVERSION_SECONDS=0.75, INGEST_FILE_BASE_SECONDS=10
-        ):
+        with default_budget():
             budget = services.conversion_budget(233)
         self.assertEqual(budget, 10.0 + 0.75 * 233)
         self.assertGreater(budget / 104.6, 1.6)
+
+    def test_an_adversarial_upload_cannot_hold_the_request_for_its_own_hour(
+        self,
+    ) -> None:
+        with default_budget():
+            self.assertEqual(services.conversion_budget(50_000), 600.0)
 
 
 class ExtractedOnceTests(IngestTestCase):

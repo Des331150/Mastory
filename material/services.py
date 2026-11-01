@@ -281,23 +281,25 @@ def _cached_extraction(digest: str, *, excluding: int) -> CachedExtraction | Non
 def conversion_budget(page_count: int) -> float:
     """How long a file of so many pages may spend converting.
 
-    One number for one file: a base owing to nothing but the file itself -
-    reading its pages, storing its sections, verifying them - plus so much per
-    page, because that is the work a wider course adds and the only part of the
-    wait that widens with size. A flat two minutes held its margin for a
-    specific file and gave every wider one less of it, so 233 pages arrived
-    with between 14% and 30% of the limit in hand, varying 26% between runs of
-    the same bytes: the size of the file was silently deciding where the file's
-    own conversion had to stop. This makes the margin a fraction of the course's
-    size, not a race against its width.
+    One number for one file: a base owed on any file, plus so much per page for
+    the converting stage, where the page-boundary checks fall. That is the work
+    a wider course adds and the only part of the wait that widens with size. A
+    flat two minutes held its margin for a specific file and gave every wider
+    one less of it, so 233 pages arrived with between 14% and 30% of the limit
+    in hand, varying 26% between runs of the same bytes: the size of the file
+    was silently deciding where the file's own conversion had to stop. This
+    makes the margin a fraction of the course's size rather than a race against
+    its width, and the ceiling that clamps it keeps an upload from buying the
+    request a wait of its own choosing - wide, but still an end.
 
     Read live off the settings rather than typed in a constant, so the
     deployment can price its own machine and the tests can shrink the wait to
     nothing.
     """
-    return (
+    return min(
         settings.INGEST_FILE_BASE_SECONDS
-        + settings.INGEST_PAGE_CONVERSION_SECONDS * page_count
+        + settings.INGEST_PAGE_CONVERSION_SECONDS * page_count,
+        settings.INGEST_FILE_MAX_SECONDS,
     )
 
 

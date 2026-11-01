@@ -410,9 +410,16 @@ through three named stages — reading pages, converting, verifying — which ar
 both logged and shown back to the student. Extraction is cached by file content
 hash, so the same bytes are only ever converted once.
 
-Converting a file that will not finish stops at a page boundary once
-`INGEST_FILE_TIMEOUT_SECONDS` (120 by default) has passed, and the student is
-told the file was abandoned rather than left waiting on it. A PDF whose pages
+Converting a file that will not finish stops at a page boundary once its time
+budget has passed, and the student is told the file was abandoned rather than
+left waiting on it. The budget widens with the file rather than being a flat
+number every file shares — `INGEST_FILE_BASE_SECONDS` (10 by default) plus
+`INGEST_PAGE_CONVERSION_SECONDS` per page (0.75 by default), clamped at
+`INGEST_FILE_MAX_SECONDS` (600 by default) so no upload can hold a student all
+day. On the first real course this ran, a 233-page file took 82.7–104.6 s under
+a flat 120 s limit and left a 14–30% margin; the same file under the default
+envelope is stopped at page `n` only after ~185 s, and a wider course widens
+with it. A PDF whose pages
 carry no text at all — a pure image-only scan — is rejected with a reason and a
 next step; a scanned page inside an otherwise digital PDF is read by OCR, which
 needs Tesseract's data files installed on the machine.
