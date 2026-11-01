@@ -1,10 +1,10 @@
 """The topic path: inferring it, and the student correcting it.
 
-Inference is one call to ``material.model`` and nothing else. Everything after
-it is the student's: rename, split, merge, reorder, re-weight, add, remove.
-Every one of those edits persists, and any of them puts the path back in front
-of the student to confirm, because a path they have changed is a path they have
-not agreed to.
+Inference is a bounded outline pass followed by one content check per candidate
+topic, all through ``material.model``. Everything after it is the student's:
+rename, split, merge, reorder, re-weight, add, remove. Every one of those edits
+persists, and any of them puts the path back in front of the student to confirm,
+because a path they have changed is a path they have not agreed to.
 
 Weight is derived from the pointer map rather than asked for: a topic covering
 more slides, more spans, or slides carrying equations or images is worth more of
@@ -100,10 +100,10 @@ def heading_of(slide: Slide) -> str:
 def _inferred(course: Course, slides: Sequence[Slide]) -> list[model.TopicProposal]:
     """The topics the model claims for this material, and what asking cost.
 
-    The metered half of ``infer``, so that the one call reading a course in is
-    on the ledger as its own piece of work. A path inferred twice is two pieces:
-    the student paid for both, and the second one is how a bad extraction gets
-    corrected rather than lived with.
+    The metered half of ``infer``, so the outline request and each candidate's
+    content check land on the ledger as one piece of work. A path inferred twice
+    is two pieces: the student paid for both, and the second one is how a bad
+    extraction gets corrected rather than lived with.
     """
     with spend.working(kind=Spend.Kind.TOPICS, course=course):
         return model.infer_topics(
@@ -123,9 +123,10 @@ def _inferred(course: Course, slides: Sequence[Slide]) -> list[model.TopicPropos
 def infer(course: Course) -> None:
     """Infer the course's topic path from its material, replacing what is there.
 
-    One model call, through the one module that makes them. A course whose
-    material the model cannot ground produces no topics and leaves the previous
-    path alone rather than half-replacing it.
+    An outline pass and a content check per candidate, through the one module
+    that makes model calls. A course whose material the model cannot ground
+    produces no topics and leaves the previous path alone rather than
+    half-replacing it.
     """
     slides = course_slides(course)
     if not slides:

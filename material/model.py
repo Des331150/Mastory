@@ -77,22 +77,29 @@ MAX_BACKOFF_SECONDS = 45.0
 #: page, spent as waits rather than as a spinner.
 RETRY_BUDGET_SECONDS = 45.0
 
-_INSTRUCTION = (
-    "You are reading one student's own course material to work out the topic "
-    "path of their course. Use only the slides below; do not use outside "
-    "knowledge and do not invent slides.\n"
-    "The outline is a hint taken from the deck's own headings, and only if "
-    "one is given. Where outline.present is false the deck has no structure to "
-    "take, so work the topics out of what the slides say rather than expecting "
-    "a structure that is not there.\n"
-    "Return one topic per idea the course teaches, in the order the course "
-    "teaches them. A topic may cover slides that are not next to each other, "
-    "and its 'slides' must list the index of every slide that covers it.\n"
-    "Set confidence low when the slides do not clearly support the topic or its "
-    "extent; the student is shown that low confidence and asked to check it.\n"
+_TOPIC_OUTLINE_INSTRUCTION = (
+    "You are looking only at the titles and headings of one student's course. "
+    "Use them to propose candidate topics and the slide indexes that may cover "
+    "each topic. This is an outline pass, not a content check; do not invent "
+    "slide indexes. Return one candidate per idea, in course order. "
     'Reply with JSON only: {"topics": [{"title": "...", "slides": [1, 2], '
     '"confidence": 0.0}]}'
 )
+
+_TOPIC_DETAIL_INSTRUCTION = (
+    "You are checking one candidate topic against only the slides proposed for "
+    "it. Keep the candidate title exactly as given. Return the indexes of the "
+    "slides whose content really teaches that topic; remove slides that do not "
+    "support it, and do not add indexes. Do not split or add topics. Set "
+    "confidence low when the supplied content does not clearly support the "
+    "candidate or its extent. Return an empty slides list if none support it. "
+    'Reply with JSON only: {"topics": [{"title": "...", "slides": [1, 2], '
+    '"confidence": 0.0}]}'
+)
+
+#: A candidate can span hundreds of slides. Its content checks are divided into
+#: these groups, keeping every prompt bounded even for a very large topic.
+_TOPIC_DETAIL_SLIDES_PER_CALL = 20
 
 #: How much of one span the model is shown. A span is a paragraph, so this only
 #: bites on a wall of text, and trimming rather than dropping keeps a long
@@ -182,29 +189,85 @@ class TopicProposal:
 def infer_topics(
     *, course_title: str, slides: Sequence[SlideExcerpt]
 ) -> list[TopicProposal]:
-    """The topics this material covers, as far as the model can tell.
+    """Infer candidates from titles, then check each against its own slide text.
 
-    Returned in course order, each pointing only at supplied slides.
+    The outline request is bounded by slide titles and headings. Each follow-up
+    contains only the candidate's proposed slides, so a long course never sends
+    all of its paragraph text in one model request.
     """
-    reply = complete(_topic_prompt(course_title=course_title, slides=slides))
-    return _grounded_topics(reply, slides=slides)
+    candidates = _grounded_topics(
+        complete(_topic_outline_prompt(course_title=course_title, slides=slides)),
+        slides=slides,
+    )
+    by_index = {slide.index: slide for slide in slides}
+    checked: list[TopicProposal] = []
+    for candidate in candidates:
+        candidate_slides = [by_index[index] for index in candidate.slides]
+        for start in range(0, len(candidate_slides), _TOPIC_DETAIL_SLIDES_PER_CALL):
+            selected = candidate_slides[
+                start : start + _TOPIC_DETAIL_SLIDES_PER_CALL
+            ]
+            chunk_candidate = TopicProposal(
+                title=candidate.title,
+                slides=tuple(slide.index for slide in selected),
+                confidence=candidate.confidence,
+                flag=candidate.flag,
+            )
+            reply = complete(
+                _topic_detail_prompt(
+                    course_title=course_title,
+                    candidate=chunk_candidate,
+                    slides=selected,
+                )
+            )
+            claims = [
+                claim
+                for claim in _claimed_topics(reply)
+                if _title(claim.get("title")).casefold() == candidate.title.casefold()
+            ]
+            refined = _grounded_topics(json.dumps({"topics": claims}), slides=selected)
+            for proposal in refined:
+                confidence = min(candidate.confidence, proposal.confidence)
+                checked.append(
+                    TopicProposal(
+                        title=proposal.title,
+                        slides=proposal.slides,
+                        confidence=confidence,
+                        flag="" if confidence >= CONFIDENCE_FLOOR else UNSURE,
+                    )
+                )
+    return _merge_topic_proposals(checked)
 
 
-def _topic_prompt(*, course_title: str, slides: Sequence[SlideExcerpt]) -> str:
-    """The whole request as JSON: the material, and what to do with it.
-
-    Sent as one document rather than as prose so that what the model was shown
-    is readable in a log line, and so a fake at ``complete`` can read the
-    material the same way a model does.
-
-    The outline is included as a hint and is explicitly marked as possibly
-    absent. Deck outlines frequently cover nothing at all, so a model told to
-    expect one invents a structure the slides do not have.
-    """
+def _topic_outline_prompt(
+    *, course_title: str, slides: Sequence[SlideExcerpt]
+) -> str:
+    """The small first pass: slide titles and deck headings only."""
     return json.dumps(
         {
-            "instruction": _INSTRUCTION,
+            "instruction": _TOPIC_OUTLINE_INSTRUCTION,
             "course": course_title,
+            "outline": _outline(slides),
+            "slides": [
+                {"index": slide.index, "title": slide.title}
+                for slide in slides
+            ],
+        }
+    )
+
+
+def _topic_detail_prompt(
+    *,
+    course_title: str,
+    candidate: TopicProposal,
+    slides: Sequence[SlideExcerpt],
+) -> str:
+    """One candidate and the text of only the slides proposed for it."""
+    return json.dumps(
+        {
+            "instruction": _TOPIC_DETAIL_INSTRUCTION,
+            "course": course_title,
+            "candidate": {"title": candidate.title, "slides": list(candidate.slides)},
             "outline": _outline(slides),
             "slides": [
                 {
@@ -216,6 +279,28 @@ def _topic_prompt(*, course_title: str, slides: Sequence[SlideExcerpt]) -> str:
             ],
         }
     )
+
+
+def _merge_topic_proposals(
+    proposals: Sequence[TopicProposal],
+) -> list[TopicProposal]:
+    """Merge duplicate candidate titles and keep every grounded slide."""
+    grouped: dict[str, list[TopicProposal]] = {}
+    for proposal in proposals:
+        grouped.setdefault(proposal.title.casefold(), []).append(proposal)
+    merged: list[TopicProposal] = []
+    for group in grouped.values():
+        first = group[0]
+        confidence = min(proposal.confidence for proposal in group)
+        merged.append(
+            TopicProposal(
+                title=first.title,
+                slides=tuple(sorted({i for proposal in group for i in proposal.slides})),
+                confidence=confidence,
+                flag="" if confidence >= CONFIDENCE_FLOOR else UNSURE,
+            )
+        )
+    return sorted(merged, key=lambda proposal: proposal.slides[0])
 
 
 def _outline(slides: Sequence[SlideExcerpt]) -> dict[str, Any]:
