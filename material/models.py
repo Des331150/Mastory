@@ -307,6 +307,7 @@ class Topic(models.Model):
     weight = models.PositiveIntegerField(default=1)
     flagged = models.BooleanField(default=False)
     flag_note = models.TextField(blank=True)
+    quiz_refused_at = models.DateTimeField(null=True, blank=True)
     completed_on = models.DateField(null=True, blank=True)
     skipped_on = models.DateField(null=True, blank=True)
     cut_on = models.DateField(null=True, blank=True)

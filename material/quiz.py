@@ -45,6 +45,7 @@ from datetime import date
 
 from django.contrib.auth.models import User
 from django.db import connection, transaction
+from django.utils import timezone
 
 from material import marking, model, progress, reading, spend
 from material.models import PASS_MARK, Question, Quiz, Span, Spend, Topic
@@ -226,10 +227,15 @@ def build(topic: Topic) -> Quiz:
             "This topic points at no paragraphs to ask about, so there is no quiz "
             "to write. Point it at the slides that cover it first."
         )
-    written = _written(topic, spans)
+    try:
+        written = _written(topic, spans)
+    except model.ModelUnavailable:
+        _remember_refusal(topic)
+        raise
     with transaction.atomic():
         _held_user()
         owned(topic.quizzes.all()).delete()
+        _clear_refusal(topic)
         return _stored(topic, spans, written, _kept_questions(written))
 
 
@@ -273,6 +279,7 @@ def claim(topic: Topic) -> Quiz:
             return existing
         try:
             written = _written(topic, spans)
+            _clear_refusal(topic)
             return _stored(topic, spans, written, _kept_questions(written))
         except model.ModelUnavailable as failure:
             # Nothing had been written when the model refused, so there is no
@@ -284,9 +291,23 @@ def claim(topic: Topic) -> Quiz:
             # A fault in the rows the quiz is made of is not caught here: the
             # transaction itself is broken then, and the only honest thing left
             # is Django's rollback of everything, charge included.
+            _remember_refusal(topic)
             unreachable = failure
     if unreachable is not None:
         raise unreachable
+
+
+def _remember_refusal(topic: Topic) -> None:
+    """Record that the most recent requested quiz could not be generated."""
+    topic.quiz_refused_at = timezone.now()
+    topic.save(update_fields=["quiz_refused_at"])
+
+
+def _clear_refusal(topic: Topic) -> None:
+    """A successful generation supersedes any previous provider refusal."""
+    if topic.quiz_refused_at is not None:
+        topic.quiz_refused_at = None
+        topic.save(update_fields=["quiz_refused_at"])
 
 
 def _kept_questions(written: model.QuestionSet) -> Sequence[model.QuestionProposal]:

@@ -83,6 +83,12 @@
             <p class="standing-topic">{{ reading.topic.title }}</p>
             <p class="standing-complete" data-state="{{ reading.state }}">{{ reading.completion }}</p>
             <p class="standing-mastery">{{ reading.evidence }}</p>
+            {% if reading.topic.quiz_refused_at %}
+              <p class="quiz-unavailable" role="status">
+                The last quiz request could not be completed because the model
+                was unavailable, on {{ reading.topic.quiz_refused_at|date:"j F Y, P" }}.
+              </p>
+            {% endif %}
             <p class="report-when">{{ reading.studied }}</p>
           </li>
         {% endfor %}
