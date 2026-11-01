@@ -40,8 +40,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-#: Below this confidence the student is told the topic needs checking against
-#: their own slides. Above it, the topic is shown as inferred and unremarkable.
+#: Below this confidence, or when the two topic passes agree less than this
+#: much, the student is told to check the topic against their own slides.
 CONFIDENCE_FLOOR = 0.6
 
 MULTIPLE_CHOICE = "multiple_choice"
@@ -49,6 +49,12 @@ SHORT_ANSWER = "short_answer"
 
 #: What the student is told about a topic the model was unsure of.
 UNSURE = "The model was not sure of this topic. Check it against your slides."
+
+#: The content pass changed which slides a candidate topic covers.
+SCOPE_CHANGED = (
+    "The slide check changed this topic's scope. Check its slides before "
+    "confirming the topic path."
+)
 
 #: How much of one slide the model is shown. Long slides are trimmed rather than
 #: dropped, so a topic can still be inferred from the part that was sent.
@@ -172,14 +178,17 @@ class TopicProposal:
     """One topic the model claims, after the contract has been applied.
 
     ``slides`` holds indices that were supplied and exist, in course order, and
-    is never empty. ``flag`` is empty when there is nothing for the student to
-    check and says what to check otherwise.
+    is never empty. ``confidence`` is the weaker of the model's reports and the
+    deterministic agreement between the title and content passes. ``flag`` is
+    empty when there is nothing for the student to check and says what to check
+    otherwise.
     """
 
     title: str
     slides: tuple[int, ...]
     confidence: float
     flag: str
+    scope_agreement: float = 1.0
 
     @property
     def flagged(self) -> bool:
@@ -203,6 +212,9 @@ def infer_topics(
     checked: list[TopicProposal] = []
     for candidate in candidates:
         candidate_slides = [by_index[index] for index in candidate.slides]
+        supported: set[int] = set()
+        agreements: list[float] = []
+        detail_confidence = 1.0
         for start in range(0, len(candidate_slides), _TOPIC_DETAIL_SLIDES_PER_CALL):
             selected = candidate_slides[
                 start : start + _TOPIC_DETAIL_SLIDES_PER_CALL
@@ -226,16 +238,35 @@ def infer_topics(
                 if _title(claim.get("title")).casefold() == candidate.title.casefold()
             ]
             refined = _grounded_topics(json.dumps({"topics": claims}), slides=selected)
-            for proposal in refined:
-                confidence = min(candidate.confidence, proposal.confidence)
-                checked.append(
-                    TopicProposal(
-                        title=proposal.title,
-                        slides=proposal.slides,
-                        confidence=confidence,
-                        flag="" if confidence >= CONFIDENCE_FLOOR else UNSURE,
-                    )
+            proposed_indices = {slide.index for slide in selected}
+            checked_indices = {
+                index for proposal in refined for index in proposal.slides
+            }
+            union = proposed_indices | checked_indices
+            agreements.append(
+                len(proposed_indices & checked_indices) / len(union) if union else 0.0
+            )
+            supported.update(checked_indices)
+            if refined:
+                detail_confidence = min(
+                    detail_confidence,
+                    *(proposal.confidence for proposal in refined),
                 )
+            else:
+                detail_confidence = 0.0
+        if not supported:
+            continue
+        scope_agreement = min(agreements, default=0.0)
+        confidence = min(candidate.confidence, detail_confidence, scope_agreement)
+        checked.append(
+            TopicProposal(
+                title=candidate.title,
+                slides=tuple(sorted(supported)),
+                confidence=confidence,
+                flag=_topic_flag(confidence, scope_agreement),
+                scope_agreement=scope_agreement,
+            )
+        )
     return _merge_topic_proposals(checked)
 
 
@@ -297,10 +328,23 @@ def _merge_topic_proposals(
                 title=first.title,
                 slides=tuple(sorted({i for proposal in group for i in proposal.slides})),
                 confidence=confidence,
-                flag="" if confidence >= CONFIDENCE_FLOOR else UNSURE,
+                flag=_topic_flag(
+                    confidence,
+                    min(proposal.scope_agreement for proposal in group),
+                ),
+                scope_agreement=min(proposal.scope_agreement for proposal in group),
             )
         )
     return sorted(merged, key=lambda proposal: proposal.slides[0])
+
+
+def _topic_flag(confidence: float, scope_agreement: float) -> str:
+    """Give the student the reason an inferred topic needs checking."""
+    if scope_agreement < CONFIDENCE_FLOOR:
+        return SCOPE_CHANGED
+    if confidence < CONFIDENCE_FLOOR:
+        return UNSURE
+    return ""
 
 
 def _outline(slides: Sequence[SlideExcerpt]) -> dict[str, Any]:
