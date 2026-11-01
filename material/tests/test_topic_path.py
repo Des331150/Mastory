@@ -13,11 +13,12 @@ wrong one, because those two are what make a topic path trustworthy.
 import json
 import re
 from typing import Any
+from unittest import mock
 
 from django.test import TestCase
 
 from material import model
-from material.model import NOT_CONFIGURED
+from material.model import NOT_CONFIGURED, UNREACHABLE
 from material.tests.helpers import (
     HANDOUT_NOTES_PDF,
     LINEAR_ALGEBRA_PDF,
@@ -399,6 +400,19 @@ class ModelBoundaryTests(TopicPathTestCase):
         html = response.content.decode()
         self.assertIn("no language model configured", html)
         self.assertIn("MODEL_BASE_URL", html)
+
+    def test_the_topic_refusal_still_offers_the_topic_form_it_names(self) -> None:
+        """The one page the model's old advice happened to be true on.
+        "Add the topics yourself below" is a sentence about the topic page's
+        own form, so it stays a sentence the topic page says - from the page,
+        now, rather than from the failure it is reporting (issue 14's leak)."""
+        from material.model import ModelUnavailable
+
+        with mock.patch.object(
+            model, "complete", side_effect=ModelUnavailable(*UNREACHABLE)
+        ):
+            response = self.client.post("/courses/1/topics/infer/")
+        self.assertIn("add the topics yourself", response.content.decode())
 
     def test_a_fenced_reply_is_read_as_the_answer_it_wraps(self) -> None:
         """A model that fences its JSON meant to answer, and the fence is not

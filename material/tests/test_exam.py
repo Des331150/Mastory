@@ -12,6 +12,7 @@ sitting is not an exam, and that can only be seen from the page.
 
 import re
 from typing import Any
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -311,6 +312,34 @@ class BeforeSubmissionTests(ExamTestCase):
         html = self.paper()
         self.assertNotIn("meter-fill", html)
         self.assertNotIn("You got", flat(html))
+
+
+class PageOwnCopyTests(ExamTestCase):
+    """What a model failure says about the page it lands on is the page's to say.
+
+    Found on the first real course (issue 14): the model module wrote one
+    refusal for every page, and its advice - "you can add the topics yourself
+    below" - surfaced on the exam page, where there are no topics to add. A
+    failure that knows only its own cause cannot also know which page it has
+    arrived on, so the sentence about what this page offers is chosen here.
+    """
+
+    def refusal(self) -> str:
+        from material import model
+
+        busy = model.ModelUnavailable(*model.THROTTLE_MESSAGE)
+        with mock.patch.object(model, "complete", side_effect=busy):
+            response = self.client.post("/courses/1/exam/start/", follow=True)
+        self.assertEqual(response.status_code, 200)
+        return flat(response.content.decode())
+
+    def test_the_exam_refusal_promises_nothing_the_exam_page_cannot_do(self) -> None:
+        html = self.refusal()
+        self.assertIn("too busy", html)
+        self.assertNotIn("add the topics yourself", html)
+
+    def test_the_exam_refusal_names_the_press_the_page_does_have(self) -> None:
+        self.assertIn("Press the button again in a minute", self.refusal())
 
 
 class ScoringTests(ExamTestCase):

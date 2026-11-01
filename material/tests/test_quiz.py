@@ -637,6 +637,20 @@ class UnwrittenQuizTests(QuizTestCase):
         rows = Spend.objects.filter(kind=Spend.Kind.QUIZ)
         self.assertEqual(len(rows), 1, "the generation that failed was not written down")
 
+    def test_the_quiz_refusal_promises_nothing_the_quiz_page_cannot_do(self) -> None:
+        """The failure's advice is the model's to give and the page's to add to.
+        Found on the first real course (issue 14): the one refusal shared by
+        every page told an exam page to add topics under it. A quiz page has no
+        topic form either, and what it does have is the press that writes the
+        questions."""
+        with mock.patch.object(
+            model, "complete", side_effect=model.ModelUnavailable(*model.THROTTLE_MESSAGE)
+        ):
+            response = self.client.post(f"{self.quiz_url()}rewrite/", follow=True)
+        html = flat(response.content.decode())
+        self.assertIn("too busy", html)
+        self.assertNotIn("add the topics yourself", html)
+
 
 class ContestedFirstWriteTests(TransactionTestCase):
     """Two tabs pressing for the same topic's first quiz at the same time.

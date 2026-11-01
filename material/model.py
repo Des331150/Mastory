@@ -130,7 +130,11 @@ class ModelUnavailable(Exception):
     """A model call that could not be made, in words a student can act on.
 
     ``reason`` says what happened and ``advice`` says what to do about it, in
-    the same shape as a conversion failure.
+    the same shape as a conversion failure. Both are about the failure itself:
+    the model does not know which page its failure will surface on, so the one
+    sentence about what *this* page offers while the model is not answering is
+    added by the page, not by this module - which is how a mock exam's refusal
+    once told a student to add topics under it, on a page about an exam.
     """
 
     def __init__(self, reason: str, advice: str) -> None:
@@ -858,18 +862,15 @@ def note_call(tokens: int | None) -> None:
 
 NOT_CONFIGURED = (
     "This server has no language model configured.",
-    "Add the topics yourself below, or ask whoever runs the server to set "
-    "MODEL_BASE_URL and MODEL_NAME.",
+    "Ask whoever runs the server to set MODEL_BASE_URL and MODEL_NAME.",
 )
 UNREACHABLE = (
     "The language model could not be reached.",
-    "Try again in a minute. You can add the topics yourself below in the "
-    "meantime.",
+    "Try again in a minute.",
 )
 THROTTLE_MESSAGE = (
     "The language model is too busy to answer right now.",
-    "Wait a minute and try again. You can add the topics yourself below in the "
-    "meantime.",
+    "Wait a minute and try again.",
 )
 
 

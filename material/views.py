@@ -363,7 +363,9 @@ def topic_infer(request: HttpRequest, course_id: int) -> HttpResponse:
     try:
         topic_service.infer(course)
     except (topic_service.Rejected, model.ModelUnavailable) as exc:
-        return _topics_page(request, course, error=_reason(exc))
+        return _topics_page(
+            request, course, error=_reason(exc, TOPIC_PAGE_OFFERS)
+        )
     return redirect("topic-path", course_id=course.pk)
 
 
@@ -526,7 +528,7 @@ def topic_quiz_rewrite(request: HttpRequest, course_id: int, topic_id: int) -> H
             course,
             topic,
             existing,
-            error=_reason(exc),
+            error=_reason(exc, QUIZ_PAGE_OFFERS),
         )
     return _quiz_page(request, course, topic, written)
 
@@ -687,7 +689,7 @@ def exam_start(request: HttpRequest, course_id: int) -> HttpResponse:
         # state it is really in: a refusal that rendered an empty page would take
         # the student's own paper off the screen.
         return _exam_page(
-            request, course, exam_service.latest(course), error=_reason(exc)
+            request, course, exam_service.latest(course), error=_reason(exc, EXAM_PAGE_OFFERS)
         )
     return _exam_page(request, course, written)
 
@@ -1029,16 +1031,37 @@ def _saved_settings(plan: Plan | None) -> dict[str, str]:
     }
 
 
-def _reason(exc: Exception) -> str:
+#: What each page that can be failed by the model adds to the failure, on top of
+#: the reason and the remedy the failure itself carries. These are the pages'
+#: sentences, not the model's: "add the topics yourself" names a form that only
+#: the topic page has, and a refusal written into the model module lands on
+#: every page at once - which is how the mock exam came to suggest it. Per page
+#: here, then, and the model module may not take any of them back.
+TOPIC_PAGE_OFFERS = "You can add the topics yourself below in the meantime."
+QUIZ_PAGE_OFFERS = (
+    "Press the button again in a minute: one press writes the quiz, and "
+    "retaking it never costs a sitting."
+)
+EXAM_PAGE_OFFERS = (
+    "Press the button again in a minute: the exam is only written once you "
+    "ask, so asking again costs nothing."
+)
+
+
+def _reason(exc: Exception, *offered: str) -> str:
     """What to tell the student, whether it came from us or from the model.
 
     A model failure carries advice as well as a reason - what to do about it -
     and the advice is the half that lets a student carry on without waiting for
-    anyone.
+    anyone. What the failure cannot say is what this page offers while the
+    model is not answering, so that is handed in by the caller: one sentence of
+    the page's own, rather than one refusal repeating "you can add the topics
+    yourself" onto pages that have no topic list on them.
     """
     reason = str(getattr(exc, "reason", exc))
     advice = getattr(exc, "advice", "")
-    return f"{reason} {advice}" if advice else reason
+    parts = [part for part in (reason, advice, *offered) if part]
+    return " ".join(parts)
 
 
 def _int_or_none(raw: str | None) -> int:
