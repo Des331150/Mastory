@@ -105,10 +105,16 @@
       </p>
       {% if quiz.dropped %}
         <p class="dropped-note">
-          {{ quiz.dropped }} question{{ quiz.dropped|pluralize }} more
-          {{ quiz.dropped|pluralize:"was,were" }} written and not shown: either
-          the paragraph it came from did not check out, or there were more than
-          a short quiz holds. Nothing has been made up to fill the gap.
+          {% if quiz.rejected != None and quiz.cut != None %}
+            {{ quiz.rejected }} question{{ quiz.rejected|pluralize }}
+            {{ quiz.rejected|pluralize:"was,were" }} turned away by the check;
+            {{ quiz.cut }} more passed the check but would not fit in a short quiz.
+          {% else %}
+            {{ quiz.dropped }} question{{ quiz.dropped|pluralize }} more
+            {{ quiz.dropped|pluralize:"was,were" }} written and not shown. The
+            older record does not say whether the check turned them away or they
+            passed but would not fit. Nothing has been made up to fill the gap.
+          {% endif %}
         </p>
       {% endif %}
       {% if quiz.low_confidence %}

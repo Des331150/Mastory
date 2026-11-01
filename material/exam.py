@@ -202,7 +202,7 @@ def build(course: Course) -> MockExam:
     if latest(course) is not None:
         raise Rejected(ALREADY_SAT)
     with spend.working(kind=Spend.Kind.EXAM, course=course):
-        asked, dropped = _ask(covering)
+        asked, rejected, cut = _ask(covering)
     with transaction.atomic():
         Course.objects.select_for_update().filter(pk=course.pk).first()
         if latest(course) is not None:
@@ -211,7 +211,9 @@ def build(course: Course) -> MockExam:
             user_id=current_user_id(),
             course=course,
             asked_topics=len(covering),
-            dropped=dropped,
+            dropped=rejected + cut,
+            rejected=rejected,
+            cut=cut,
         )
         MockQuestion.objects.bulk_create(
             [
@@ -234,8 +236,8 @@ def build(course: Course) -> MockExam:
 
 def _ask(
     covering: Sequence[tuple[Topic, Sequence[Span]]],
-) -> tuple[list[tuple[Topic, Span, model.QuestionProposal]], int]:
-    """Every topic asked about in turn, and how many questions were left out.
+) -> tuple[list[tuple[Topic, Span, model.QuestionProposal]], int, int]:
+    """Every topic asked about in turn, and why questions were left out.
 
     One generation call per topic rather than one over the whole course, because
     the call is handed at most ``SPAN_LIMIT`` paragraphs: a single call over a
@@ -244,7 +246,8 @@ def _ask(
     claiming to cover it.
     """
     asked: list[tuple[Topic, Span, model.QuestionProposal]] = []
-    dropped = 0
+    rejected = 0
+    cut = 0
     for topic, spans in covering:
         if not spans:
             continue
@@ -260,12 +263,13 @@ def _ask(
         # questions that verified and were dropped only because a topic holds
         # two. A count covering some of the ways a question goes missing would
         # let the page claim nothing was.
-        dropped += proposals.dropped + len(proposals.questions) - len(kept)
+        rejected += proposals.rejected
+        cut += len(proposals.questions) - len(kept)
         by_index = {index: span for index, span in enumerate(spans, start=1)}
         asked.extend(
             (topic, by_index[proposal.span_index], proposal) for proposal in kept
         )
-    return asked, dropped
+    return asked, rejected, cut
 
 
 def taken(exam: MockExam, paper: Paper | None = None) -> marking.Marked | None:

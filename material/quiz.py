@@ -311,7 +311,9 @@ def _stored(
     quiz = Quiz.objects.create(
         user_id=current_user_id(),
         topic=topic,
-        dropped=written.dropped + len(written.questions) - len(kept),
+        dropped=written.rejected + len(written.questions) - len(kept),
+        rejected=written.rejected,
+        cut=len(written.questions) - len(kept),
         low_confidence=len(kept) < SHORT_QUIZ_UNDER,
     )
     Question.objects.bulk_create(

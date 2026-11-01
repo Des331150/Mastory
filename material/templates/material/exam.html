@@ -61,10 +61,17 @@
         </p>
         {% if exam.dropped %}
           <p class="dropped-note">
-            {{ exam.dropped }} question{{ exam.dropped|pluralize }} more
-            {{ exam.dropped|pluralize:"was,were" }} written and not shown: either
-            the paragraph it came from did not check out, or there were more than
-            {{ per_topic }} for a topic. Nothing has been made up to fill the gap.
+            {% if exam.rejected != None and exam.cut != None %}
+              {{ exam.rejected }} question{{ exam.rejected|pluralize }}
+              {{ exam.rejected|pluralize:"was,were" }} turned away by the check;
+              {{ exam.cut }} more passed the check but exceeded the
+              {{ per_topic }}-per-topic limit.
+            {% else %}
+              {{ exam.dropped }} question{{ exam.dropped|pluralize }} more
+              {{ exam.dropped|pluralize:"was,were" }} written and not shown. The
+              older record does not say whether the check turned them away or they
+              passed but exceeded the per-topic limit. Nothing has been made up.
+            {% endif %}
           </p>
         {% endif %}
         {% if not paper.whole_course and paper.missed_topics %}

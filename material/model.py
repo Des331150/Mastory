@@ -363,14 +363,13 @@ class QuestionProposal:
 class QuestionSet:
     """The questions that survived verification, and how many did not.
 
-    ``dropped`` is counted rather than thrown away: the product promises an
-    honest short quiz over a padded one, and a student told their quiz is two
-    questions long needs to be told that two were left out rather than finding
-    out by wondering.
+    ``rejected`` counts candidates refused before the product's short-quiz cap.
+    The cap is applied by the caller, which can therefore keep the two causes
+    separate: the source check refused these, and the quiz limit cut those.
     """
 
     questions: tuple[QuestionProposal, ...]
-    dropped: int
+    rejected: int
 
 
 #: How many candidates are put back to the model for verification, and how many
@@ -393,20 +392,20 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
     question with a citation the citation does not support is worse than no
     question: it looks grounded and is not.
 
-    ``dropped`` is every question written and not returned - ungrounded, of a
-    kind that cannot be marked, failed verification, or written past the point
-    this call will spend model time on. A count that only covered some of those
-    would let the page claim nothing was left out on the paths where plenty was.
+    ``rejected`` is every question written and not returned before the short-quiz
+    cap: ungrounded, of a kind that cannot be marked, failed verification, or
+    beyond the point this call will spend model time on. The caller counts the
+    verified questions it cuts separately when applying its own cap.
     """
     candidates, ungrounded = _grounded_questions(
         complete(_question_prompt(topic_title=topic_title, spans=spans)), spans=spans
     )
     by_index = {span.index: span for span in spans}
     verified: list[QuestionProposal] = []
-    dropped = ungrounded
+    rejected = ungrounded
     for candidate in candidates:
         if len(verified) >= VERIFY_LIMIT:
-            dropped += 1
+            rejected += 1
             continue
         span = by_index[candidate.span_index]
         if not _answer_is_supported(span, candidate):
@@ -415,10 +414,10 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
                 candidate.span_index,
                 candidate.prompt,
             )
-            dropped += 1
+            rejected += 1
             continue
         verified.append(candidate)
-    return QuestionSet(questions=tuple(verified), dropped=dropped)
+    return QuestionSet(questions=tuple(verified), rejected=rejected)
 
 
 def _question_prompt(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> str:

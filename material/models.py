@@ -608,10 +608,10 @@ class Quiz(models.Model):
     every answer graded against the question they actually read. Generating a
     fresh one is what taking it again does.
 
-    ``dropped`` is kept because a short quiz is the honest outcome rather than a
-    failure of the run: the student is told how many questions could not be
-    verified against the span they came from and were left out, because a quiz
-    that silently got smaller looks like a bug.
+    ``dropped`` is the combined count of questions refused before the quiz cap
+    and questions cut by it. ``rejected`` and ``cut`` make those causes visible
+    separately on new rows. They are null on old rows because the former total
+    cannot be split honestly after the fact.
 
     ``low_confidence`` is that same fact judged against the size of the quiz.
     A topic whose material supports one verified question gets one question and
@@ -624,6 +624,9 @@ class Quiz(models.Model):
     )
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="quizzes")
     dropped = models.PositiveIntegerField(default=0)
+    # Null means this is a legacy row: its old total cannot be split honestly.
+    rejected = models.PositiveIntegerField(null=True, blank=True)
+    cut = models.PositiveIntegerField(null=True, blank=True)
     low_confidence = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -731,9 +734,10 @@ class MockExam(models.Model):
     answers on ``MockQuestion`` every time it is shown, so there is no second
     verdict anywhere to fall out of step with the questions it came from.
 
-    ``dropped`` is kept for the same reason a topic quiz keeps it: questions
-    written and not shown, which the student is told about rather than left to
-    discover.
+    ``dropped`` is the combined count of questions refused before the per-topic
+    cap and questions cut by it. ``rejected`` and ``cut`` keep those causes
+    separately on new rows; they are null on old rows whose totals cannot be
+    split honestly.
 
     ``asked_topics`` is how many topics the course had when the paper was
     written, kept rather than counted off the topics again because the topic
@@ -747,6 +751,9 @@ class MockExam(models.Model):
     )
     course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="exam")
     dropped = models.PositiveIntegerField(default=0)
+    # Null means this is a legacy row: its old total cannot be split honestly.
+    rejected = models.PositiveIntegerField(null=True, blank=True)
+    cut = models.PositiveIntegerField(null=True, blank=True)
     asked_topics = models.PositiveIntegerField(default=0)
     taken_on = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
