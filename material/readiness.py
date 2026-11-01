@@ -47,10 +47,11 @@ from datetime import date
 from math import ceil
 from typing import Sequence
 
+from django.db.models import Prefetch
 from django.utils import timezone
 
 from material import mastery
-from material.models import Attempt, Course, Topic
+from material.models import Attempt, Course, Quiz, Topic
 from material.users import owned
 
 #: How much of the course has to have been weighed before a readiness figure is
@@ -94,6 +95,7 @@ class TopicReading:
     mastery: mastery.Mastery
     first_on: date | None
     last_on: date | None
+    quiz: Quiz | None = None
 
     @property
     def sittings(self) -> int:
@@ -369,7 +371,15 @@ def report(course: Course) -> Report:
     figures, and two groupings of one table would be two answers to which sitting
     is the latest one.
     """
-    topics = list(owned(course.topics.all()))
+    topics = list(
+        owned(course.topics.all()).prefetch_related(
+            Prefetch(
+                "quizzes",
+                queryset=owned(Quiz.objects.prefetch_related("questions")),
+                to_attr="readiness_quizzes",
+            )
+        )
+    )
     taken = mastery.sittings(topics)
     readings = tuple(
         TopicReading(
@@ -377,6 +387,7 @@ def report(course: Course) -> Report:
             mastery=mastery.measure(taken[topic.pk]),
             first_on=_first_day(taken[topic.pk]),
             last_on=_last_day(taken[topic.pk]),
+            quiz=_readiness_quiz(topic),
         )
         for topic in topics
     )
@@ -387,6 +398,12 @@ def report(course: Course) -> Report:
         weakest=_weakest(readings),
         days=_days(readings, taken),
     )
+
+
+def _readiness_quiz(topic: Topic) -> Quiz | None:
+    """The topic's quiz prefetched for this report, if it has one."""
+    quizzes: list[Quiz] = getattr(topic, "readiness_quizzes", [])
+    return quizzes[0] if quizzes else None
 
 
 def _readiness(readings: Sequence[TopicReading]) -> Readiness:
