@@ -610,9 +610,10 @@ class Quiz(models.Model):
     fresh one is what taking it again does.
 
     ``dropped`` is the combined count of questions refused before the quiz cap
-    and questions cut by it. ``rejected`` and ``cut`` make those causes visible
-    separately on new rows. They are null on old rows because the former total
-    cannot be split honestly after the fact.
+    and questions cut by it. ``verification_rejected`` counts the questions
+    that did not pass the source check; ``rejected`` also includes unusable
+    claims and candidates beyond the verification budget. ``cut`` counts the
+    verified questions cut by the quiz limit. The split is null on old rows.
 
     ``low_confidence`` is that same fact judged against the size of the quiz.
     A topic whose material supports one verified question gets one question and
@@ -625,8 +626,10 @@ class Quiz(models.Model):
     )
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="quizzes")
     dropped = models.PositiveIntegerField(default=0)
-    # Null means this is a legacy row: its old total cannot be split honestly.
+    # The aggregate of all pre-cap drops; null on rows predating this breakdown.
     rejected = models.PositiveIntegerField(null=True, blank=True)
+    # Null means the older row cannot identify which drops failed verification.
+    verification_rejected = models.PositiveIntegerField(null=True, blank=True)
     cut = models.PositiveIntegerField(null=True, blank=True)
     low_confidence = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -646,6 +649,13 @@ class Quiz(models.Model):
         are three chances for them to disagree.
         """
         return self.questions.count()
+
+    @property
+    def other_rejected(self) -> int | None:
+        """Pre-cap drops that were not source-verification failures."""
+        if self.rejected is None or self.verification_rejected is None:
+            return None
+        return max(0, self.rejected - self.verification_rejected)
 
     @property
     def note(self) -> str:
@@ -736,9 +746,10 @@ class MockExam(models.Model):
     verdict anywhere to fall out of step with the questions it came from.
 
     ``dropped`` is the combined count of questions refused before the per-topic
-    cap and questions cut by it. ``rejected`` and ``cut`` keep those causes
-    separately on new rows; they are null on old rows whose totals cannot be
-    split honestly.
+    cap and questions cut by it. ``verification_rejected`` counts the questions
+    that did not pass the source check; ``rejected`` also includes unusable
+    claims and candidates beyond the verification budget. ``cut`` counts the
+    verified questions cut by the per-topic limit. The split is null on old rows.
 
     ``asked_topics`` is how many topics the course had when the paper was
     written, kept rather than counted off the topics again because the topic
@@ -752,8 +763,10 @@ class MockExam(models.Model):
     )
     course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="exam")
     dropped = models.PositiveIntegerField(default=0)
-    # Null means this is a legacy row: its old total cannot be split honestly.
+    # The aggregate of all pre-cap drops; null on rows predating this breakdown.
     rejected = models.PositiveIntegerField(null=True, blank=True)
+    # Null means the older row cannot identify which drops failed verification.
+    verification_rejected = models.PositiveIntegerField(null=True, blank=True)
     cut = models.PositiveIntegerField(null=True, blank=True)
     asked_topics = models.PositiveIntegerField(default=0)
     taken_on = models.DateField(null=True, blank=True)
@@ -774,6 +787,13 @@ class MockExam(models.Model):
         the paper and the view marking it cannot answer differently.
         """
         return self.taken_on is not None
+
+    @property
+    def other_rejected(self) -> int | None:
+        """Pre-cap drops that were not source-verification failures."""
+        if self.rejected is None or self.verification_rejected is None:
+            return None
+        return max(0, self.rejected - self.verification_rejected)
 
 
 class MockQuestion(models.Model):

@@ -334,6 +334,7 @@ def _stored(
         topic=topic,
         dropped=written.rejected + len(written.questions) - len(kept),
         rejected=written.rejected,
+        verification_rejected=written.verification_rejected,
         cut=len(written.questions) - len(kept),
         low_confidence=len(kept) < SHORT_QUIZ_UNDER,
     )

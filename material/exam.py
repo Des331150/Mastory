@@ -202,7 +202,7 @@ def build(course: Course) -> MockExam:
     if latest(course) is not None:
         raise Rejected(ALREADY_SAT)
     with spend.working(kind=Spend.Kind.EXAM, course=course):
-        asked, rejected, cut = _ask(covering)
+        asked, rejected, verification_rejected, cut = _ask(covering)
     with transaction.atomic():
         Course.objects.select_for_update().filter(pk=course.pk).first()
         if latest(course) is not None:
@@ -213,6 +213,7 @@ def build(course: Course) -> MockExam:
             asked_topics=len(covering),
             dropped=rejected + cut,
             rejected=rejected,
+            verification_rejected=verification_rejected,
             cut=cut,
         )
         MockQuestion.objects.bulk_create(
@@ -236,7 +237,7 @@ def build(course: Course) -> MockExam:
 
 def _ask(
     covering: Sequence[tuple[Topic, Sequence[Span]]],
-) -> tuple[list[tuple[Topic, Span, model.QuestionProposal]], int, int]:
+) -> tuple[list[tuple[Topic, Span, model.QuestionProposal]], int, int, int]:
     """Every topic asked about in turn, and why questions were left out.
 
     One generation call per topic rather than one over the whole course, because
@@ -247,6 +248,7 @@ def _ask(
     """
     asked: list[tuple[Topic, Span, model.QuestionProposal]] = []
     rejected = 0
+    verification_rejected = 0
     cut = 0
     for topic, spans in covering:
         if not spans:
@@ -264,12 +266,13 @@ def _ask(
         # two. A count covering some of the ways a question goes missing would
         # let the page claim nothing was.
         rejected += proposals.rejected
+        verification_rejected += proposals.verification_rejected
         cut += len(proposals.questions) - len(kept)
         by_index = {index: span for index, span in enumerate(spans, start=1)}
         asked.extend(
             (topic, by_index[proposal.span_index], proposal) for proposal in kept
         )
-    return asked, rejected, cut
+    return asked, rejected, verification_rejected, cut
 
 
 def taken(exam: MockExam, paper: Paper | None = None) -> marking.Marked | None:

@@ -492,13 +492,16 @@ class QuestionProposal:
 class QuestionSet:
     """The questions that survived verification, and how many did not.
 
-    ``rejected`` counts candidates refused before the product's short-quiz cap.
-    The cap is applied by the caller, which can therefore keep the two causes
-    separate: the source check refused these, and the quiz limit cut those.
+    ``rejected`` counts all candidates lost before the caller's short-quiz cap,
+    including unusable claims and candidates beyond the verification budget.
+    ``verification_rejected`` is the precise subset that did not pass the source
+    check, so the product can distinguish it from both other losses and the
+    verified questions the caller cuts for length.
     """
 
     questions: tuple[QuestionProposal, ...]
     rejected: int
+    verification_rejected: int
 
 
 #: How many candidates are put back to the model for verification, and how many
@@ -523,8 +526,9 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
 
     ``rejected`` is every question written and not returned before the short-quiz
     cap: ungrounded, of a kind that cannot be marked, failed verification, or
-    beyond the point this call will spend model time on. The caller counts the
-    verified questions it cuts separately when applying its own cap.
+    beyond the point this call will spend model time on. The exact verification
+    failures are counted separately, and the caller counts verified questions it
+    cuts when applying its own cap.
     """
     candidates, ungrounded = _grounded_questions(
         complete(_question_prompt(topic_title=topic_title, spans=spans)), spans=spans
@@ -532,6 +536,7 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
     by_index = {span.index: span for span in spans}
     verified: list[QuestionProposal] = []
     rejected = ungrounded
+    verification_rejected = 0
     for candidate in candidates:
         if len(verified) >= VERIFY_LIMIT:
             rejected += 1
@@ -544,9 +549,14 @@ def generate_questions(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> Que
                 candidate.prompt,
             )
             rejected += 1
+            verification_rejected += 1
             continue
         verified.append(candidate)
-    return QuestionSet(questions=tuple(verified), rejected=rejected)
+    return QuestionSet(
+        questions=tuple(verified),
+        rejected=rejected,
+        verification_rejected=verification_rejected,
+    )
 
 
 def _question_prompt(*, topic_title: str, spans: Sequence[SpanExcerpt]) -> str:

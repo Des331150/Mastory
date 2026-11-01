@@ -61,16 +61,17 @@
         </p>
         {% if exam.dropped %}
           <p class="dropped-note">
-            {% if exam.rejected != None and exam.cut != None %}
-              {{ exam.rejected }} question{{ exam.rejected|pluralize }}
-              {{ exam.rejected|pluralize:"was,were" }} turned away by the check;
-              {{ exam.cut }} more passed the check but exceeded the
+            {% if exam.verification_rejected != None and exam.cut != None %}
+              {{ exam.verification_rejected }} question{{ exam.verification_rejected|pluralize }}
+              did not pass source verification; {{ exam.other_rejected }} more
+              could not be grounded, marked, or checked within the verification
+              budget; {{ exam.cut }} passed verification but exceeded the
               {{ per_topic }}-per-topic limit.
             {% else %}
               {{ exam.dropped }} question{{ exam.dropped|pluralize }} more
               {{ exam.dropped|pluralize:"was,were" }} written and not shown. The
-              older record does not say whether the check turned them away or they
-              passed but exceeded the per-topic limit. Nothing has been made up.
+              older record does not separate source-check failures from questions
+              excluded for other reasons. Nothing has been made up.
             {% endif %}
           </p>
         {% endif %}

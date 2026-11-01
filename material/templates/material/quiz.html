@@ -105,15 +105,17 @@
       </p>
       {% if quiz.dropped %}
         <p class="dropped-note">
-          {% if quiz.rejected != None and quiz.cut != None %}
-            {{ quiz.rejected }} question{{ quiz.rejected|pluralize }}
-            {{ quiz.rejected|pluralize:"was,were" }} turned away by the check;
-            {{ quiz.cut }} more passed the check but would not fit in a short quiz.
+          {% if quiz.verification_rejected != None and quiz.cut != None %}
+            {{ quiz.verification_rejected }} question{{ quiz.verification_rejected|pluralize }}
+            did not pass source verification; {{ quiz.other_rejected }} more
+            could not be grounded, marked, or checked within the verification
+            budget; {{ quiz.cut }} passed verification but did not fit the
+            short-quiz limit.
           {% else %}
             {{ quiz.dropped }} question{{ quiz.dropped|pluralize }} more
             {{ quiz.dropped|pluralize:"was,were" }} written and not shown. The
-            older record does not say whether the check turned them away or they
-            passed but would not fit. Nothing has been made up to fill the gap.
+            older record does not separate source-check failures from questions
+            excluded for other reasons. Nothing has been made up to fill the gap.
           {% endif %}
         </p>
       {% endif %}
