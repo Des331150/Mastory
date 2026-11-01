@@ -13,6 +13,7 @@ criterion, and the one that cannot be tested by asserting on a function.
 import re
 import threading
 import traceback
+from typing import Any
 from unittest import mock
 
 from django.test import Client, TestCase, TransactionTestCase
@@ -522,7 +523,7 @@ class ScriptFoldMarkingTests(QuizTestCase):
         """A model that answers about a paragraph the way it reads the words,
         not the codepoints: a same word in another script is the same word."""
 
-        def _verify(self, request):
+        def _verify(self, request: dict[str, Any]) -> bool:
             if self.verified is not None:
                 number = request["span"]["span"]
                 return number in self.verified

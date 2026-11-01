@@ -125,12 +125,19 @@ MEDIA_URL = "media/"
 # logic.
 HARDCODED_USER_ID = int(os.environ.get("MASTORY_USER_ID", "1"))
 
-# How long one file may spend being converted before it is abandoned. Ingestion
-# runs in the request, so an unbounded file would hold the connection open and
-# leave the student waiting with nothing to show for it.
-INGEST_FILE_TIMEOUT_SECONDS = float(
-    os.environ.get("MASTORY_INGEST_TIMEOUT_SECONDS", "120")
+# What converting one page may cost before the file is abandoned, and what the
+# whole file around it is allowed regardless of its size. The deadline is
+# `base + per_page * page_count` and not a single flat number, because a flat two
+# minutes owed its margin to a specific file: it left a 233-page handbook between
+# 14% and 30% of the limit, varying 26% between runs of the same bytes, so a
+# slightly wider course would have been abandoned by the size of its file alone.
+# What the student is asked to wait is still bounded: the part that scales is the
+# per-page conversion, which is work the student can see in the stage names, and
+# the base is what reading the file in and verifying it cost at any size.
+INGEST_PAGE_CONVERSION_SECONDS = float(
+    os.environ.get("MASTORY_INGEST_SECONDS_PER_PAGE", "0.75")
 )
+INGEST_FILE_BASE_SECONDS = float(os.environ.get("MASTORY_INGEST_BASE_SECONDS", "10"))
 
 # Every model call in Mastory goes through ``material.model``, which talks to an
 # OpenAI-compatible chat completions endpoint. Unset means no model is

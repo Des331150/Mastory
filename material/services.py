@@ -278,6 +278,29 @@ def _cached_extraction(digest: str, *, excluding: int) -> CachedExtraction | Non
     return CachedExtraction(previous, pages)
 
 
+def conversion_budget(page_count: int) -> float:
+    """How long a file of so many pages may spend converting.
+
+    One number for one file: a base owing to nothing but the file itself -
+    reading its pages, storing its sections, verifying them - plus so much per
+    page, because that is the work a wider course adds and the only part of the
+    wait that widens with size. A flat two minutes held its margin for a
+    specific file and gave every wider one less of it, so 233 pages arrived
+    with between 14% and 30% of the limit in hand, varying 26% between runs of
+    the same bytes: the size of the file was silently deciding where the file's
+    own conversion had to stop. This makes the margin a fraction of the course's
+    size, not a race against its width.
+
+    Read live off the settings rather than typed in a constant, so the
+    deployment can price its own machine and the tests can shrink the wait to
+    nothing.
+    """
+    return (
+        settings.INGEST_FILE_BASE_SECONDS
+        + settings.INGEST_PAGE_CONVERSION_SECONDS * page_count
+    )
+
+
 def _extract(
     user_id: int,
     source_file: SourceFile,
@@ -287,8 +310,11 @@ def _extract(
     """Turn one uploaded file into stored sections, or say why it could not be.
 
     Returns the failure that stopped it, or ``None`` when it converted.
+
+    The deadline is set after the page count is known, from that count: it is
+    the per-page budget that scales the file may have, not a wait every file
+    shares.
     """
-    deadline = time.monotonic() + settings.INGEST_FILE_TIMEOUT_SECONDS
     cached = (
         _cached_extraction(attempt.digest, excluding=source_file.pk)
         if attempt.is_pdf
@@ -300,6 +326,7 @@ def _extract(
                 raise ingest.ConversionError(*NOT_A_PDF)
 
             page_count = ingest.count_pages(path)
+            deadline = time.monotonic() + conversion_budget(page_count)
             source_file.page_count = page_count
             stages.passed(
                 Stage.PAGES_READ,

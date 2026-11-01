@@ -3,7 +3,9 @@
 A student's material is not one tidy deck. It is five PDFs in a folder, one of
 which came off a phone camera, and one of which will not open at all. Every
 assertion here is about what the student sees after uploading such a folder and
-reading what came back.
+reading what came back. The one number the student waits under - the time limit
+on a conversion - widens with the page count, and the tests of that envelope
+are as much a part of this file as the stages it names.
 """
 
 import re
@@ -12,6 +14,7 @@ from typing import Any
 
 from django.test import TestCase, override_settings
 
+from material import services
 from material.tests.helpers import (
     BLANK_SCAN_PDF,
     CELL_BIOLOGY_PDF,
@@ -254,7 +257,12 @@ class FailureIsolationTests(IngestTestCase):
         self.assertIn("Choose a PDF", response.content.decode())
 
 
-@override_settings(INGEST_FILE_TIMEOUT_SECONDS=0)
+override_budget = override_settings(
+    INGEST_PAGE_CONVERSION_SECONDS=0, INGEST_FILE_BASE_SECONDS=0
+)
+
+
+@override_budget
 class TimeoutTests(IngestTestCase):
     def test_a_file_that_outruns_the_time_limit_stops_and_explains_itself(self) -> None:
         self.upload(pdf_upload(LINEAR_ALGEBRA_PDF))
@@ -297,6 +305,35 @@ class TimeoutTests(IngestTestCase):
     def test_nothing_is_stored_for_a_file_that_stopped(self) -> None:
         self.upload(pdf_upload(LINEAR_ALGEBRA_PDF))
         self.assertNotIn("<section", self.read())
+
+
+class TimeLimitTests(IngestTestCase):
+    """A limit that widens with the course, rather than fixing a margin by file."""
+
+    def test_the_budget_widens_with_the_page_count(self) -> None:
+        with override_settings(
+            INGEST_PAGE_CONVERSION_SECONDS=0.75, INGEST_FILE_BASE_SECONDS=10
+        ):
+            self.assertEqual(services.conversion_budget(0), 10.0)
+            narrow = services.conversion_budget(5)
+            wide = services.conversion_budget(233)
+        self.assertEqual(narrow, 10.0 + 0.75 * 5)
+        # The scale owes nothing to the file's shape: doubling the pages doubles
+        # only the per-page half, which is what keeps a wider course from
+        # arriving with a narrower margin than the one that just fit.
+        self.assertEqual(wide, 10.0 + 0.75 * 233)
+
+    def test_a_default_budget_leaves_a_233_page_file_room_to_finish(self) -> None:
+        # The first real course took 82.7-104.6 s across four runs, against a
+        # flat 120 s limit: a 14-30% margin that varied 26% run to run. The
+        # default envelope is now built from that same evidence, and this is the
+        # one number a wider upload would meet first.
+        with override_settings(
+            INGEST_PAGE_CONVERSION_SECONDS=0.75, INGEST_FILE_BASE_SECONDS=10
+        ):
+            budget = services.conversion_budget(233)
+        self.assertEqual(budget, 10.0 + 0.75 * 233)
+        self.assertGreater(budget / 104.6, 1.6)
 
 
 class ExtractedOnceTests(IngestTestCase):
