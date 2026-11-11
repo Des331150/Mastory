@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Mock exam · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 20px;
+  }
+  .shape {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .shape b { color: var(--ink); font-weight: 600; }
+  .missed {
+    background: var(--flag-soft);
+    border: 1px solid var(--flag);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--flag);
+    line-height: 1.55;
+    margin-bottom: 22px;
+  }
+  .rules {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .rules b { font-weight: 600; }
+  .rules p + p { margin-top: 6px; color: var(--ink-soft); }
+
+  .q {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px 16px;
+    margin-bottom: 10px;
+  }
+  .q .num {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .q .prompt {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16.5px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+  .choices { list-style: none; }
+  .choices label {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14.5px;
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  .choices label:hover { border-color: var(--ink-soft); }
+  .choices input { accent-color: var(--green); }
+  .q input[type="text"] {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  .q input[type="text"]:focus { outline: 2px solid var(--green-soft); border-color: var(--green); }
+
+  .pager {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .page-btn {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 16px;
+    cursor: pointer;
+    flex: none;
+  }
+  .page-btn:hover { border-color: var(--ink-soft); }
+  .page-btn.off { color: var(--ink-soft); opacity: 0.5; cursor: default; }
+  .page-btn.off:hover { border-color: var(--line); }
+  .pager-mid { text-align: center; }
+  .page-count {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 7px;
+  }
+  .dots { display: flex; gap: 6px; justify-content: center; }
+  .dots i {
+    width: 22px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+  .dots i.here { background: var(--green); }
+  .pager-note {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .actions {
+    margin-top: 26px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .actions p { font-size: 13px; color: var(--ink-soft); flex: 1; min-width: 260px; }
+
+  .foot {
+    margin-top: 30px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+    .actions .cta { width: 100%; text-align: center; }
+    .pager { flex-wrap: wrap; justify-content: center; }
+    .pager-mid { order: -1; width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="kicker">MOCK EXAM · THE WHOLE COURSE, ONE PAPER</p>
+    <h1>Mock exam: Basic Hydrology</h1>
+
+    <div class="shape">
+      <b>21 questions from 7 of the course's 7 topics</b>, in the order the course teaches them, so it covers the whole course. 6 written questions did not survive the source check and were left out rather than shown.
+    </div>
+
+    <div class="missed">
+      Water balance: no question on this paper could be checked against its slides, so it is not really being examined here. Read it, or point it at the slides that cover it, before you read anything into the score.
+    </div>
+
+    <section class="rules">
+      <p><b>Before you start.</b> There is no timer. Your answers stay on this page as you work, in pages of three. Nothing is marked or sent anywhere until you hand the whole paper in, and once handed in, it cannot be sat again. Nothing tells you whether an answer is right. That is the point of it.</p>
+      <p>Your topic quizzes are not touched by this: sit those as often as you like, before or after.</p>
+    </section>
+
+    <form onsubmit="return false">
+      <section class="q">
+        <p class="num">QUESTION 1 OF 21</p>
+        <p class="prompt">Hydrology is chiefly the study of ____</p>
+        <ul class="choices">
+          <li><label><input type="radio" name="q1" checked /> water in the environment: where it goes and how much of it there is</label></li>
+          <li><label><input type="radio" name="q1" /> the chemistry of natural waters</label></li>
+          <li><label><input type="radio" name="q1" /> the engineering of dams and canals</label></li>
+          <li><label><input type="radio" name="q1" /> weather forecasting</label></li>
+        </ul>
+      </section>
+
+      <section class="q">
+        <p class="num">QUESTION 2 OF 21</p>
+        <p class="prompt">Name the process by which water vapour leaves a plant through its stomata.</p>
+        <input type="text" placeholder="Your answer" aria-label="Your answer" />
+      </section>
+
+      <section class="q">
+        <p class="num">QUESTION 3 OF 21</p>
+        <p class="prompt">The air just above a lake is close to saturation. All else equal, what happens to the rate of evaporation?</p>
+        <ul class="choices">
+          <li><label><input type="radio" name="q3" /> It increases</label></li>
+          <li><label><input type="radio" name="q3" /> It barely changes</label></li>
+          <li><label><input type="radio" name="q3" checked /> It slows</label></li>
+          <li><label><input type="radio" name="q3" /> It stops entirely</label></li>
+        </ul>
+      </section>
+
+      <div class="pager">
+        <button class="page-btn off" type="button" disabled>← Previous</button>
+        <div class="pager-mid">
+          <p class="page-count">Page 1 of 7 · Questions 1–3 of 21</p>
+          <div class="dots"><i class="here"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <button class="page-btn" type="button">Next page →</button>
+      </div>
+      <p class="pager-note">Your answers stay on this page as you move between pages. Handing in happens on the last page, one press spends your one attempt.</p>
+    </form>
+
+    <nav class="foot">
+      <a href="#">Back to your week</a>
+      <a href="#">Back to your material</a>
+      <a href="#">Readiness report</a>
+    </nav>
+  </main>
+</body>
+</html>

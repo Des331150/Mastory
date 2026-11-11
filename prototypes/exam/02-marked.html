@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Mock exam · marked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 980px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .result {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+  }
+  .result h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(23px, 3vw, 28px);
+    margin-bottom: 12px;
+  }
+  .meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    max-width: 420px;
+    margin-bottom: 14px;
+  }
+  .meter i { display: block; height: 100%; width: 67%; background: var(--green); border-radius: 999px; }
+  .result p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 8px; }
+  .result p b { color: var(--ink); font-weight: 600; }
+
+  .topic-band {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    margin: 26px 4px 10px;
+  }
+  .topic-band span {
+    font: 500 12.5px "Hanken Grotesk", sans-serif;
+    margin-left: 8px;
+  }
+
+  .marked-q {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px 14px;
+    margin-bottom: 10px;
+  }
+  .marked-q.right { border-left: 4px solid var(--green); }
+  .marked-q.wrong { border-left: 4px solid var(--flag); }
+  .cite { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 7px; }
+  .cite a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .cite a:hover { text-decoration: underline; }
+  .prompt { font-size: 15.5px; font-weight: 600; line-height: 1.45; margin-bottom: 9px; }
+  .mark {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .right .mark { color: var(--green); background: var(--green-soft); }
+  .wrong .mark { color: var(--flag); background: var(--flag-soft); }
+  .given { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  .expected { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+  .expected b { font-weight: 600; }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .page-btn {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 16px;
+    cursor: pointer;
+    flex: none;
+  }
+  .page-btn:hover { border-color: var(--ink-soft); }
+  .page-btn.off { color: var(--ink-soft); opacity: 0.5; cursor: default; }
+  .page-btn.off:hover { border-color: var(--line); }
+  .pager-mid { text-align: center; }
+  .page-count {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 7px;
+  }
+  .dots { display: flex; gap: 6px; justify-content: center; }
+  .dots i { width: 26px; height: 4px; border-radius: 999px; background: var(--line); }
+  .dots i.here { background: var(--green); }
+  .pager-note {
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 22px;
+  }
+
+  .after {
+    margin-top: 26px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .after div { flex: 1; min-width: 260px; }
+  .after b { color: var(--ink); font-weight: 600; }
+  .after a { color: var(--green); font-weight: 600; text-decoration: none; }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+    .result { padding: 18px 16px; }
+    .pager { flex-wrap: wrap; justify-content: center; }
+    .pager-mid { order: -1; width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <section class="result">
+      <h1>You got 14 of 21 right</h1>
+      <div class="meter"><i></i></div>
+      <p>That is the whole course marked as one paper, on 11 Nov 2026, and it is <b>the one attempt you get</b>. It has not finished or started any topic: your week and what you know of each topic are still read from your topic quizzes, which you can sit as often as you like.</p>
+      <p>Now that the paper is in, every question shows the paragraph it came from.</p>
+    </section>
+
+    <div class="pager">
+      <button class="page-btn off" type="button" disabled>← Previous</button>
+      <div class="pager-mid">
+        <p class="page-count">Page 1 of 3 · Precipitation and Infiltration</p>
+        <div class="dots"><i class="here"></i><i></i><i></i></div>
+      </div>
+      <button class="page-btn" type="button">Next: Evaporation and Runoff →</button>
+    </div>
+    <p class="pager-note">Your paper, marked, topic by topic. Every page shows each topic's tally at its heading.</p>
+
+    <p class="topic-band">Precipitation <span>3 of 3 right</span></p>
+
+    <section class="marked-q right">
+      <p class="cite">From weeks 1–6 deck, slide 31 · <a href="#">open that paragraph</a></p>
+      <p class="prompt">Distinguish frontal from cyclonic precipitation.</p>
+      <span class="mark">Right</span>
+      <p class="given">You wrote: frontal is a warm front rising over cold air; cyclonic is low-pressure convergence lifting air.</p>
+    </section>
+
+    <p class="topic-band">Infiltration <span>2 of 3 right</span></p>
+
+    <section class="marked-q wrong">
+      <p class="cite">From weeks 1–6 deck, slide 52 · <a href="#">read that paragraph again</a></p>
+      <p class="prompt">Infiltration capacity falls during a storm because ____</p>
+      <span class="mark">Not this one</span>
+      <p class="given">You chose: the rain compacts the soil surface</p>
+      <p class="expected"><b>What the paragraph says:</b> the soil fills toward saturation, so the rate at which it can take water in falls with it.</p>
+    </section>
+
+    <section class="marked-q right">
+      <p class="cite">From weeks 1–6 deck, slide 55 · <a href="#">open that paragraph</a></p>
+      <p class="prompt">Given the Horton equation's parameters, find f at t = 20 min.</p>
+      <span class="mark">Right</span>
+      <p class="given">You wrote: 12.4 mm/h</p>
+    </section>
+
+    <div class="pager" style="margin-top: 26px;">
+      <button class="page-btn" type="button">← Previous</button>
+      <div class="pager-mid">
+        <p class="page-count">Page 1 of 3 · Precipitation and Infiltration</p>
+        <div class="dots"><i class="here"></i><i></i><i></i></div>
+      </div>
+      <button class="page-btn" type="button">Next: Evaporation and Runoff →</button>
+    </div>
+
+    <div class="after">
+      <div><b>What this paper cannot tell you:</b> Water balance was not really examined. No question could be checked against its slides. <a href="#">Read it before you read anything into the score.</a></div>
+      <a href="#" style="flex:none; border:1px solid var(--line); border-radius:8px; padding:10px 16px; text-decoration:none;">Read your readiness report →</a>
+    </div>
+  </main>
+</body>
+</html>

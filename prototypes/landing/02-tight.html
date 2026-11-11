@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · A study week from your own slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 16px clamp(20px, 5vw, 56px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-right: auto;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .signin { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .signin:hover { color: var(--ink); }
+  .cta {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 18px;
+    text-decoration: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  a.cta:focus-visible, .signin:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) 72px; }
+
+  /* Hero: type only */
+  .hero { padding: 64px 0 10px; }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(32px, 5.4vw, 52px);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    margin-bottom: 20px;
+  }
+  .hero .sub {
+    font-size: 16.5px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 50ch;
+    margin-bottom: 28px;
+  }
+  .hero .sub b { color: var(--ink); font-weight: 600; }
+  .hero-cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .hero-cta .cta { font-size: 15px; padding: 13px 22px; }
+  .hero-cta .fine { font-size: 13px; color: var(--ink-soft); max-width: 30ch; line-height: 1.5; }
+
+  /* Steps as a tight ledger */
+  .steps { margin-top: 48px; }
+  .steps p.label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+  }
+  .step .n {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--green);
+    line-height: 1.35;
+  }
+  .step h3 { font-family: "Gabarito", sans-serif; font-weight: 600; font-size: 16.5px; margin-bottom: 4px; }
+  .step p { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
+  .step p b { color: var(--ink); font-weight: 600; }
+
+  /* The one artefact: a readiness card, small and faithful */
+  .artefact { margin-top: 46px; }
+  .artefact > p.cap {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px 16px;
+    max-width: 560px;
+  }
+  .card .row1 {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .card .figure strong {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 44px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .card .figure small { font-size: 12.5px; color: var(--ink-soft); display: block; margin-top: 4px; max-width: 30ch; }
+  .card .meter {
+    flex: 1;
+    min-width: 140px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    align-self: center;
+  }
+  .card .meter i { display: block; height: 100%; width: 55%; background: var(--green); }
+  .card .rows { list-style: none; margin-top: 14px; }
+  .card .rows li {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13px;
+    padding: 6px 0;
+    border-top: 1px dashed var(--line);
+  }
+  .card .rows li:first-child { border-top: 0; }
+  .card .rows .t { font-weight: 600; flex: 1; }
+  .card .rows .m { color: var(--flag); font-weight: 600; font-size: 12px; flex: none; }
+  .card .framing {
+    margin-top: 12px;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .card .framing b { color: var(--ink); font-weight: 600; }
+  .artefact .why { font-size: 13px; color: var(--ink-soft); margin-top: 10px; max-width: 56ch; line-height: 1.55; }
+
+  .close {
+    margin-top: 46px;
+    border-top: 1px solid var(--line);
+    padding-top: 26px;
+  }
+  .close h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 22px; margin-bottom: 6px; }
+  .close p { font-size: 14px; color: var(--ink-soft); line-height: 1.6; max-width: 56ch; margin-bottom: 20px; }
+  .close .cta { font-size: 15px; padding: 13px 22px; display: inline-block; }
+
+  footer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 40px) 40px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  footer a { color: var(--ink-soft); }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 12px 16px; }
+    .signin { display: none; }
+    .hero { padding-top: 40px; }
+    .close .cta { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="signin" href="#">Sign in</a>
+    <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="kicker">MASTORY</p>
+      <h1>A study week, built out of your own slides.</h1>
+      <p class="sub">Mastory reads your course PDFs, infers the topics, and schedules them on the days you actually have. Every quiz comes from <b>a paragraph you have read</b>. No streaks, no badges, no guilt.</p>
+      <div class="hero-cta">
+        <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+        <p class="fine">Reading is metered. The rates are shown before you spend.</p>
+      </div>
+    </section>
+
+    <section class="steps">
+      <p class="label">HOW IT WORKS</p>
+      <div class="step">
+        <span class="n">1</span>
+        <div>
+          <h3>Upload the decks</h3>
+          <p>A file is converted once and you pay for it once. A file that cannot be read says so and leaves the others alone.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">2</span>
+        <div>
+          <h3>Check the topic path</h3>
+          <p>Mastory points each topic at its slides. <b>You correct it</b> before anything is scheduled on it.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <div>
+          <h3>Get your week</h3>
+          <p>Built inside the time you say you have. <b>Miss a day and it shifts.</b> It never squeezes.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">4</span>
+        <div>
+          <h3>Read, quiz, sit the mock</h3>
+          <p>Quizzes are marked instantly. The mock exam is <b>one attempt</b> and ends in a readiness report.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="artefact">
+      <p class="cap">WHERE IT ENDS UP</p>
+      <div class="card" aria-label="A readiness report, small">
+        <div class="row1">
+          <div class="figure">
+            <strong>55%</strong>
+            <small>5 of 7 topics sat, read today</small>
+          </div>
+          <div class="meter"><i></i></div>
+        </div>
+        <ul class="rows">
+          <li><span class="t">Infiltration</span><span class="m">43% · 2 sittings</span></li>
+          <li><span class="t">Evaporation</span><span class="m">43% · 2 sittings</span></li>
+          <li><span class="t">Precipitation</span><span class="m">58% · 2 sittings</span></li>
+        </ul>
+        <p class="framing"><b>A reading of your quizzes, not a prediction of your exam.</b> It tells you where you are weakest, and nothing else is kept.</p>
+      </div>
+      <p class="why">This is the report the product ends at: the weakest topics first, the honest framing on the card. The mock exam that produces it is one attempt, like the real paper.</p>
+    </section>
+
+    <section class="close">
+      <h2>Your course, your slides, your week.</h2>
+      <p>Start by naming the course and dropping in the PDFs. The week comes later, after you have checked the path.</p>
+      <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+    </section>
+  </main>
+
+  <footer>
+    <a href="#">Sign in</a>
+    <span>Costs are metered and shown before you spend</span>
+    <span>Mastory, 2026</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Topic path · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 96px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede { color: var(--ink-soft); font-size: 15px; line-height: 1.55; margin-bottom: 26px; max-width: 60ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  .topic {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 20px 14px;
+    margin-bottom: 10px;
+  }
+  .topic-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .num {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink-soft);
+    flex: none;
+    width: 22px;
+  }
+  .topic-head h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    flex: 1;
+    min-width: 0;
+  }
+  .time {
+    flex: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+  .grounding {
+    margin: 6px 0 0 34px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .grounding a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .grounding a:hover { text-decoration: underline; }
+  .flag {
+    margin: 10px 0 0 34px;
+    background: var(--flag-soft);
+    border-left: 3px solid var(--flag);
+    border-radius: 0 8px 8px 0;
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--flag);
+  }
+  .flag b { font-weight: 700; }
+  .topic summary {
+    margin: 8px 0 0 34px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+    list-style: none;
+  }
+  .topic summary::before { content: "Edit "; }
+  .topic summary:hover { color: var(--ink); }
+  .edit {
+    margin: 10px 0 0 34px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .edit button, .edit label.btn {
+    font: 600 13px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .edit button:hover, .edit label.btn:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .edit .danger { color: var(--flag); }
+  .edit .danger:hover { border-color: var(--flag); }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 26px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  .toolbar a { color: var(--ink-soft); }
+  .toolbar a:hover { color: var(--ink); }
+  .confirm {
+    background: var(--panel);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .confirm h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .confirm p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 14px; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+  }
+  .cta:hover { background: #0b6a4e; }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .topic-head { flex-wrap: wrap; }
+    .grounding, .flag, .topic summary, .edit { margin-left: 0; }
+    .confirm { padding: 18px 16px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Check the topic path</h1>
+    <p class="lede">These are the topics we worked out of your slides, in the order the course teaches them. <b>Nothing is scheduled yet.</b> Fix what is wrong now, once a week is built on this path, a correction moves more than a topic.</p>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">1</span><h2>Introduction to Hydrology</h2><span class="time">35 min</span></div>
+      <p class="grounding">Slides 1–12 · weeks 1–6 deck, <a href="#">open at slide 1</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">2</span><h2>Weather and Hydrology</h2><span class="time">40 min</span></div>
+      <p class="grounding">Slides 13–24 · weeks 1–6 deck, <a href="#">open at slide 13</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">3</span><h2>Precipitation</h2><span class="time">50 min</span></div>
+      <p class="grounding">Slides 25–48 · weeks 1–6 deck, <a href="#">open at slide 25</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">4</span><h2>Infiltration</h2><span class="time">45 min</span></div>
+      <p class="grounding">Slides 49–66 · weeks 1–6 deck, <a href="#">open at slide 49</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">5</span><h2>Evaporation</h2><span class="time">40 min</span></div>
+      <p class="grounding">Slides 67–87 · weeks 1–6 deck, <a href="#">open at slide 67</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">6</span><h2>Runoff</h2><span class="time">55 min</span></div>
+      <p class="grounding">Slides 88–104 · weeks 1–6 deck, <a href="#">open at slide 88</a></p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="topic">
+      <div class="topic-head"><span class="num">7</span><h2>Water balance</h2><span class="time">30 min</span></div>
+      <p class="grounding">Slides 105–109 · past questions, <a href="#">open at slide 105</a></p>
+      <p class="flag"><b>We are not sure this is taught.</b> The slides mention it once, inside a question, not in a teaching slide. Check it, remove it if it is not on the exam.</p>
+      <details><summary></summary>
+        <div class="edit">
+          <button>Rename</button><button>Change time</button><button>Move up</button><button>Move down</button><button>Split</button><button class="danger">Remove</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="toolbar">
+      <span>7 topics so far. <a href="#">Add one the slides miss</a> · <a href="#">Work them out again</a></span>
+      <span>Scrolling ends at topic 7, nothing hidden.</span>
+    </div>
+
+    <section class="confirm">
+      <h2>Confirm the path</h2>
+      <p>A week is built on these topics in this order. A wrong topic you fix now costs a minute; after the schedule exists, it costs a session.</p>
+      <button class="cta">Confirm, build my week</button>
+    </section>
+  </main>
+</body>
+</html>

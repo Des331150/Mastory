@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Readiness · the one-screen card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 880px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px clamp(20px, 4vw, 40px) 64px;
+  }
+  .course { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 29px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .lede { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 18px; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  /* The whole report as one composed card: the screenshot artefact */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 28px 22px;
+  }
+  .card .grid {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 30px;
+  }
+
+  /* Left: figure + revise first */
+  .figure-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .figure strong {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 64px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .figure small { font-size: 13px; color: var(--ink-soft); display: block; margin-top: 6px; line-height: 1.5; }
+  .meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    margin: 12px 0 4px;
+  }
+  .meter i { display: block; height: 100%; width: 55%; background: var(--green); border-radius: 999px; }
+  .framing {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .framing b { color: var(--ink); font-weight: 600; }
+
+  .revise { margin-top: 20px; }
+  .revise h3 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 14.5px;
+    margin-bottom: 8px;
+  }
+  .revise ol { list-style: none; }
+  .revise li {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px dashed var(--line);
+    font-size: 13.5px;
+  }
+  .revise .rank { font-family: "Gabarito", sans-serif; font-weight: 700; color: var(--ink-soft); width: 14px; flex: none; }
+  .revise .t { font-weight: 600; flex: 1; }
+  .revise .m { color: var(--flag); font-weight: 600; font-size: 12.5px; flex: none; }
+
+  /* Right: every topic, compact */
+  .topics h3, .days h3 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 14.5px;
+    margin-bottom: 2px;
+  }
+  .topics .note, .days .note {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .topics .note b, .days .note b { color: var(--ink); font-weight: 600; }
+  .rows { list-style: none; }
+  .rows li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px 110px;
+    gap: 10px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  .rows li:first-child { border-top: 0; }
+  .rows .t { font-weight: 600; }
+  .rows .state { color: var(--ink-soft); font-size: 12.5px; }
+  .rows .state.done { color: var(--green); font-weight: 600; }
+  .rows .state.flag { color: var(--flag); font-weight: 600; }
+  .rows .m { text-align: right; color: var(--ink-soft); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .rows .m b { color: var(--ink); font-weight: 700; }
+
+  .days { margin-top: 20px; }
+  .dayline { font-size: 13px; color: var(--ink-soft); padding: 6px 0; border-top: 1px dashed var(--line); }
+  .dayline:first-of-type { border-top: 0; }
+  .dayline b { color: var(--ink); font-weight: 600; }
+
+  .foot {
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 22px; }
+    .card { padding: 20px 16px 16px; }
+    .card .grid { grid-template-columns: 1fr; gap: 22px; }
+    .rows li { grid-template-columns: minmax(0, 1fr) auto; }
+    .rows .m { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="course">Basic Hydrology (CHE 212)</p>
+    <h1>Your readiness report</h1>
+    <p class="lede">Read off the <b>5 of your 7 topics</b> you have sat, on the day you opened this. Nothing here is stored; it is your record, read.</p>
+
+    <section class="card">
+      <div class="grid">
+        <div>
+          <p class="figure-label">YOUR READINESS</p>
+          <div class="figure"><strong>55%</strong><small>The mean of what you have been weighed at on 5 of your 7 topics, each counting for as much as you gave it on your topic path.</small></div>
+          <div class="meter"><i></i></div>
+          <p class="framing"><b>A reading of your quizzes, not a prediction of your exam.</b> Nobody knows how your paper will go; this tells you where you are weakest, that is what the ranking is for.</p>
+
+          <div class="revise">
+            <h3>Revise these first</h3>
+            <ol>
+              <li><span class="rank">1</span><span class="t">Infiltration</span><span class="m">43% · 2 sittings</span></li>
+              <li><span class="rank">2</span><span class="t">Evaporation</span><span class="m">43% · 2 sittings</span></li>
+              <li><span class="rank">3</span><span class="t">Precipitation</span><span class="m">58% · 2 sittings</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div>
+          <div class="topics">
+            <h3>Every topic</h3>
+            <p class="note">Mastery is your best sitting, counted down once for every sitting since. <b>One sitting and five are not the same claim</b>: a topic measured once could be a lucky guess.</p>
+            <ul class="rows">
+              <li><span class="t">Introduction to Hydrology</span><span class="state done">finished 4 Nov</span><span class="m"><b>71%</b> · 3 sittings</span></li>
+              <li><span class="t">Weather and Hydrology</span><span class="state done">finished 6 Nov</span><span class="m"><b>64%</b> · 2 sittings</span></li>
+              <li><span class="t">Precipitation</span><span class="state done">finished 9 Nov</span><span class="m"><b>58%</b> · 2 sittings</span></li>
+              <li><span class="t">Infiltration</span><span class="state done">finished 10 Nov</span><span class="m"><b>43%</b> · 2 sittings</span></li>
+              <li><span class="t">Evaporation</span><span class="state">not finished yet</span><span class="m"><b>43%</b> · 2 sittings</span></li>
+              <li><span class="t">Runoff</span><span class="state">not sat yet</span><span class="m">counts for nothing, not zero</span></li>
+              <li><span class="t">Water balance</span><span class="state flag">no measurable quiz</span><span class="m">nothing weighed</span></li>
+            </ul>
+          </div>
+
+          <div class="days">
+            <h3>When you studied</h3>
+            <p class="note"><b>4 days</b> your record says you worked, earliest first.</p>
+            <p class="dayline"><b>Fri 6 Nov</b>: sat Weather and Hydrology, sitting 1</p>
+            <p class="dayline"><b>Sun 8 Nov</b>: sat two quizzes: Introduction, Weather</p>
+            <p class="dayline"><b>Mon 9 Nov</b>: sat Precipitation · finished Evaporation</p>
+            <p class="dayline"><b>Tue 10 Nov</b>: sat Infiltration · marked Infiltration done</p>
+            <p class="dayline"><b>Wed 11 Nov</b>: sat Evaporation, sitting 2</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="foot">
+        <a href="#">Back to your week</a>
+        <a href="#">Sit a mock exam across the course</a>
+      </nav>
+    </section>
+  </main>
+</body>
+</html>

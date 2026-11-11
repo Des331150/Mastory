@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Reading · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  /* Reader shell: index left, page right. Laptop-first. */
+  .shell {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 34px clamp(20px, 4vw, 40px) 80px;
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    gap: 44px;
+    align-items: start;
+  }
+  .index {
+    position: sticky;
+    top: 24px;
+  }
+  .search input {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    width: 100%;
+  }
+  .search input::placeholder { color: var(--ink-soft); }
+  .index h2 {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 22px 0 8px;
+  }
+  .doc-name {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 6px;
+  }
+  .index ol { list-style: none; }
+  .index li a {
+    display: block;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 0 6px 6px 0;
+  }
+  .index li a:hover { color: var(--ink); background: var(--panel); }
+  .index li.here a {
+    color: var(--green);
+    font-weight: 600;
+    background: var(--green-soft);
+    border-left-color: var(--green);
+  }
+  .index .other-doc { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+  /* The page itself */
+  .page-head {
+    margin-bottom: 26px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .page-head h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .page-head .src { font-size: 13.5px; color: var(--ink-soft); }
+  .page-head .src a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .page-head .src a:hover { text-decoration: underline; }
+
+  /* Honest conversion states, folded in from the material screen */
+  .converted {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 18px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .converted b { color: var(--ink); font-weight: 600; }
+  .converted .ok { color: var(--green); font-weight: 600; }
+  .failed {
+    background: var(--flag-soft);
+    border: 1px solid var(--flag);
+    border-radius: 12px;
+    padding: 13px 18px;
+    font-size: 13.5px;
+    color: var(--flag);
+    line-height: 1.55;
+    margin-bottom: 26px;
+  }
+  .failed b { font-weight: 700; }
+
+  article.doc {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: clamp(22px, 3.5vw, 44px) clamp(20px, 4vw, 48px);
+  }
+  .slide { padding: 26px 0; }
+  .slide + .slide { border-top: 1px solid var(--line); }
+  .slide .where {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .slide .where a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .slide .where a:hover { text-decoration: underline; }
+  .slide h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+  .slide h3 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    margin: 18px 0 6px;
+  }
+  .slide p { font-size: 15.5px; line-height: 1.65; max-width: 66ch; margin-bottom: 10px; }
+  .slide ul { margin: 0 0 10px 22px; }
+  .slide li { font-size: 15px; line-height: 1.6; max-width: 64ch; margin-bottom: 5px; }
+  .slide .note {
+    background: var(--bg);
+    border-left: 3px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 62ch;
+    margin: 12px 0;
+  }
+  .slide .note b { color: var(--ink); font-weight: 600; }
+  figure {
+    margin: 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    padding: 18px;
+    max-width: 520px;
+  }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
+  figcaption a { color: var(--green); font-weight: 600; text-decoration: none; }
+
+  /* End of reading panel */
+  .end {
+    margin-top: 30px;
+    background: var(--panel);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .end div { flex: 1; min-width: 260px; }
+  .end h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 19px; margin-bottom: 4px; }
+  .end p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    text-decoration: none;
+    flex: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .ghost {
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    flex: none;
+  }
+  .ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .end .pair { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 24px; padding-top: 22px; }
+    .index { position: static; }
+    .masthead { padding: 14px 16px; }
+    .slide p, .slide li { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <div class="shell">
+    <aside class="index">
+      <form class="search" onsubmit="return false">
+        <input type="search" placeholder="Search this material" aria-label="Search this material" />
+      </form>
+
+      <h2>ON THIS PAGE</h2>
+      <p class="doc-name">weeks 1–6 deck</p>
+      <ol>
+        <li><a href="#">Weather and Hydrology</a></li>
+        <li><a href="#">Precipitation</a></li>
+        <li><a href="#">Infiltration</a></li>
+        <li class="here"><a href="#">Evaporation</a></li>
+        <li><a href="#">Runoff</a></li>
+      </ol>
+
+      <div class="other-doc">
+        <p class="doc-name">past questions</p>
+        <ol>
+          <li><a href="#">2019 paper</a></li>
+          <li><a href="#">2021 paper</a></li>
+        </ol>
+      </div>
+    </aside>
+
+    <main>
+      <header class="page-head">
+        <p class="kicker">READING · TODAY'S TOPIC</p>
+        <h1>Evaporation</h1>
+        <p class="src">From your weeks 1–6 deck, slides 67–87 · <a href="#">open the original slide 67</a> · converted from your PDF</p>
+      </header>
+
+      <div class="converted">
+        <b>Converted 11 Nov:</b> <span class="ok">weeks-1-6-deck.pdf with 109 slides, all readable</span> · re-uploading a file is re-paying for its conversion, so check this list before you upload again.
+      </div>
+
+      <article class="doc">
+        <section class="slide">
+          <p class="where">Slides 67–70 · <a href="#">open at 67</a></p>
+          <h2>What evaporation is</h2>
+          <p>Evaporation is the process by which liquid water becomes vapour and leaves a surface. In a catchment it is the main way water leaves the system besides runoff, which is why every water-balance question starts by asking how much of it happened.</p>
+          <p>The lecture distinguishes three related processes, and the exam tends to test whether you keep them apart:</p>
+          <ul>
+            <li><b>Evaporation</b>: from open water and bare soil.</li>
+            <li><b>Transpiration</b>: vapour leaving through plant stomata.</li>
+            <li><b>Evapotranspiration</b>: the two together over vegetated land.</li>
+          </ul>
+          <p class="note"><b>Your lecturer's note (slide 68):</b> "Define the term before you use it." Definitions carry marks in this course.</p>
+        </section>
+
+        <section class="slide">
+          <p class="where">Slides 71–76 · <a href="#">open at 71</a></p>
+          <h2>Factors controlling the rate</h2>
+          <p>The rate depends on energy supply and on how easily vapour is carried away. The deck lists six factors; four are examined most often:</p>
+          <ul>
+            <li>Temperature: more energy, more vapour.</li>
+            <li>Wind: carries vapour away from the surface.</li>
+            <li>Humidity of the air above: the closer to saturation, the slower.</li>
+            <li>Area and depth of the water body.</li>
+          </ul>
+          <figure aria-label="Diagram: vapour leaving a water surface under wind">
+            <svg viewBox="0 0 480 150" role="img">
+              <rect x="20" y="90" width="440" height="40" rx="6" fill="#cfe0d6" />
+              <text x="30" y="115" font-family="Hanken Grotesk" font-size="12" fill="#5d6f63">water body</text>
+              <g stroke="#0e7c5b" stroke-width="2" fill="none" stroke-linecap="round">
+                <path d="M90 78 q8 -12 0 -24 q-8 -12 0 -24" />
+                <path d="M150 78 q8 -12 0 -24 q-8 -12 0 -24" />
+                <path d="M210 78 q8 -12 0 -24 q-8 -12 0 -24" />
+              </g>
+              <g stroke="#5d6f63" stroke-width="2" fill="none" stroke-linecap="round">
+                <path d="M260 40 h120" />
+                <path d="M372 34 l10 6 -10 6" />
+              </g>
+              <text x="330" y="28" font-family="Hanken Grotesk" font-size="12" fill="#5d6f63">wind</text>
+            </svg>
+            <figcaption>Redrawn from slide 74, <a href="#">see the original</a></figcaption>
+          </figure>
+        </section>
+
+        <section class="slide">
+          <p class="where">Slides 77–82 · <a href="#">open at 77</a></p>
+          <h2>Measuring it: the pan</h2>
+          <p>Direct measurement uses an evaporation pan, a standard open container whose water-level drop over a day gives the pan evaporation. Because a pan is small and metal, it loses water faster than a real lake, so readings are corrected with a pan coefficient, typically between 0.6 and 0.8.</p>
+          <p class="note"><b>Worked example on slide 79</b> walks through the correction, it appeared as question 4 on the 2019 paper.</p>
+          <h3>The energy-balance alternative</h3>
+          <p>Where no pan exists, the deck shows estimating evaporation from energy terms instead. That derivation is examinable; the slides give the final equation and one application, and stop there.</p>
+        </section>
+      </article>
+
+      <section class="end">
+        <div>
+          <h2>That is the topic read</h2>
+          <p>Three sections, slides 67–82 of your weeks 1–6 deck. When it sits right, the topic's quiz is five questions from the same slides: a check, not a test.</p>
+        </div>
+        <div class="pair">
+          <a class="cta" href="#">Take the quiz</a>
+          <a class="ghost" href="#">Back to your week</a>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

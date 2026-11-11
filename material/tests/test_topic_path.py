@@ -568,6 +568,21 @@ class NavigationTests(TopicPathTestCase):
         self.assertEqual(
             self.client.get("/courses/1/topics/99/remove/").status_code, 405
         )
-        self.assertEqual(
-            self.client.post("/courses/1/topics/99/remove/").status_code, 404
-        )
+
+    def test_removing_a_topic_a_reworked_path_no_longer_has_says_so(self) -> None:
+        """A stale page's remove names a topic the rework already deleted.
+
+        The path is reworked whole: ``infer`` replaces every topic on it, and
+        the replacement ids differ from the ones the open tab was rendered
+        with. That is an ordinary way to arrive at a remove, so the answer is
+        the current path with a notice rather than a dead end.
+        """
+        first_page = self.infer(fake_topic("Eigenvalues", [2]))
+        stale_pk = topic_pk(first_page, "Eigenvalues")
+        self.infer(fake_topic("Eigenvectors", [2]))
+        response = self.client.post(f"/courses/1/topics/{stale_pk}/remove/")
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("not on the path any more", html)
+        self.assertIn("Eigenvectors", html)
+        self.assertNotIn(". Eigenvalues</h2>", html)

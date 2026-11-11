@@ -460,8 +460,25 @@ def topic_remove(request: HttpRequest, course_id: int, topic_id: int) -> HttpRes
     already written: the path is theirs to edit all semester, but the exam is one
     attempt, and a topic quietly taken off it would leave the score and the
     marked paper disagreeing.
+
+    A remove naming a topic the path no longer has is answered with the current
+    path and a notice rather than a 404: ``infer`` replaces the whole path and
+    the replacement carries new ids, so a tab left open across a rework posts
+    ids that are gone. That is an ordinary way to arrive here, not an error to
+    be thrown out of.
     """
-    topic = _topic(course_id, topic_id)
+    course = _course(course_id)
+    topic = owned(course.topics.all()).filter(pk=topic_id).first()
+    if topic is None:
+        return _topics_page(
+            request,
+            course,
+            notice=(
+                "That topic is not on the path any more - it was already "
+                "removed, or the path was reworked since this page was "
+                "rendered. What is below is the current path."
+            ),
+        )
     try:
         topic_service.remove(topic.course, topic)
     except topic_service.Rejected as exc:

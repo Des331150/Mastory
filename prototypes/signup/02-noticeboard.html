@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Create your account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Archivo+Narrow:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --wall: #84897c;        /* corridor wall, painted over */
+    --wall-deep: #6e7367;   /* dado line */
+    --sheet: #fbfaf6;
+    --ink: #23262b;
+    --ink-soft: #63666c;
+    --rule: #d8d6cd;
+    --stamp: #b3442e;       /* department stamp red, used once */
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Archivo Narrow", "Archivo", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(to bottom, var(--wall) 0 72%, var(--wall-deep) 72% 100%);
+    min-height: 780px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 20px;
+  }
+  .sheet {
+    width: min(430px, 100%);
+    background: var(--sheet);
+    border-radius: 2px;
+    padding: 34px 36px 30px;
+    box-shadow: 0 1px 2px rgb(20 24 18 / 0.25), 0 14px 34px rgb(20 24 18 / 0.28);
+    transform: rotate(-0.5deg);
+    position: relative;
+  }
+  .sheet::before {                     /* the pin */
+    content: "";
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #e6e6e6, #9a9a9a 60%, #6f6f6f);
+    box-shadow: 0 2px 3px rgb(20 24 18 / 0.4);
+  }
+  .masthead {
+    font-family: "Archivo", sans-serif;
+    font-stretch: 118%;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--ink);
+  }
+  .masthead span { color: var(--stamp); }
+  h1 {
+    font-family: "Archivo", sans-serif;
+    font-stretch: 108%;
+    font-weight: 750;
+    font-size: clamp(26px, 5vw, 33px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 18px 0 10px;
+    text-wrap: balance;
+  }
+  .lede { color: var(--ink-soft); font-size: 15.5px; line-height: 1.5; }
+  form { margin-top: 26px; display: grid; gap: 16px; }
+  .field { display: grid; gap: 4px; }
+  label {
+    font-family: "Archivo Narrow", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+  input {
+    font: 16px "Archivo", sans-serif;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 10px 12px;
+  }
+  input:focus { outline: none; border-color: var(--ink); }
+  input:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+  .cta {
+    font-family: "Archivo", sans-serif;
+    font-stretch: 110%;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    color: var(--sheet);
+    background: var(--ink);
+    border: 0;
+    border-radius: 3px;
+    padding: 13px 18px;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .cta:hover { background: #3a3e46; }
+  .cta:focus-visible { outline: 2px solid var(--stamp); outline-offset: 3px; }
+  .aside { margin-top: 16px; font-size: 13.5px; color: var(--ink-soft); }
+  .aside a { color: var(--ink); font-weight: 700; }
+  .stamped {                            /* one stamp, bottom-right of the sheet */
+    position: absolute;
+    right: 22px;
+    bottom: 20px;
+    font-family: "Archivo", sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--stamp);
+    border: 2px solid var(--stamp);
+    border-radius: 2px;
+    padding: 3px 8px;
+    transform: rotate(-6deg);
+    opacity: 0.85;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 480px) {
+    body { padding: 40px 14px; align-items: flex-start; }
+    .sheet { transform: none; padding: 28px 24px 26px; }
+  }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <p class="masthead">Mastory <span>/ notice</span></p>
+    <h1>Your semester, on one page.</h1>
+    <p class="lede">Point Mastory at your slides and your exam date. It builds the week, keeps the score honest, and cites the slide every time.</p>
+    <form action="#" method="post">
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" name="name" type="text" placeholder="Kofi Boateng" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="email">Student email</label>
+        <input id="email" name="email" type="email" placeholder="kboateng@st.ucc.edu.gh" autocomplete="email" inputmode="email" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+      </div>
+      <button class="cta" type="submit">Create account</button>
+    </form>
+    <p class="aside">No card during beta. Have an account? <a href="#">Sign in</a></p>
+    <span class="stamped" aria-hidden="true">Term 2 · 2026</span>
+  </main>
+</body>
+</html>

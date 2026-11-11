@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Turn your course PDFs into a study week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 16px clamp(20px, 5vw, 56px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-right: auto;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .signin { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .signin:hover { color: var(--ink); }
+  .cta {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 18px;
+    text-decoration: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  a.cta:focus-visible, .signin:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) 72px; }
+
+  /* Hero */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: clamp(28px, 5vw, 64px);
+    align-items: center;
+    padding: 52px 0 46px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin-bottom: 16px;
+    max-width: 15ch;
+  }
+  .hero .sub {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin-bottom: 24px;
+  }
+  .hero .sub b { color: var(--ink); font-weight: 600; }
+  .hero-cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .hero-cta .cta { font-size: 15px; padding: 13px 22px; }
+  .hero-cta .fine { font-size: 13px; color: var(--ink-soft); max-width: 30ch; line-height: 1.5; }
+
+  /* The week, shown small */
+  .week-mock {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 1px 0 var(--line);
+  }
+  .week-mock .cap {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .day {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .day:first-of-type { border-top: 0; }
+  .day .when {
+    flex: none;
+    width: 86px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .day .topic { flex: 1; min-width: 0; }
+  .day .topic small { display: block; color: var(--ink-soft); font-size: 11.5px; margin-top: 1px; }
+  .chip {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 2px 8px;
+  }
+  .chip.done { color: var(--green); background: var(--green-soft); }
+  .chip.read { color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); }
+  .week-mock .exam {
+    margin-top: 10px;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    font-size: 12.5px;
+    color: var(--flag);
+    font-weight: 600;
+  }
+  .week-mock .exam small { color: var(--ink-soft); font-weight: 400; display: block; margin-top: 2px; }
+
+  /* Steps */
+  .steps { padding: 8px 0 6px; }
+  .steps-head { margin-bottom: 18px; }
+  .steps-head h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(22px, 3vw, 28px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .steps-head p { font-size: 14.5px; color: var(--ink-soft); max-width: 60ch; }
+  .step {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+  }
+  .step .n {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--green);
+    line-height: 1;
+    padding-top: 2px;
+  }
+  .step h3 { font-family: "Gabarito", sans-serif; font-weight: 600; font-size: 17px; margin-bottom: 5px; }
+  .step p { font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); max-width: 62ch; }
+  .step p b { color: var(--ink); font-weight: 600; }
+
+  /* Close */
+  .close {
+    margin-top: 26px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .close h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    margin-bottom: 4px;
+  }
+  .close p { font-size: 13.5px; color: var(--ink-soft); max-width: 52ch; }
+
+  footer {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 40px) 40px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  footer a { color: var(--ink-soft); }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .masthead { padding: 12px 16px; }
+    .signin { display: none; }
+    .hero { grid-template-columns: 1fr; padding: 34px 0 30px; }
+    h1 { max-width: none; }
+    .step { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+    .close { padding: 20px 18px; }
+    .close .cta { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="signin" href="#">Sign in</a>
+    <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="kicker">FOR STUDENTS WITH A REAL EXAM COMING</p>
+        <h1>Turn your course PDFs into a study week.</h1>
+        <p class="sub">Mastory reads your slides, works out the topics they cover, and builds your week around the days you actually have. Quizzes come from <b>the paragraphs you read</b>. A mock exam shows where you stand before the real one.</p>
+        <div class="hero-cta">
+          <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+          <p class="fine">Reading is metered. The rates are shown before you spend.</p>
+        </div>
+      </div>
+
+      <aside class="week-mock" aria-label="What a study week looks like">
+        <p class="cap">YOUR WEEK, WEDNESDAY</p>
+        <div class="day">
+          <span class="when">Wed 11</span>
+          <span class="topic">Evaporation<small>slides 67–87 · 40 min</small></span>
+          <span class="chip read">read</span>
+        </div>
+        <div class="day">
+          <span class="when">Fri 13</span>
+          <span class="topic">Runoff<small>slides 88–104 · 35 min</small></span>
+          <span class="chip read">quiz ready</span>
+        </div>
+        <div class="day">
+          <span class="when">Sun 15</span>
+          <span class="topic">Infiltration<small>revise first · 43% · 2 sittings</small></span>
+          <span class="chip done">done</span>
+        </div>
+        <p class="exam">Exam: Fri 18 Dec<small>12 of 31 topics read · 3 study days a week</small></p>
+      </aside>
+    </section>
+
+    <section class="steps">
+      <div class="steps-head">
+        <h2>How it works</h2>
+        <p>Four steps, in the order you would actually do them. Nothing here is a demo mode: what you see after signing up is this flow on your own course.</p>
+      </div>
+
+      <div class="step">
+        <span class="n">1</span>
+        <div>
+          <h3>Upload your course PDFs</h3>
+          <p>Decks from different weeks are fine. <b>Reading is metered:</b> a file is converted once and you pay for it once, so re-uploading is re-paying. A file that cannot be read says so and leaves the others alone.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">2</span>
+        <div>
+          <h3>Check the topic path</h3>
+          <p>Mastory infers the topics your material covers and points each one at its slides. <b>You correct it</b> before anything is scheduled on it: rename topics, set how long each takes, take off what is not on the exam.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">3</span>
+        <div>
+          <h3>Get your week</h3>
+          <p>The plan fits inside the time you say you have, on the days you say you have it. <b>Miss a day and the plan shifts.</b> It never squeezes what is waiting into a day that is already full.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">4</span>
+        <div>
+          <h3>Read, quiz, sit the mock exam</h3>
+          <p>Reading opens at the slides the topic points at. Each topic's quiz is five questions from those paragraphs, marked instantly. The mock exam is <b>one attempt</b>, and it ends in a readiness report: a reading of your quizzes, not a prediction of your exam.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="close">
+      <div>
+        <h2>A week you can keep to</h2>
+        <p>No streaks, no badges, no guilt. Your answers and your record stay yours: the readiness report reads them off on the day you open it, and nothing else is kept.</p>
+      </div>
+      <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+    </section>
+  </main>
+
+  <footer>
+    <a href="#">Sign in</a>
+    <span>Costs are metered and shown before you spend</span>
+    <span>Mastory, 2026</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your courses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .new-course {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #fff;
+    background: var(--ink);
+    border: 0;
+    border-radius: 7px;
+    padding: 9px 15px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .new-course:hover { background: #233629; }
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 72px;
+  }
+  .today {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  /* The hero: the course whose week is live. The schedule is the product,
+     so the front door shows today's work, not a file manager. */
+  .hero {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 28px 24px;
+  }
+  .hero-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .hero-head h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 32px);
+    letter-spacing: -0.01em;
+  }
+  .hero-head small {
+    display: block;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-top: 3px;
+  }
+  .countdown {
+    text-align: right;
+    flex: none;
+  }
+  .countdown b {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--green);
+    display: block;
+    line-height: 1;
+  }
+  .countdown span { font-size: 12.5px; color: var(--ink-soft); }
+  .session {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--green-soft);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .session .tick {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .session p { flex: 1; font-size: 14.5px; line-height: 1.45; }
+  .session p b { font-weight: 600; }
+  .session p small { display: block; color: var(--ink-soft); font-size: 12.5px; }
+  .go {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .go:hover { background: #0b6a4e; }
+  .hero-foot {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .hero-foot a { color: var(--ink); font-weight: 600; text-decoration: none; }
+  .hero-foot a:hover { color: var(--green); }
+  .rest {
+    margin-top: 26px;
+  }
+  .rest h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .others {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .other {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 15px 20px;
+    border-top: 1px solid var(--line);
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .other:first-child { border-top: 0; }
+  .other:hover { background: #fafbf9; }
+  .other strong { font-family: "Gabarito", sans-serif; font-weight: 600; font-size: 15.5px; }
+  .other small { display: block; color: var(--ink-soft); font-size: 12.5px; font-weight: 400; }
+  .other span { font-size: 12px; font-weight: 600; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .hero { padding: 20px 18px; }
+    .hero-head { flex-direction: column; }
+    .countdown { text-align: left; }
+    .session { flex-wrap: wrap; }
+    .session .go { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="new-course" href="#">+ New course</a>
+  </header>
+  <main>
+    <p class="today">TODAY · WED 11 NOV</p>
+    <section class="hero">
+      <div class="hero-head">
+        <div>
+          <h1>Basic Hydrology (CHE 212)</h1>
+          <small>3 of 4 sessions done this week · 12 of 31 topics read</small>
+        </div>
+        <div class="countdown"><b>5 weeks</b><span>to the exam · Fri 18 Dec</span></div>
+      </div>
+      <div class="session">
+        <span class="tick" aria-hidden="true"></span>
+        <p><b>Next: Evaporation, 40 min.</b><small>Slides 88–104 · a short quiz points back to the exact slide you miss</small></p>
+        <a class="go" href="#">Start</a>
+      </div>
+      <div class="hero-foot">
+        <span>On this pace you finish <b style="color:var(--ink)">10 Dec</b>: 8 days before the exam.</span>
+        <a href="#">See the whole week →</a>
+      </div>
+    </section>
+    <section class="rest">
+      <h2>ALSO ON YOUR DESK</h2>
+      <div class="others">
+        <a class="other" href="#">
+          <div><strong>Thermodynamics I (MEE 211)</strong><small>The topic path is waiting for your check before a week can be built</small></div>
+          <span>Check path</span>
+        </a>
+        <a class="other" href="#">
+          <div><strong>Structural Mechanics (CVE 301)</strong><small>1 file read · no plan yet, there is time, use it slowly</small></div>
+          <span>Build the week</span>
+        </a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

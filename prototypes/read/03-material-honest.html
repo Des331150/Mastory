@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Material · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 920px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  .shell {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 34px clamp(20px, 4vw, 40px) 80px;
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    gap: 44px;
+    align-items: start;
+  }
+  .index { position: sticky; top: 24px; }
+  .search input {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    width: 100%;
+  }
+  .index h2 {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 22px 0 8px;
+  }
+  .doc-name {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 6px;
+  }
+  .index ol { list-style: none; }
+  .index li a {
+    display: block;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 0 6px 6px 0;
+  }
+  .index li a:hover { color: var(--ink); background: var(--panel); }
+  .index li a.hit { color: var(--ink); font-weight: 600; }
+  .index .other-doc { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .index .other-doc .none { font-size: 13px; color: var(--flag); padding: 2px 10px; }
+
+  main > header { margin-bottom: 20px; }
+  main h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  main > header .src { font-size: 13.5px; color: var(--ink-soft); }
+  main > header .src a { color: var(--green); font-weight: 600; text-decoration: none; }
+
+  /* Honest conversion strip: what happened to your files, and to the one that failed */
+  .converted {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+  .converted b { color: var(--ink); font-weight: 600; }
+  .converted .ok { color: var(--green); font-weight: 600; }
+  .failed {
+    background: var(--flag-soft);
+    border: 1px solid var(--flag);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--flag);
+    line-height: 1.55;
+    margin-bottom: 26px;
+  }
+  .failed b { font-weight: 700; }
+  .failed a { color: var(--flag); font-weight: 600; }
+
+  .search-line {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+  .search-line b { color: var(--ink); font-weight: 600; }
+
+  article.doc {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: clamp(18px, 3vw, 36px) clamp(18px, 3.5vw, 42px);
+  }
+  .slide { padding: 22px 0; }
+  .slide + .slide { border-top: 1px solid var(--line); }
+  .slide .where { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 8px; }
+  .slide .where a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .slide h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+  .slide p { font-size: 15.5px; line-height: 1.65; max-width: 66ch; margin-bottom: 10px; }
+  .slide.dimmed { opacity: 0.32; }
+  .slide mark { background: var(--green-soft); color: var(--green); border-radius: 3px; padding: 0 2px; }
+  .slide .tail { font-size: 13px; color: var(--ink-soft); margin-top: 6px; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 24px; padding-top: 22px; }
+    .index { position: static; }
+    .masthead { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <div class="shell">
+    <aside class="index">
+      <form class="search" onsubmit="return false">
+        <input type="search" value="pan coefficient" aria-label="Search this material" />
+      </form>
+
+      <h2>WEEKS 1–6 DECK · CONVERTED</h2>
+      <ol>
+        <li><a href="#">Weather and Hydrology</a></li>
+        <li><a href="#">Precipitation</a></li>
+        <li><a href="#">Infiltration</a></li>
+        <li><a href="#">Evaporation</a></li>
+        <li><a href="#">Runoff</a></li>
+      </ol>
+
+      <div class="other-doc">
+        <h2>PAST QUESTIONS</h2>
+        <p class="none">1 of 2 files could not be converted, see the notice</p>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <h1>Basic Hydrology, material</h1>
+        <p class="src">Everything comes from the files you uploaded, in their original order · <a href="#">weeks 1–6 deck, the original PDF</a></p>
+      </header>
+
+      <div class="converted">
+        <b>Converted 11 Nov:</b> <span class="ok">weeks-1-6-deck.pdf with 109 slides, all readable</span> · re-uploading a file is re-paying for its conversion, so check this list before you upload again.
+      </div>
+
+      <div class="failed">
+        <b>past-questions.pdf could not be converted.</b> The pages are scanned images with no text layer, so there is nothing to read aloud or quiz from. Fix: upload a text-based PDF, or re-scan with text recognition. This file is not charged for.
+      </div>
+
+      <p class="search-line"><b>3 sections match 'pan coefficient'</b>: the rest are dimmed below, not hidden.</p>
+
+      <article class="doc">
+        <section class="slide dimmed">
+          <p class="where">Slides 49–54 · <a href="#">open at 49</a></p>
+          <h2>Infiltration</h2>
+          <p>Infiltration is water entering the soil surface. The rate falls as the soil saturates…</p>
+        </section>
+
+        <section class="slide">
+          <p class="where">Slides 71–76 · <a href="#">open at 71</a></p>
+          <h2>Factors controlling the rate</h2>
+          <p>…humidity of the air above the surface. The closer the air is to saturation, the slower the loss becomes.</p>
+        </section>
+
+        <section class="slide">
+          <p class="where">Slides 77–82 · <a href="#">open at 77</a></p>
+          <h2>Measuring it: the pan</h2>
+          <p>Because a pan is small and metal, it loses water faster than a real lake. Readings are corrected with a <mark>pan coefficient</mark>, typically between 0.6 and 0.8, so a lake's loss is smaller than the pan's.</p>
+          <p class="tail">Matched here · the worked example on slide 79 applies the correction.</p>
+        </section>
+
+        <section class="slide">
+          <p class="where">Slides 105–109 · <a href="#">open at 105</a></p>
+          <h2>2019 paper, question 4</h2>
+          <p>'A class-A pan records 7.2 mm in a day. Estimate open-water evaporation for the same day, taking the <mark>pan coefficient</mark> as 0.75.'</p>
+          <p class="tail">Matched here · from your past-questions upload, slide 105.</p>
+        </section>
+
+        <section class="slide dimmed">
+          <p class="where">Slides 88–94 · <a href="#">open at 88</a></p>
+          <h2>Runoff</h2>
+          <p>Runoff is the rainfall that neither infiltrates nor evaporates…</p>
+        </section>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your week · behind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --honest: #8a5a12;
+    --honest-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  main {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 72px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .mode-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .chip { font-size: 12px; font-weight: 600; color: var(--ink-soft); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  .mode-line span { font-size: 14px; color: var(--ink-soft); }
+  .today-mini {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .today-mini p { flex: 1; font-size: 14.5px; min-width: 200px; }
+  .today-mini p small { display: block; color: var(--ink-soft); font-size: 12.5px; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    text-decoration: none;
+    flex: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  /* The honest panel: not an alarm, a fact with a price tag on it. */
+  .behind {
+    background: var(--panel);
+    border: 1px solid var(--honest);
+    border-left-width: 4px;
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 26px;
+  }
+  .behind h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  .behind .date {
+    font-size: 15.5px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .behind .date b {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    color: var(--honest);
+  }
+  .behind p.note { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 6px; }
+  .cuts { margin-top: 16px; }
+  .cuts h3 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-soft); margin-bottom: 8px; }
+  .cut {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--line);
+    padding: 12px 0;
+  }
+  .cut .what { flex: 1; min-width: 220px; }
+  .cut .what b { font-weight: 600; font-size: 14.5px; display: block; }
+  .cut .what small { font-size: 13px; color: var(--ink-soft); }
+  .cut .what small em { font-style: normal; color: var(--green); font-weight: 600; }
+  .cut button {
+    font: 600 13px "Hanken Grotesk", sans-serif;
+    color: var(--honest);
+    background: var(--honest-soft);
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 8px 13px;
+    cursor: pointer;
+    flex: none;
+  }
+  .cut button:hover { border-color: var(--honest); }
+  .rebuild {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .rebuild b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .behind { padding: 18px 16px; }
+    .cut button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Your week</h1>
+    <div class="mode-line">
+      <span class="chip">Exam mode</span>
+      <span>2 weeks to go · exam Fri 18 Dec</span>
+    </div>
+
+    <section class="today-mini">
+      <p><b>Today: Evaporation, 40 min.</b><small>Slides 67–87 · one session, no more promised than today</small></p>
+      <a class="cta" href="#">Start reading</a>
+    </section>
+
+    <section class="behind">
+      <h2>You are behind, and this is the honest date</h2>
+      <p class="date">Your 9 sessions still to do, on 3 days a week, reach <b>Sat 20 Dec</b>: 2 days after your exam on Fri 18 Dec.</p>
+      <p class="note">Days you miss are not squeezed back in. Rebuilding moves what is still waiting to your next study days and takes the finish date with it, a worse number than you had, and a plan you can still keep.</p>
+      <div class="cuts">
+        <h3>THE OTHER ANSWER: STOP SPENDING YOUR WEEK ON SOMETHING</h3>
+        <div class="cut">
+          <div class="what"><b>Cut Hydrographs</b><small>45 min a week back, you would finish <em>Wed 16 Dec, before your exam</em></small></div>
+          <button>Cut this topic</button>
+        </div>
+        <div class="cut">
+          <div class="what"><b>Cut Water balance</b><small>30 min a week back, you would finish <em>Fri 18 Dec, the day itself</em></small></div>
+          <button>Cut this topic</button>
+        </div>
+        <div class="cut">
+          <div class="what"><b>Cut both</b><small>75 min a week back, you would finish <em>Mon 14 Dec, 4 days to spare</em></small></div>
+          <button>Cut these two</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="rebuild">
+      <b>Or change the budget.</b> If more of your week is really available, say so below and the plan rebuilds around it. It is better to be honest here and have a week you keep to than a heroic one you drop in week two. <a href="#" style="color:var(--ink);font-weight:600">Change your week →</a>
+    </section>
+  </main>
+</body>
+</html>

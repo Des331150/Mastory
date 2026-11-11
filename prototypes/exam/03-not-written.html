@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Mock exam · not written yet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 760px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 44px clamp(20px, 4vw, 40px) 80px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 20px;
+  }
+  .offer {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 28px;
+  }
+  .offer h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    margin-bottom: 10px;
+  }
+  .offer p {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    max-width: 56ch;
+  }
+  .offer p b { color: var(--ink); font-weight: 600; }
+  .offer .quiet {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .fine {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .foot {
+    margin-top: 30px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 28px; }
+    .offer { padding: 20px 18px; }
+    .cta { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="kicker">MOCK EXAM</p>
+    <h1>Mock exam: Basic Hydrology</h1>
+
+    <section class="offer">
+      <h2>One exam, one attempt</h2>
+      <p>This is the whole course in one paper: questions written from your own slides, up to 3 of them for every topic, in the order the course teaches them. Any question that cannot be checked against the paragraph it came from is left out rather than shown.</p>
+      <p>You get <b>one attempt</b>. The questions are written once and are not written again, nothing is spent on a sitting, and the marks, the score and the paragraph behind every wrong answer all come back together when you hand the paper in, not before.</p>
+      <p class="quiet">Nothing has been written yet. A paper is written when you ask for one, not when you open this page.</p>
+      <button class="cta" type="button">Write my mock exam</button>
+      <p class="fine">Topic quizzes are not spent by this and nothing is taken off them: sit those as often as you like, before or after.</p>
+    </section>
+
+    <nav class="foot">
+      <a href="#">Back to your week</a>
+      <a href="#">Back to your material</a>
+      <a href="#">Readiness report</a>
+    </nav>
+  </main>
+</body>
+</html>

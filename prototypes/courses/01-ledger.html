@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your courses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .new-course {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #fff;
+    background: var(--ink);
+    border: 0;
+    border-radius: 7px;
+    padding: 9px 15px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .new-course:hover { background: #233629; }
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 44px clamp(20px, 4vw, 40px) 72px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 3.4vw, 34px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .sub { color: var(--ink-soft); font-size: 15px; margin-bottom: 28px; }
+  .ledger {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 18px 22px;
+    border-top: 1px solid var(--line);
+  }
+  .row:first-child { border-top: 0; }
+  .row:hover { background: #fafbf9; }
+  .course-name { text-decoration: none; color: var(--ink); }
+  .course-name strong {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    display: block;
+  }
+  .course-name small { color: var(--ink-soft); font-size: 13px; }
+  .status { display: grid; gap: 2px; min-width: 0; }
+  .chip {
+    justify-self: start;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+  }
+  .chip.on { color: var(--green); background: var(--green-soft); border-color: transparent; }
+  .status span { font-size: 12.5px; color: var(--ink-soft); }
+  .go {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--green);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 9px 16px;
+    white-space: nowrap;
+  }
+  .go:hover { border-color: var(--green); background: var(--green-soft); }
+  .go.ghost { color: var(--ink-soft); }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 28px; }
+    .row {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "name go" "status go";
+      row-gap: 10px;
+      padding: 16px;
+    }
+    .row > :nth-child(1) { grid-area: name; }
+    .row > :nth-child(2) { grid-area: status; }
+    .row > :nth-child(3) { grid-area: go; align-self: end; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="new-course" href="#">+ New course</a>
+  </header>
+  <main>
+    <h1>Your courses</h1>
+    <p class="sub">Three courses. The one with the closest exam is the one to keep moving on.</p>
+    <section class="ledger">
+      <div class="row">
+        <a class="course-name" href="#"><strong>Basic Hydrology (CHE 212)</strong><small>4 files · 31 topics</small></a>
+        <div class="status">
+          <span class="chip on">On track</span>
+          <span>Exam Fri 18 Dec · 3 of 4 sessions done this week</span>
+        </div>
+        <a class="go" href="#">Your week</a>
+      </div>
+      <div class="row">
+        <a class="course-name" href="#"><strong>Thermodynamics I (MEE 211)</strong><small>2 files · path needs your check</small></a>
+        <div class="status">
+          <span class="chip">Path in draft</span>
+          <span>Confirm the topics before a week can be built</span>
+        </div>
+        <a class="go ghost" href="#">Check path</a>
+      </div>
+      <div class="row">
+        <a class="course-name" href="#"><strong>Structural Mechanics (CVE 301)</strong><small>1 file · no plan yet</small></a>
+        <div class="status">
+          <span class="chip">No plan yet</span>
+          <span>Exam Wed 20 Jan, there is time, use it slowly</span>
+        </div>
+        <a class="go ghost" href="#">Build the week</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Evaporation quiz · held</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 860px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 22px;
+  }
+  /* Held: not a scold, a door back to the material */
+  .held {
+    background: var(--flag-soft);
+    border: 1px solid var(--flag);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 22px;
+  }
+  .held h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--flag);
+    margin-bottom: 6px;
+  }
+  .held p { font-size: 14px; color: var(--flag); line-height: 1.55; margin-bottom: 12px; }
+  .held .fine { font-size: 12.5px; opacity: 0.85; margin-bottom: 0; }
+  .owed { list-style: none; margin-bottom: 12px; }
+  .owed button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: var(--flag);
+    background: var(--panel);
+    border: 1px solid var(--flag);
+    border-radius: 8px;
+    padding: 11px 14px;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .owed button:hover { background: #fff; }
+
+  .standing {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .standing h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  .standing .state-line { font-size: 14.5px; margin-bottom: 14px; }
+  .standing .state-line b { font-weight: 600; }
+  .standing .mastery-line { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 10px; }
+  .meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    max-width: 360px;
+    margin-bottom: 10px;
+  }
+  .meter i { display: block; height: 100%; width: 43%; background: var(--green); border-radius: 999px; }
+  .standing .fine { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .standing .fine b { color: var(--ink); font-weight: 600; }
+
+  .foot {
+    margin-top: 26px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+    .held { padding: 18px 16px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="kicker">TOPIC QUIZ</p>
+    <h1>Evaporation</h1>
+
+    <section class="held">
+      <h2>Back to the material first</h2>
+      <p>You last read this topic's slides five days ago, and the quiz is written from them word for word. Sit it with the paragraphs fresh, open the two you have not read and come back:</p>
+      <ul class="owed">
+        <li><button type="button">Open weeks 1–6 deck, slides 77–82, Measuring it: the pan</button></li>
+        <li><button type="button">Open weeks 1–6 deck, slides 83–87, The energy-balance estimate</button></li>
+      </ul>
+      <p class="fine">Opening one is all it takes to record that you have been there; it does not check that you stayed.</p>
+    </section>
+
+    <section class="standing">
+      <h2>Where you are on this topic</h2>
+      <p class="state-line"><b>Not finished yet</b>: sitting this quiz is the way it becomes finished, pass or fail.</p>
+      <p class="mastery-line">Mastery 43%, from two sittings on this topic: your best sitting, counted down once for every sitting you have taken since.</p>
+      <div class="meter"><i></i></div>
+      <p class="fine"><b>Two different numbers, on purpose.</b> Finishing says you have worked through it. Mastery says how much of it you know, and the two do not have to agree, a topic finished at 25% is finished, and nothing here holds that against you.</p>
+    </section>
+
+    <nav class="foot">
+      <a href="#">Back to your week</a>
+      <a href="#">Back to your material</a>
+    </nav>
+  </main>
+</body>
+</html>
