@@ -1,10 +1,21 @@
+/* The locked design language, set by the signup screen and shared by every
+   page. The green means one thing only: ahead of the work. */
 :root {
-  --ink: #14181d;
-  --muted: #5d6773;
-  --line: #dfe4ea;
-  --paper: #ffffff;
-  --wash: #f6f7f9;
-  --accent: #1f5f8b;
+  --ground: #f2f5f1;
+  --ink: #17281f;
+  --ink-soft: #5d6f63;
+  --green: #0e7c5b;
+  --green-soft: #e2efe8;
+  --panel: #ffffff;
+  --line: #dbe2da;
+  --danger: #a4243b;
+
+  /* Names the per-screen rules below were written against, kept as aliases
+     so the whole file wears the language without every rule moving at once. */
+  --muted: var(--ink-soft);
+  --paper: var(--panel);
+  --wash: var(--ground);
+  --accent: var(--green);
 }
 
 * { box-sizing: border-box; }
@@ -12,38 +23,71 @@
 body {
   margin: 0;
   color: var(--ink);
-  background: var(--wash);
-  font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--ground);
+  font: 16px/1.6 "Hanken Grotesk", system-ui, sans-serif;
 }
 
-a { color: var(--accent); }
+a { color: var(--green); font-weight: 500; }
 
 .masthead {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 14px 28px;
-  background: var(--paper);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px clamp(20px, 4vw, 48px);
+  background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
 
-.masthead .wordmark { font-weight: 700; text-decoration: none; color: var(--ink); }
-.masthead .tagline { color: var(--muted); font-size: 14px; }
-
-main { padding: 24px 28px 64px; }
-
-.panel {
-  max-width: 720px;
-  margin: 0 auto 24px;
-  padding: 20px 24px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+.masthead .wordmark {
+  font-family: "Gabarito", sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.muted { color: var(--muted); }
+/* The tick of a kept session. */
+.masthead .wordmark::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--green);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+          mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+}
+
+.masthead .crumb {
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.masthead .crumb:hover { color: var(--ink); }
+
+main { padding: 24px clamp(20px, 4vw, 48px) 64px; }
+
+.panel {
+  max-width: 780px;
+  margin: 0 auto 24px;
+  padding: 22px 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.muted { color: var(--ink-soft); }
 .small { font-size: 14px; }
-.error { color: #a4243b; }
+.error { color: var(--danger); }
+
+h1, h2, h3 {
+  font-family: "Gabarito", sans-serif;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
 
 .upload { display: grid; gap: 6px; max-width: 520px; }
 .upload button { justify-self: start; margin-top: 10px; }
@@ -57,25 +101,47 @@ main { padding: 24px 28px 64px; }
 
 button, .cta {
   display: inline-block;
-  padding: 9px 16px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--green);
   color: #fff;
-  font: inherit;
+  font-family: "Gabarito", sans-serif;
+  font-weight: 600;
+  font-size: 15.5px;
   text-decoration: none;
   cursor: pointer;
+  transition: background 120ms ease;
 }
 
-.nav-toggle { background: var(--paper); color: var(--accent); }
+button:hover, .cta:hover { background: #0b6a4e; }
+button:focus-visible, .cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.quiet-link {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.quiet-link:hover { border-color: var(--ink-soft); }
 
 input[type="text"], input[type="search"], input[type="file"],
 input[type="date"], input[type="number"] {
-  padding: 8px 10px;
+  padding: 11px 13px;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  font: inherit;
+  border-radius: 8px;
+  background: var(--ground);
+  font: 16px "Hanken Grotesk", sans-serif;
+  color: var(--ink);
 }
+
+input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+input:focus-visible { outline: none; }
 
 .course-list, .file-list { padding-left: 18px; }
 
@@ -170,15 +236,15 @@ mark { background: #ffe9a8; padding: 0 1px; }
 .stack { display: grid; gap: 6px; max-width: 520px; }
 .stack button { justify-self: start; margin-top: 8px; }
 
-button.quiet { background: var(--paper); color: var(--accent); }
-button.danger { border-color: var(--line); background: var(--paper); color: #a4243b; }
+button.quiet { background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-family: "Hanken Grotesk", sans-serif; font-weight: 500; font-size: 14px; }
+button.quiet:hover { background: var(--panel); border-color: var(--ink-soft); }
+button.danger { border-color: var(--line); background: var(--panel); color: var(--danger); }
 button[disabled] { opacity: 0.5; cursor: default; }
 
 .notice { padding: 10px 14px; background: #e7f2ea; border-radius: 6px; }
 .topic-confirm { margin-bottom: 24px; }
 .topic-confirm h2 { margin-top: 0; font-size: 20px; }
 .failure { margin-bottom: 20px; padding: 10px 14px; background: #fbeef1; border-radius: 6px; }
-.quiet-link { font-size: 14px; margin-left: 10px; }
 
 /* The week: one card to start from, then every session laid out in the open. */
 .plan-page { max-width: 780px; margin: 0 auto; }
