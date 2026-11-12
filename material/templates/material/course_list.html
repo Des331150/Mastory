@@ -2,26 +2,131 @@
 
 {% block title %}Your courses{% endblock %}
 
+{% block masthead_right %}
+<a class="new-course" href="{% url 'course-create' %}">+ New course</a>
+{% endblock %}
+
 {% block content %}
-<section class="panel">
-  <h1>Your courses</h1>
-  {% if courses %}
-    <ul class="course-list">
-      {% for course in courses %}
-        <li>
-          <a href="{% url 'course-read' course.pk %}">{{ course.title }}</a>
-          <span class="muted">{{ course.files.count }} file{{ course.files.count|pluralize }}</span>
-          <a class="quiet-link" href="{% url 'plan' course.pk %}">Your week</a>
-        </li>
-      {% endfor %}
-    </ul>
+{% if hero %}
+<div class="course-list">
+<p class="today">Today · {% now "D j M" %}</p>
+
+<section class="hero">
+  <div class="hero-head">
+    <div>
+      <h1>{% if hero.checked_in %}{{ hero.course.title }}{% else %}<a href="{% url 'course-read' hero.course.pk %}">{{ hero.course.title }}</a>{% endif %}</h1>
+      <small>
+        {% if hero.checked_in %}
+          {{ hero.done_this_week }} of {{ hero.sessions_this_week }} sessions done this week · {{ hero.topics_read }} of {{ hero.topics_total }} topics read
+        {% elif hero.state == "draft" %}
+          {{ hero.files }} file{{ hero.files|pluralize }} · {{ hero.topics_total }} topic{{ hero.topics_total|pluralize }} pulled
+        {% elif hero.state == "no plan" %}
+          {{ hero.files }} file{{ hero.files|pluralize }}
+        {% elif hero.state == "worked" %}
+          The week is worked through · {{ hero.topics_read }} of {{ hero.topics_total }} topics read
+        {% else %}
+          {{ hero.files }} file{{ hero.files|pluralize }}
+        {% endif %}
+      </small>
+    </div>
+    {% if hero.days_left is not None %}
+    <div class="countdown">
+      {% if hero.days_left >= 7 %}<b>{{ hero.weeks_left }} week{{ hero.weeks_left|pluralize }}</b>{% else %}<b>{{ hero.days_left }} day{{ hero.days_left|pluralize }}</b>{% endif %}
+      <span>to the exam · {{ hero.exam_date|date:"D j M" }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if hero.checked_in %}
+  <div class="session">
+    <span class="tick" aria-hidden="true"></span>
+    <p><b>Next: {{ hero.next_session.topic.title }}, {{ hero.next_session.minutes }} min.</b><small>a short quiz points at the exact slide you miss</small></p>
+    <a class="go" href="{% url 'course-read' hero.course.pk %}">Start</a>
+  </div>
+  {% elif hero.state == "draft" %}
+  <div class="session waiting">
+    <p><b>The topic path is waiting for your check.</b><small>Nothing is scheduled on it until you say it is right.</small></p>
+    <a class="go" href="{% url 'topic-path' hero.course.pk %}">Check path</a>
+  </div>
+  {% elif hero.state == "no plan" %}
+  <div class="session waiting">
+    <p><b>no plan yet, there is time, use it slowly</b><small>the week builds itself once the exam date is in</small></p>
+    <a class="go" href="{% url 'plan' hero.course.pk %}">Build the week</a>
+  </div>
+  {% elif hero.state == "worked" %}
+  <div class="session waiting">
+    <p><b>The week is worked through.</b><small>{{ hero.topics_read }} of {{ hero.topics_total }} topics read, and the rest is in your record.</small></p>
+    <a class="go" href="{% url 'plan' hero.course.pk %}">Open the week</a>
+  </div>
   {% else %}
-    <p class="muted">Nothing uploaded yet. Upload a course PDF to start reading.</p>
+  <div class="session waiting">
+    <p><b>Start with the topic path.</b><small>Pull it out of the {{ hero.files }} file{{ hero.files|pluralize }}, then check it before a week is built on it.</small></p>
+    <a class="go" href="{% url 'topic-path' hero.course.pk %}">Open the path</a>
+  </div>
+  {% endif %}
+
+  {% if hero.checked_in or hero.state == "worked" %}
+  <div class="hero-foot">
+    {% if hero.behind %}
+    <span>At this pace you finish <b>{{ hero.finish_on|date:"j M" }}</b>: {{ hero.behind.late_by }} days after the exam.</span>
+    {% elif hero.finish_margin and hero.finish_margin > 0 %}
+    <span>On this pace you finish <b>{{ hero.finish_on|date:"j M" }}</b>: {{ hero.finish_margin }} days before the exam.</span>
+    {% endif %}
+    <a href="{% url 'plan' hero.course.pk %}">See the whole week →</a>
+  </div>
   {% endif %}
 </section>
+</div>
 
-<section class="panel">
-  <h2>Upload a course PDF</h2>
-  {% include "material/_upload_form.html" %}
+{% if rest %}
+<section class="rest">
+  <h2>Also on your desk</h2>
+  <div class="others">
+    {% for brief in rest %}
+    <div class="other">
+      <div>
+        <strong><a href="{% url 'course-read' brief.course.pk %}">{{ brief.course.title }}</a></strong>
+        <small>
+          {% if brief.state == "draft" %}
+            The topic path is waiting for your check before a week can be built
+          {% elif brief.state == "no plan" %}
+            {{ brief.files }} file{{ brief.files|pluralize }} · no plan yet, there is time, use it slowly
+          {% elif brief.state == "worked" %}
+            The week is worked through: {{ brief.topics_read }} of {{ brief.topics_total }} topics read
+          {% elif brief.checked_in %}
+            {{ brief.done_this_week }} of {{ brief.sessions_this_week }} sessions done this week · {{ brief.topics_read }} of {{ brief.topics_total }} topics read
+          {% else %}
+            {{ brief.files }} file{{ brief.files|pluralize }} · pull the topic path out and check it
+          {% endif %}
+        </small>
+      </div>
+      {% if brief.state == "draft" or brief.state == "none" %}
+      <a href="{% url 'topic-path' brief.course.pk %}">Check path</a>
+      {% elif brief.state == "no plan" %}
+      <a href="{% url 'plan' brief.course.pk %}">Build the week</a>
+      {% else %}
+      <a href="{% url 'plan' brief.course.pk %}">Open the week</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
 </section>
+{% endif %}
+
+{% else %}
+<section class="empty">
+  <span class="tick" aria-hidden="true"></span>
+  <h1>A quiet start.</h1>
+  <p class="lede">Nothing uploaded yet, and nothing is behind. One course is enough to begin: the week builds itself once the material is in.</p>
+  <div class="steps">
+    <div class="step"><b>1</b><div>Upload your slides<small>Any lecture PDF, one deck or the whole semester's</small></div></div>
+    <div class="step"><b>2</b><div>Check the topic path we pull out<small>You correct it before anything is scheduled on it</small></div></div>
+    <div class="step"><b>3</b><div>Give us your exam date<small>The week is built backwards from that day, at your pace</small></div></div>
+  </div>
+  <div class="empty-form">
+    {% include "material/_upload_form.html" %}
+  </div>
+  <p class="fine">No card needed during beta. Your files stay yours.</p>
+</section>
+{% endif %}
 {% endblock %}

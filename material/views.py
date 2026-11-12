@@ -152,10 +152,26 @@ def _query_from(request: HttpRequest) -> str:
 
 @require_GET
 def course_list(request: HttpRequest) -> HttpResponse:
+    """The front door: one course is the work, the rest wait their turn.
+
+    The hero is the course whose next session comes soonest - the thing the
+    student would actually sit down to today. A page of courses with nothing
+    scheduled has no such course, so the first one stands in and says what it
+    is waiting for instead of pretending there is a session to start.
+    """
+    everything = planning.briefs(list(owned(Course.objects.all())))
+    with_sessions = [b for b in everything if b.next_session is not None]
+    hero = (
+        min(with_sessions, key=lambda b: b.next_session.scheduled_on)
+        if with_sessions
+        else everything[0] if everything
+        else None
+    )
+    rest = [b for b in everything if b is not hero]
     return render(
         request,
         "material/course_list.html",
-        {"courses": owned(Course.objects.all())},
+        {"hero": hero, "rest": rest},
     )
 
 

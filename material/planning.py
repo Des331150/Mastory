@@ -60,7 +60,7 @@ from typing import Any
 from django.db import transaction
 from django.utils import formats, timezone
 
-from material.models import Course, Plan, Session, Topic
+from material.models import Course, Plan, Session, Topic, TopicPath
 from material.topics import Rejected, require_confirmation
 from material.users import current_user_id, owned
 
@@ -231,6 +231,118 @@ class Overview:
 def plan_for(course: Course) -> Plan | None:
     """The course's plan, if the student has ever built one."""
     return owned(Plan.objects.filter(course=course)).first()
+
+
+@dataclass(frozen=True)
+class Brief:
+    """What the front door says about one course, read off its rows once.
+
+    The front door asks the same three questions of every course - what is
+    next, what is it waiting for, how much is left - so the rows are read once
+    per course instead of once per question. A course answers with whatever it
+    actually has: a course still waiting on its topic path has no session to
+    name, and saying one anyway would be inventing a week the student has not
+    built.
+    """
+
+    course: Course
+    state: str  # "none", "draft", "no plan", "worked" or "live"
+    files: int
+    next_session: Session | None
+    done_this_week: int
+    sessions_this_week: int
+    topics_read: int
+    topics_total: int
+    days_left: int | None
+    exam_date: date | None
+    finish_on: date | None
+    behind: Behind | None
+
+    @property
+    def checked_in(self) -> bool:
+        """Whether the topic path is confirmed and a week holds a session."""
+        return self.next_session is not None
+
+    @property
+    def weeks_left(self) -> int | None:
+        """The exam countdown in whole weeks, for the hero's corner."""
+        return round(self.days_left / 7) if self.days_left is not None else None
+
+    @property
+    def finish_margin(self) -> int | None:
+        """Days between the last session and the exam, when both exist.
+
+        Positive is days to spare, negative is days the exam arrives first -
+        the same fact the behind panel names, kept off this page's arithmetic
+        by reading it out of ``behind`` rather than computing it twice.
+        """
+        if self.exam_date is None or self.finish_on is None:
+            return None
+        return (self.exam_date - self.finish_on).days
+
+
+def briefs(courses: Sequence[Course]) -> list[Brief]:
+    """One front-door summary per course, in the order the courses arrive.
+
+    The state is the display question the front door answers for the course,
+    not the raw rows: a confirmed path with no plan is a different sentence
+    from a path never pulled, and a week with nothing left to start is neither
+    of those even though all three have no session to name.
+    """
+    out: list[Brief] = []
+    for course in courses:
+        path = owned(TopicPath.objects.filter(course=course)).first()
+        topics = list(owned(course.topics.all()))
+        plan = plan_for(course)
+        view = overview(plan, topics) if plan is not None else None
+        if view is not None:
+            ordered = sorted(view.sessions, key=lambda s: s.scheduled_on)
+            next_session = view.current or next(
+                (s for s in ordered if s.state == Topic.PLANNED), None
+            )
+            this_week = next((w for w in view.weeks if w.label == "This week"), None)
+            behind = view.behind
+            finish_on = (
+                behind.projected_on
+                if behind is not None
+                else ordered[-1].scheduled_on if ordered else None
+            )
+            if next_session is not None:
+                state = "live"
+            else:
+                state = "worked"
+        else:
+            next_session = None
+            behind = None
+            finish_on = None
+            this_week = None
+            if path is None:
+                state = "none"
+            elif path.state == TopicPath.State.DRAFT:
+                state = "draft"
+            else:
+                state = "no plan"
+        out.append(
+            Brief(
+                course=course,
+                state=state,
+                files=course.files.count(),
+                next_session=next_session,
+                done_this_week=sum(1 for s in this_week.sessions if s.recorded_on)
+                if this_week
+                else 0,
+                sessions_this_week=len(this_week.sessions) if this_week else 0,
+                topics_read=sum(
+                    1 for t in topics if t.recorded_on is not None and not t.cut
+                ),
+                topics_total=sum(1 for t in topics if not t.cut),
+                days_left=view.days_left if view is not None else None,
+                exam_date=plan.exam_date if plan is not None else None,
+                finish_on=finish_on,
+                behind=behind,
+            )
+        )
+    return out
 
 
 def today() -> date:
