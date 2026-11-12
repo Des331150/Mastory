@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Readiness · not measurable yet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 760px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .course { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 22px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 12px;
+  }
+  .panel h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
+  .panel p { font-size: 14px; color: var(--ink-soft); line-height: 1.6; margin-bottom: 8px; }
+  .panel p b { color: var(--ink); font-weight: 600; }
+  .refused { border-color: var(--flag); }
+  .refused h2 { color: var(--flag); }
+  .refused .reason { color: var(--flag); }
+
+  .path {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 4px;
+    flex-wrap: wrap;
+  }
+  .step {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 13px;
+  }
+  .step.now { color: var(--green); background: var(--green-soft); border-color: var(--green); }
+  .arrow { color: var(--ink-soft); font-size: 13px; }
+
+  .foot {
+    margin-top: 26px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="course">Basic Hydrology (CHE 212)</p>
+    <h1>Your readiness report</h1>
+    <p class="lede">Read off the topics you have sat, on the day you opened this. Nothing here is stored; it is your record, read.</p>
+
+    <section class="panel refused">
+      <h2>Your readiness is not measurable</h2>
+      <p class="reason">Only 1 of your 7 topics has a sitting to weigh, and a mean of one topic is not a course readiness. It would be a number that looks like knowledge and is really one quiz, so this report declines to give one.</p>
+      <div class="path">
+        <span class="step now">1 topic sat</span>
+        <span class="arrow">→</span>
+        <span class="step">3 topics sat: a figure appears, honestly labelled</span>
+        <span class="arrow">→</span>
+        <span class="step">7 topics sat: the full report</span>
+      </div>
+      <p>Sit more topic quizzes and it becomes a number. Until then, <b>your week is still your week</b>: the plan does not wait for a percentage.</p>
+    </section>
+
+    <section class="panel">
+      <h2>What is measured so far</h2>
+      <p><b>Introduction to Hydrology, 71%, 1 sitting.</b> One sitting and five are not the same claim: this could be a lucky guess, and this report treats it that way.</p>
+    </section>
+
+    <section class="panel">
+      <h2>When you studied</h2>
+      <p>2 days your record says you worked, earliest first.</p>
+      <p><b>Mon 9 Nov</b>: Sat the Introduction to Hydrology quiz · finished reading Weather and Hydrology.</p>
+      <p><b>Wed 11 Nov</b>: Sat the Introduction to Hydrology quiz (sitting 2).</p>
+    </section>
+
+    <nav class="foot">
+      <a href="#">Back to your week</a>
+      <a href="#">Sit a mock exam across the course</a>
+    </nav>
+  </main>
+</body>
+</html>

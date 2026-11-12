@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Know where you actually stand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 22px;
+    padding: 16px clamp(20px, 5vw, 56px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-right: auto;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .signin { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .signin:hover { color: var(--ink); }
+  .signin:focus-visible, a.cta:focus-visible, .ghost:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .cta {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 9px;
+    padding: 11px 18px;
+    text-decoration: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .ghost {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 11px 18px;
+    text-decoration: none;
+  }
+  .ghost:hover { border-color: var(--ink-soft); }
+
+  main { max-width: 820px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px); }
+
+  /* Hero: one promise, centered */
+  .hero { text-align: center; padding: 58px 0 14px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(34px, 6vw, 54px);
+    line-height: 1.06;
+    letter-spacing: -0.018em;
+    margin-bottom: 18px;
+  }
+  .hero .sub {
+    font-size: 16.5px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 54ch;
+    margin: 0 auto 26px;
+  }
+  .hero .sub b { color: var(--ink); font-weight: 600; }
+  .hero-cta {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .hero-cta .cta, .hero-cta .ghost { font-size: 15px; padding: 13px 22px; }
+  .metered { font-size: 13px; color: var(--ink-soft); }
+
+  /* The artefact, shown big and faithful */
+  .artefact { padding: 30px 0 8px; }
+  .artefact .label {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px 18px;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .card .row1 { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .card .figure strong {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 52px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .card .figure small { font-size: 12.5px; color: var(--ink-soft); display: block; margin-top: 5px; }
+  .card .meter {
+    flex: 1;
+    min-width: 150px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    align-self: center;
+  }
+  .card .meter i { display: block; height: 100%; width: 55%; background: var(--green); }
+  .card .rows { list-style: none; margin-top: 16px; }
+  .card .rows li {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13.5px;
+    padding: 7px 0;
+    border-top: 1px dashed var(--line);
+  }
+  .card .rows li:first-child { border-top: 0; }
+  .card .rows .rank { font-family: "Gabarito", sans-serif; font-weight: 700; color: var(--ink-soft); width: 14px; flex: none; }
+  .card .rows .t { font-weight: 600; flex: 1; }
+  .card .rows .m { color: var(--flag); font-weight: 600; font-size: 12.5px; flex: none; }
+  .card .framing {
+    margin-top: 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .card .framing b { color: var(--ink); font-weight: 600; }
+  .artefact .caption {
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-top: 12px;
+    max-width: 62ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Steps: three centered columns */
+  .steps { border-top: 1px solid var(--line); margin-top: 44px; padding: 40px 0 34px; text-align: center; }
+  .steps .label, .faq .label {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    color: var(--flag);
+    margin-bottom: 22px;
+  }
+  .steps .cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .step .n {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+  }
+  .step h3 { font-family: "Gabarito", sans-serif; font-weight: 600; font-size: 17px; margin-bottom: 6px; }
+  .step p { font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); max-width: 30ch; margin: 0 auto; }
+  .step p b { color: var(--ink); font-weight: 600; }
+
+  /* FAQ */
+  .faq { border-top: 1px solid var(--line); padding: 40px 0 34px; }
+  .faq .list { max-width: 620px; margin: 0 auto; text-align: left; }
+  .faq dt {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 5px;
+  }
+  .faq dd { font-size: 14px; line-height: 1.62; color: var(--ink-soft); margin-bottom: 18px; }
+  .faq dd b { color: var(--ink); font-weight: 600; }
+
+  /* Close */
+  .close { border-top: 1px solid var(--line); padding: 44px 0 52px; text-align: center; }
+  .close h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: clamp(22px, 3.4vw, 28px); margin-bottom: 8px; }
+  .close p { font-size: 14.5px; color: var(--ink-soft); margin-bottom: 22px; }
+  .close .cta { font-size: 15px; padding: 13px 22px; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 22px clamp(20px, 5vw, 56px) 30px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  footer a { color: var(--ink-soft); }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 12px 16px; }
+    .signin { display: none; }
+    .hero { padding-top: 40px; }
+    .steps .cols { grid-template-columns: 1fr; gap: 26px; }
+    .card { padding: 18px 16px 14px; }
+    .close .cta { width: 100%; max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="signin" href="#">Sign in</a>
+    <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Revise what you don't know yet</h1>
+      <p class="sub">Upload your course PDFs and Mastory schedules them into a week you can keep to. Every quiz is written from <b>a paragraph of your own slides</b>, and a mock exam ends in a readiness report read off your record. No streaks, no badges, no guilt.</p>
+      <div class="hero-cta">
+        <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+        <a class="ghost" href="#">Sign in</a>
+      </div>
+      <p class="metered">Reading is metered. The rates are shown before you spend.</p>
+    </section>
+
+    <section class="artefact">
+      <p class="label">YOUR READINESS, READ TODAY</p>
+      <div class="card" aria-label="A readiness report">
+        <div class="row1">
+          <div class="figure">
+            <strong>55%</strong>
+            <small>5 of 7 topics sat</small>
+          </div>
+          <div class="meter"><i></i></div>
+        </div>
+        <ul class="rows">
+          <li><span class="rank">1</span><span class="t">Infiltration</span><span class="m">43% · 2 sittings</span></li>
+          <li><span class="rank">2</span><span class="t">Evaporation</span><span class="m">43% · 2 sittings</span></li>
+          <li><span class="rank">3</span><span class="t">Precipitation</span><span class="m">58% · 2 sittings</span></li>
+        </ul>
+        <p class="framing"><b>A reading of your quizzes, not a prediction of your exam.</b> It tells you where you are weakest. A topic measured once could be a lucky guess, and the report treats it that way.</p>
+      </div>
+      <p class="caption">Every number on this card is read off your own record on the day you open it. Nothing is stored, nothing is invented to fill a gap, and a topic without a sitting counts for nothing rather than as a zero.</p>
+    </section>
+
+    <section class="steps">
+      <p class="label">HOW IT WORKS</p>
+      <div class="cols">
+        <div class="step">
+          <div class="n">1</div>
+          <div>
+            <h3>Upload</h3>
+            <p>Drop in your course PDFs, one deck or a whole semester. <b>Reading is metered:</b> a file is converted once and you pay for it once.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <div>
+            <h3>Check</h3>
+            <p>Mastory infers the topic path and points each topic at its slides. <b>You correct it</b> before anything is scheduled on it.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <div>
+            <h3>Keep to it</h3>
+            <p>Read, take the quizzes, sit the mock. <b>Miss a day and the plan shifts.</b> It never squeezes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq">
+      <p class="label">QUESTIONS STUDENTS ASK</p>
+      <dl class="list">
+        <dt>Where do the quiz questions come from?</dt>
+        <dd>From paragraphs of the slides you just read, and every question cites its paragraph so you can check it was not invented. Questions that fail that check are dropped, and nothing is made up to fill the gap.</dd>
+
+        <dt>What does the readiness number mean?</dt>
+        <dd>The mean of what your quizzes have weighed, on the topics you have sat. It is a reading of your record, not a prediction of your exam, and it refuses to appear until enough topics have a sitting to be measured.</dd>
+
+        <dt>What happens when I miss a study day?</dt>
+        <dd>The plan moves what is waiting to your other days. Missed days shift, they are never squeezed in, and the week does not scold you for it.</dd>
+
+        <dt>What does it cost?</dt>
+        <dd>Conversion, reading and model calls are metered, and the rates are shown before you spend. One deliberate cost to know: re-uploading a file is re-paying for its conversion.</dd>
+      </dl>
+    </section>
+
+    <section class="close">
+      <h2>Ready to start?</h2>
+      <p>Name your course and drop in the PDFs. The week comes after you have checked the path.</p>
+      <a class="cta" href="../signup/03-quiet-product.html">Start a course</a>
+    </section>
+  </main>
+
+  <footer>
+    <span>Mastory, 2026</span>
+  </footer>
+</body>
+</html>

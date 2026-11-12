@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your courses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .new-course {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #fff;
+    background: var(--ink);
+    border: 0;
+    border-radius: 7px;
+    padding: 9px 15px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .new-course:hover { background: #233629; }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 44px clamp(20px, 4vw, 40px) 72px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 3.4vw, 34px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .sub { color: var(--ink-soft); font-size: 15px; margin-bottom: 28px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 172px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .card-top strong {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+  .card-top small { color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
+  .state { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .state b { color: var(--ink); font-weight: 600; }
+  .bar {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .meter {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .meter i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+  .meter i.idle { background: var(--line); }
+  .bar span { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .actions { display: flex; gap: 8px; }
+  .go {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--green);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 14px;
+  }
+  .go:hover { border-color: var(--green); background: var(--green-soft); }
+  .go.primary { color: #fff; background: var(--ink); border-color: var(--ink); }
+  .go.primary:hover { background: #233629; }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 28px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="new-course" href="#">+ New course</a>
+  </header>
+  <main>
+    <h1>Your courses</h1>
+    <p class="sub">Three courses. The one with the closest exam is the one to keep moving on.</p>
+    <section class="grid">
+      <article class="card">
+        <div class="card-top"><strong>Basic Hydrology (CHE 212)</strong><small>Exam Fri 18 Dec</small></div>
+        <p class="state"><b>On track.</b> 3 of 4 sessions done this week · 12 of 31 topics read</p>
+        <div class="bar"><div class="meter"><i style="width: 39%"></i></div><span>12/31 topics</span></div>
+        <div class="actions"><a class="go primary" href="#">Your week</a><a class="go" href="#">Read</a></div>
+      </article>
+      <article class="card">
+        <div class="card-top"><strong>Thermodynamics I (MEE 211)</strong><small>Exam, not set</small></div>
+        <p class="state"><b>Path in draft.</b> 2 files read · the topic list needs your check before a week can be built</p>
+        <div class="bar"><div class="meter"><i class="idle" style="width: 8%"></i></div><span>waiting on you</span></div>
+        <div class="actions"><a class="go primary" href="#">Check path</a><a class="go" href="#">Read</a></div>
+      </article>
+      <article class="card">
+        <div class="card-top"><strong>Structural Mechanics (CVE 301)</strong><small>Exam Wed 20 Jan</small></div>
+        <p class="state"><b>No plan yet.</b> 1 file read · there is time, build the week and use it slowly</p>
+        <div class="bar"><div class="meter"><i class="idle" style="width: 3%"></i></div><span>not started</span></div>
+        <div class="actions"><a class="go primary" href="#">Build the week</a><a class="go" href="#">Read</a></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

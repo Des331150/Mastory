@@ -813,11 +813,17 @@ def complete(prompt: str) -> str:
     base = settings.MODEL_BASE_URL
     if not base or not settings.MODEL_NAME:
         raise ModelUnavailable(*NOT_CONFIGURED)
+    # The path carries a trailing slash. Google's OpenAI-compatible endpoint
+    # serves only the slashed form: the bare one answers with a bare 404, or
+    # worse, hangs until the timeout. Other OpenAI-compatible providers accept
+    # the slash as configured - those that redirect answer it with a 307, which
+    # urllib repeats as the same POST.
+    url = f"{base.rstrip('/')}/chat/completions/"
     waited = 0.0
     begun = time.monotonic()
     for attempt in range(THROTTLE_ATTEMPTS):
         request = urllib.request.Request(  # noqa: S310 - a configured http(s) endpoint
-            f"{base.rstrip('/')}/chat/completions",
+            url,
             data=json.dumps(
                 {
                     "model": settings.MODEL_NAME,

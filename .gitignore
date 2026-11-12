@@ -8,3 +8,5 @@ media/
 test_db_*.sqlite3
 db.sqlite3-journal
 test_db_*.sqlite3-journal
+.neon
+.env.local

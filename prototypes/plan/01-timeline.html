@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your week · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+  main {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 72px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .mode-line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .chip {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    background: var(--green-soft);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+  .mode-line span { font-size: 14px; color: var(--ink-soft); }
+  .progress { margin-bottom: 26px; }
+  .progress p { font-size: 14px; margin-bottom: 8px; }
+  .progress p b { font-weight: 600; }
+  .progress p span { color: var(--ink-soft); }
+  .meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    max-width: 420px;
+  }
+  .meter i { display: block; height: 100%; width: 39%; background: var(--green); border-radius: 999px; }
+  .today {
+    background: var(--panel);
+    border: 1px solid var(--green);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 26px;
+  }
+  .today .label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .today h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+  .today .sub { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 16px; }
+  .today .sub a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .today-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .ghost {
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+  .ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .week { margin-bottom: 26px; }
+  .week h3 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .week .wk-sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; }
+  .session {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin-bottom: 8px;
+  }
+  .when {
+    flex: none;
+    width: 74px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .session .tick {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--green-soft);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="black" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 15px no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="black" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 15px no-repeat;
+  }
+  .session .what { flex: 1; min-width: 0; }
+  .session .what b { font-weight: 600; font-size: 14.5px; display: block; }
+  .session .what small { font-size: 12.5px; color: var(--ink-soft); }
+  .state {
+    flex: none;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+  .state.done { color: var(--green); background: var(--green-soft); }
+  .state.todo { color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); }
+  .later { color: var(--ink-soft); font-size: 14px; }
+  .later b { color: var(--ink); font-weight: 600; }
+  details.settings {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 30px;
+  }
+  details.settings summary {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    cursor: pointer;
+  }
+  .settings-note { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin: 10px 0 14px; }
+  .fields { display: grid; gap: 12px; max-width: 380px; }
+  .fields label { font-size: 13px; font-weight: 600; display: grid; gap: 4px; }
+  .fields input {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 9px 11px;
+  }
+  .foot {
+    margin-top: 26px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .today-actions .cta { flex: 1; text-align: center; }
+    .session { flex-wrap: wrap; }
+    .state { margin-left: auto; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Your week</h1>
+    <div class="mode-line">
+      <span class="chip">Exam mode</span>
+      <span>5 weeks to go · exam Fri 18 Dec</span>
+    </div>
+
+    <section class="progress">
+      <p><b>3 of 4 sessions done this week</b> · <span>12 of 31 topics read · nothing to keep up with here but the days you meant to</span></p>
+      <div class="meter"><i></i></div>
+    </section>
+
+    <section class="today">
+      <p class="label">TODAY · WED 11 NOV</p>
+      <h2>Evaporation, 40 min</h2>
+      <p class="sub">Slides 67–87 · weeks 1–6 deck · <a href="#">take this topic's quiz after</a></p>
+      <div class="today-actions">
+        <a class="cta" href="#">Start reading</a>
+        <button class="ghost">Mark done</button>
+        <button class="ghost">Skip today</button>
+      </div>
+    </section>
+
+    <section class="week">
+      <h3>Rest of this week</h3>
+      <p class="wk-sub">4 sessions planned · 165 min in total</p>
+      <div class="session">
+        <span class="when">Mon 9</span><span class="tick"></span>
+        <div class="what"><b>Infiltration</b><small>45 min · slides 49–66</small></div>
+        <span class="state done">done</span>
+      </div>
+      <div class="session">
+        <span class="when">Tue 10</span><span class="tick"></span>
+        <div class="what"><b>Runoff</b><small>55 min · slides 88–104</small></div>
+        <span class="state done">done</span>
+      </div>
+      <div class="session">
+        <span class="when">Fri 13</span>
+        <div class="what"><b>Hydrographs</b><small>45 min · slides 110–128</small></div>
+        <span class="state todo">not yet</span>
+      </div>
+    </section>
+
+    <p class="later">Three more weeks like this one. <b>On this pace you finish 10 Dec</b>: 8 days before the exam. The plan shifts if you miss; it never squeezes.</p>
+
+    <details class="settings">
+      <summary>Change your week</summary>
+      <p class="settings-note">The time you say you have is the time the plan is built inside. It is better to be honest here and have a week you keep to. Rebuilding moves what is still waiting to your next study days. Missed days shift; they are never squeezed in.</p>
+      <div class="fields">
+        <label>Exam date<input type="date" value="2026-12-18" /></label>
+        <label>Days a week you can study<input type="number" value="3" /></label>
+        <label>Hours a week you can study<input type="number" value="3" /></label>
+        <button class="ghost" style="justify-self:start">Build this week again</button>
+      </div>
+    </details>
+
+    <nav class="foot">
+      <a href="#">Change your topic path</a>
+      <a href="#">Sit a mock exam</a>
+      <a href="#">Readiness report</a>
+    </nav>
+  </main>
+</body>
+</html>

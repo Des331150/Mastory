@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · New course · step 2 of 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .back { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  main {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 72px;
+  }
+  .progress {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .progress b { color: var(--green); }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede { color: var(--ink-soft); font-size: 15px; margin-bottom: 24px; }
+  .picked {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+  .file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 18px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .file:first-child { border-top: 0; }
+  .file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file small { color: var(--ink-soft); font-size: 12.5px; flex: none; }
+  .file .remove { color: var(--ink-soft); text-decoration: none; font-size: 13px; flex: none; }
+  .file .remove:hover { color: var(--ink); }
+  form { display: grid; gap: 18px; }
+  .field { display: grid; gap: 6px; }
+  label { font-size: 14px; font-weight: 600; }
+  label small { font-weight: 400; color: var(--ink-soft); }
+  input[type="text"] {
+    font: 16px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 13px;
+    width: 100%;
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  .hint { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .actions { display: flex; gap: 10px; margin-top: 6px; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 13px 20px;
+    cursor: pointer;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .secondary {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 18px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .secondary:hover { color: var(--ink); border-color: var(--ink-soft); }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .actions { flex-direction: column-reverse; }
+    .actions .cta, .actions .secondary { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="back" href="#">← Back to your courses</a>
+  </header>
+  <main>
+    <p class="progress">STEP <b>2</b> OF 2 · FILES CHOSEN, NOT YET READ</p>
+    <h1>Check it over, then we read.</h1>
+    <p class="lede">Nothing has been processed yet, this is your last cheap moment to change anything.</p>
+    <section class="picked" aria-label="Files you chose">
+      <div class="file"><span>Hydrology_weeks_1-6.pdf</span><small>212 pages</small><a class="remove" href="#">Remove</a></div>
+      <div class="file"><span>Hydrology_weeks_7-12.pdf</span><small>198 pages</small><a class="remove" href="#">Remove</a></div>
+      <div class="file"><span>Hydrology_past_questions.pdf</span><small>37 pages</small><a class="remove" href="#">Remove</a></div>
+    </section>
+    <form action="#" method="post">
+      <div class="field">
+        <label for="title">Course title</label>
+        <input id="title" type="text" value="Basic Hydrology (CHE 212)" />
+      </div>
+      <p class="hint">Each file goes through three stages, reading pages, converting, verifying. A file that cannot be read says so and leaves the others alone. Reading is metered, so re-uploading is re-paying: check the list once before you start.</p>
+      <div class="actions">
+        <a class="secondary" href="#">Choose different files</a>
+        <button class="cta" type="submit">Read these 3 files</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

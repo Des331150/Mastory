@@ -495,18 +495,32 @@ class ModelRequestTests(TopicPathTestCase):
     """
 
     def test_the_model_is_handed_the_students_own_slides(self) -> None:
+        """The outline pass sees only their titles; the content check their text."""
         fake = RecordingModel(fake_topic("Eigenvalues", [2]))
         fake.use(self)
         self.client.post("/courses/1/topics/infer/")
+        outline_request = json.loads(fake.prompts[0])
+        self.assertEqual(
+            [slide["title"] for slide in outline_request["slides"]],
+            [
+                "MATH 201: Linear Algebra",
+                "Definition of an eigenvalue",
+                "Computing the characteristic polynomial",
+                "Eigenvectors and eigenspaces",
+                "Diagonalisation worked example",
+            ],
+        )
+        self.assertNotIn("text", outline_request["slides"][0])
         slides = fake.last_request["slides"]
-        self.assertEqual(len(slides), 5)
-        self.assertIn("eigenvalue", slides[1]["text"].lower())
+        self.assertEqual(len(slides), 1)
+        self.assertIn("eigenvalue", slides[0]["text"].lower())
 
     def test_a_deck_with_headings_hands_the_model_its_outline(self) -> None:
+        """The deck's own headings travel with the pass that is bounded by them."""
         fake = RecordingModel(fake_topic("Eigenvalues", [2]))
         fake.use(self)
         self.client.post("/courses/1/topics/infer/")
-        outline = fake.last_request["outline"]
+        outline = json.loads(fake.prompts[0])["outline"]
         self.assertTrue(outline["present"])
         self.assertEqual(
             [entry["heading"] for entry in outline["headings"]],
@@ -568,6 +582,21 @@ class NavigationTests(TopicPathTestCase):
         self.assertEqual(
             self.client.get("/courses/1/topics/99/remove/").status_code, 405
         )
-        self.assertEqual(
-            self.client.post("/courses/1/topics/99/remove/").status_code, 404
-        )
+
+    def test_removing_a_topic_a_reworked_path_no_longer_has_says_so(self) -> None:
+        """A stale page's remove names a topic the rework already deleted.
+
+        The path is reworked whole: ``infer`` replaces every topic on it, and
+        the replacement ids differ from the ones the open tab was rendered
+        with. That is an ordinary way to arrive at a remove, so the answer is
+        the current path with a notice rather than a dead end.
+        """
+        first_page = self.infer(fake_topic("Eigenvalues", [2]))
+        stale_pk = topic_pk(first_page, "Eigenvalues")
+        self.infer(fake_topic("Eigenvectors", [2]))
+        response = self.client.post(f"/courses/1/topics/{stale_pk}/remove/")
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("not on the path any more", html)
+        self.assertIn("Eigenvectors", html)
+        self.assertNotIn(". Eigenvalues</h2>", html)

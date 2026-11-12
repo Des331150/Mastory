@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Topic path · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 820px;
+    padding-bottom: 84px; /* room for the fixed tray */
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  main {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 40px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede { color: var(--ink-soft); font-size: 15px; line-height: 1.55; margin-bottom: 28px; max-width: 60ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  /* Read-first: the path as pure prose-like sequence. Editing happens in a
+     side drawer opened per row, so the checking eye is never interrupted. */
+  .path {
+    border-left: 2px solid var(--line);
+    margin-left: 8px;
+    padding-left: 26px;
+  }
+  .step { position: relative; padding-bottom: 22px; }
+  .step::before {
+    content: "";
+    position: absolute;
+    left: -33px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 2px solid var(--ink-soft);
+  }
+  .step.flag::before { border-color: var(--flag); background: var(--flag-soft); }
+  .step h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .step h2 small {
+    font: 500 12.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+  }
+  .step h2 small a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .step h2 small a:hover { text-decoration: underline; }
+  .flag-note {
+    margin-top: 6px;
+    background: var(--flag-soft);
+    border-left: 3px solid var(--flag);
+    border-radius: 0 8px 8px 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--flag);
+  }
+  .edit-link {
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .edit-link button {
+    font: 600 13px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .edit-link button:hover { color: var(--ink); }
+  /* The tray: one persistent confirm bar, always within reach. */
+  .tray {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 12px clamp(20px, 4vw, 48px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .tray p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.45; }
+  .tray p b { color: var(--ink); font-weight: 600; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    flex: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  /* Drawer mock: shown open for topic 4 */
+  .drawer-veil { display: none; }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 92vw);
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    box-shadow: -12px 0 32px rgb(23 40 31 / 0.08);
+    padding: 22px 24px;
+    overflow-y: auto;
+  }
+  .drawer h3 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+  .drawer .sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 18px; }
+  .drawer label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 5px; }
+  .drawer input[type="text"], .drawer select {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 9px 11px;
+    width: 100%;
+  }
+  .drawer .row2 { display: flex; gap: 10px; }
+  .drawer .save {
+    margin-top: 20px;
+    width: 100%;
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 0;
+    cursor: pointer;
+  }
+  .drawer .ghost {
+    margin-top: 8px;
+    width: 100%;
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--flag);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 0;
+    cursor: pointer;
+  }
+  .drawer .close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .tray { flex-direction: column; align-items: stretch; }
+    .tray .cta { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Check the topic path</h1>
+    <p class="lede">The course as a sequence. <b>Nothing is scheduled yet.</b> Read top to bottom; anything wrong opens a drawer on the right, so your place in the list is never lost.</p>
+
+    <div class="path">
+      <div class="step">
+        <h2>Introduction to Hydrology <small><a href="#">slides 1–12</a> · 35 min</small></h2>
+        <p class="edit-link"><button>Edit topic 1</button></p>
+      </div>
+      <div class="step">
+        <h2>Weather and Hydrology <small><a href="#">slides 13–24</a> · 40 min</small></h2>
+        <p class="edit-link"><button>Edit topic 2</button></p>
+      </div>
+      <div class="step">
+        <h2>Precipitation <small><a href="#">slides 25–48</a> · 50 min</small></h2>
+        <p class="edit-link"><button>Edit topic 3</button></p>
+      </div>
+      <div class="step">
+        <h2>Infiltration <small><a href="#">slides 49–66</a> · 45 min</small></h2>
+        <p class="edit-link"><button>Edit topic 4, drawer open</button></p>
+      </div>
+      <div class="step">
+        <h2>Evaporation <small><a href="#">slides 67–87</a> · 40 min</small></h2>
+        <p class="edit-link"><button>Edit topic 5</button></p>
+      </div>
+      <div class="step">
+        <h2>Runoff <small><a href="#">slides 88–104</a> · 55 min</small></h2>
+        <p class="edit-link"><button>Edit topic 6</button></p>
+      </div>
+      <div class="step flag">
+        <h2>Water balance <small><a href="#">slides 105–109</a> · 30 min</small></h2>
+        <p class="flag-note">Mentioned once, inside a question, not in a teaching slide. Check it, or remove it if it is not on the exam.</p>
+        <p class="edit-link"><button>Edit topic 7</button></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Drawer, mock-open for topic 4 -->
+  <aside class="drawer" aria-label="Edit topic 4">
+    <button class="close">Close ✕</button>
+    <h3>4 · Infiltration</h3>
+    <p class="sub">Slides 49–66 · weeks 1–6 deck</p>
+    <label for="d-name">Name</label>
+    <input id="d-name" type="text" value="Infiltration" />
+    <label for="d-time">Time this topic needs</label>
+    <div class="row2">
+      <input id="d-time" type="text" value="45" />
+      <select><option>minutes</option></select>
+    </div>
+    <label for="d-order">Order in the path</label>
+    <select id="d-order"><option>Position 4 of 7</option><option>Move up to 3</option><option>Move down to 5</option></select>
+    <button class="save">Save changes</button>
+    <button class="ghost">Remove from the path</button>
+  </aside>
+
+  <div class="tray">
+    <p><b>7 topics, 0 changed so far.</b> Confirming builds your week on this path, a wrong topic fixed now costs a minute, not a session.</p>
+    <button class="cta">Confirm, build my week</button>
+  </div>
+</body>
+</html>

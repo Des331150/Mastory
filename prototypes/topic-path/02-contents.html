@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Topic path · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 96px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede { color: var(--ink-soft); font-size: 15px; line-height: 1.55; margin-bottom: 30px; max-width: 60ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  /* The contents page of a well-used textbook: number, title, dot leader, page. */
+  .contents {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 24px 8px;
+  }
+  .entry {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 13px 0;
+    border-top: 1px dashed var(--line);
+    position: relative;
+  }
+  .entry:first-child { border-top: 0; }
+  .entry:hover { background: #fafbf9; }
+  .num {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink-soft);
+    flex: none;
+    width: 24px;
+  }
+  .title {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16.5px;
+    flex: none;
+    max-width: 60%;
+  }
+  .flagged-title { color: var(--flag); }
+  .leader {
+    flex: 1;
+    min-width: 24px;
+    border-bottom: 2px dotted var(--line);
+    transform: translateY(-4px);
+  }
+  .slides {
+    flex: none;
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .slides a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .slides a:hover { text-decoration: underline; }
+  .meta {
+    flex: none;
+    width: 58px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .row-flag {
+    margin: 0 0 10px 34px;
+    padding: 8px 12px;
+    background: var(--flag-soft);
+    border-left: 3px solid var(--flag);
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--flag);
+  }
+  .row-actions {
+    margin: 2px 0 10px 34px;
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .entry:hover .row-actions, .entry:focus-within .row-actions { display: flex; }
+  .row-actions button {
+    font: 600 12.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 6px 11px;
+    cursor: pointer;
+  }
+  .row-actions button:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .row-actions .danger { color: var(--flag); }
+  .hint {
+    margin: 12px 4px 30px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .hint b { color: var(--ink); font-weight: 600; }
+  .confirm {
+    background: var(--panel);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .confirm div { flex: 1; min-width: 260px; }
+  .confirm h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .confirm p { font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+    flex: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+    .contents { padding: 6px 16px 4px; }
+    .entry { flex-wrap: wrap; }
+    .title { max-width: none; flex: 1; }
+    .leader { display: none; }
+    .meta { display: block; width: auto; }
+    .row-flag { flex-basis: 100%; margin-left: 0; }
+    .row-actions { display: flex; flex-basis: 100%; margin-left: 0; }
+    .entry:hover .row-actions { display: flex; }
+    .confirm { padding: 18px 16px; }
+    .cta { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Check the topic path</h1>
+    <p class="lede">Read it like the contents page of a textbook: what comes first, what it points at. <b>Nothing is scheduled yet</b>: a week is built on this list only after you confirm it.</p>
+
+    <section class="contents">
+      <div class="entry">
+        <span class="num">1</span><span class="title">Introduction to Hydrology</span><span class="leader"></span><span class="slides"><a href="#">slides 1–12</a></span><span class="meta">35 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">2</span><span class="title">Weather and Hydrology</span><span class="leader"></span><span class="slides"><a href="#">slides 13–24</a></span><span class="meta">40 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">3</span><span class="title">Precipitation</span><span class="leader"></span><span class="slides"><a href="#">slides 25–48</a></span><span class="meta">50 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">4</span><span class="title">Infiltration</span><span class="leader"></span><span class="slides"><a href="#">slides 49–66</a></span><span class="meta">45 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">5</span><span class="title">Evaporation</span><span class="leader"></span><span class="slides"><a href="#">slides 67–87</a></span><span class="meta">40 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">6</span><span class="title">Runoff</span><span class="leader"></span><span class="slides"><a href="#">slides 88–104</a></span><span class="meta">55 min</span>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+      <div class="entry">
+        <span class="num">7</span><span class="title flagged-title">Water balance?</span><span class="leader"></span><span class="slides"><a href="#">slides 105–109</a></span><span class="meta">30 min</span>
+        <p class="row-flag">Mentioned once, inside a question, not in a teaching slide. Check it, or remove it if it is not on the exam.</p>
+        <div class="row-actions"><button>Rename</button><button>Move</button><button>Split</button><button>Merge</button><button class="danger">Remove</button></div>
+      </div>
+    </section>
+
+    <p class="hint">Missing something the course teaches? <b>Add a topic</b> · Wrong throughout? <b>Work them out again</b> (throws away your edits) · Hover a row to edit it.</p>
+
+    <section class="confirm">
+      <div>
+        <h2>Confirm the path</h2>
+        <p>A week is built on these topics in this order. A wrong topic you fix now costs a minute; after the schedule exists, it costs a session.</p>
+      </div>
+      <button class="cta">Confirm, build my week</button>
+    </section>
+  </main>
+</body>
+</html>

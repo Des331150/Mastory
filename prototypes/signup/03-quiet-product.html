@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Create your account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;        /* progress green: only ever means "ahead of the work" */
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+    display: grid;
+    grid-template-columns: minmax(380px, 480px) 1fr;
+  }
+  .form-side {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 56px clamp(32px, 5vw, 72px);
+    border-right: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--ink);
+    text-decoration: none;
+    margin-bottom: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {          /* the tick of a kept session */
+    content: "";
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 3.6vw, 40px);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    margin-bottom: 12px;
+    text-wrap: balance;
+  }
+  .lede { color: var(--ink-soft); font-size: 16px; line-height: 1.55; max-width: 42ch; }
+  form { margin-top: 36px; display: grid; gap: 18px; max-width: 360px; }
+  .field { display: grid; gap: 6px; }
+  label { font-size: 14px; font-weight: 600; }
+  input {
+    font: 16px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 13px;
+    width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  input:focus-visible { outline: none; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 13px 20px;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .aside { margin-top: 16px; font-size: 13.5px; color: var(--ink-soft); }
+  .aside a { color: var(--green); font-weight: 600; }
+  .preview-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 56px clamp(24px, 4vw, 64px);
+  }
+  .week {
+    width: min(560px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 22px 22px 18px;
+  }
+  .week-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .week-head strong { font-family: "Gabarito", sans-serif; font-weight: 600; font-size: 17px; }
+  .week-head span { font-size: 13px; color: var(--ink-soft); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .day { border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px 10px; min-height: 86px; }
+  .day b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+  .task { font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+  .task small { display: block; color: var(--ink-soft); font-size: 11.5px; margin-top: 2px; }
+  .day.today { border-color: var(--green); background: var(--green-soft); }
+  .day.today b { color: var(--green); }
+  .day.off { background: transparent; border-style: dashed; }
+  .week-foot {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .week-foot b { color: var(--ink); font-weight: 600; }
+  .promise {
+    margin-top: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .promise .dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-top: 5px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; }
+    .preview-side { order: -1; padding: 28px 20px 0; }
+    .form-side { padding: 36px 24px 56px; }
+    .wordmark { margin-bottom: 24px; }
+    .week { transform: none; }
+  }
+</style>
+</head>
+<body>
+  <section class="form-side">
+    <a class="wordmark" href="#">Mastory</a>
+    <h1>Turn your slides into a week you can keep.</h1>
+    <p class="lede">Mastory schedules your topics around your exam date, quizzes you from your own material, and never pretends a missed day didn't happen.</p>
+    <form action="#" method="post">
+      <div class="field">
+        <label for="name">First name</label>
+        <input id="name" name="name" type="text" placeholder="Efua" autocomplete="given-name" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" placeholder="efua@st.ug.edu.gh" autocomplete="email" inputmode="email" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+      </div>
+      <button class="cta" type="submit">Create account</button>
+    </form>
+    <p class="aside">No card needed during beta. Already with us? <a href="#">Sign in</a></p>
+  </section>
+  <aside class="preview-side" aria-label="What a week with Mastory looks like">
+    <div class="week">
+      <div class="week-head"><strong>Week 4 · CHE 212</strong><span>3 of 4 sessions done</span></div>
+      <div class="grid">
+        <div class="day"><b>Mon</b><span class="task">Infiltration<small>40 min · quiz</small></span></div>
+        <div class="day today"><b>Tue</b><span class="task">Evaporation<small>40 min · quiz</small></span></div>
+        <div class="day"><b>Wed</b><span class="task">Runoff<small>50 min · quiz</small></span></div>
+        <div class="day"><b>Fri</b><span class="task">Hydrographs<small>45 min · quiz</small></span></div>
+        <div class="day off"><b>Sat</b><span class="task" style="color:var(--ink-soft)">Rest</span></div>
+      </div>
+      <div class="week-foot"><span>On this pace you finish <b>May 2</b>: 3 days before the exam.</span></div>
+      <div class="promise">
+        <span class="dot" aria-hidden="true"></span>
+        Built from your slides and your exam date. Miss a day and the week rebuilds itself, nothing gets squeezed.
+      </div>
+    </div>
+  </aside>
+</body>
+</html>

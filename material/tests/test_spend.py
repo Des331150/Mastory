@@ -167,11 +167,11 @@ class RecordedTestCase(SpendTestCase):
 
     def test_working_out_the_topic_path_is_written_down_as_the_calls_it_took(self) -> None:
         """Inference is the first thing a student causes the model to do, and it
-        is one call: reading a course in and guessing at its topics is a single
-        question, not one per slide."""
+        is one outline pass plus one content check per candidate topic: two
+        topics is three calls, and it is never one per slide."""
         row = self.rows(self.page(), "topics")[0]
 
-        self.assertEqual(attribute(row, "data-calls"), "1")
+        self.assertEqual(attribute(row, "data-calls"), "3")
         self.assertIn("Working out the topic path", row)
         self.assertGreater(int(attribute(row, "data-tokens")), 0)
 
@@ -339,7 +339,7 @@ class PricedTestCase(SpendTestCase):
             page = self.page()
         inferred = self.rows(page, "topics")[-1]
 
-        self.assertEqual(attribute(inferred, "data-calls"), "1")
+        self.assertEqual(attribute(inferred, "data-calls"), "2")
         self.assertEqual(attribute(inferred, "data-tokens"), "")
         self.assertEqual(attribute(inferred, "data-cost"), "")
         self.assertIn("did not report what its calls moved", page)

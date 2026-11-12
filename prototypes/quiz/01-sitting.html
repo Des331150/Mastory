@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Evaporation quiz · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 31px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .lede {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 60ch;
+    margin-bottom: 26px;
+  }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .shape {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 15px 18px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .shape b { color: var(--ink); font-weight: 600; }
+
+  .q {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px 16px;
+    margin-bottom: 10px;
+  }
+  .cite {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .cite a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .cite a:hover { text-decoration: underline; }
+  .q .prompt {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 16.5px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+  .choices { list-style: none; }
+  .choices label {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14.5px;
+    cursor: pointer;
+    margin-bottom: 6px;
+  }
+  .choices label:hover { border-color: var(--ink-soft); }
+  .choices input { accent-color: var(--green); }
+  .q input[type="text"] {
+    font: 15px "Hanken Grotesk", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  .q input[type="text"]:focus { outline: 2px solid var(--green-soft); border-color: var(--green); }
+
+  .actions {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .quiet-btn {
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .quiet-btn:hover { color: var(--ink); }
+  .actions .fine { flex-basis: 100%; font-size: 12.5px; color: var(--ink-soft); }
+
+  .foot {
+    margin-top: 30px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+  }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+    .actions .cta { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="kicker">TOPIC QUIZ · A CHECK, NOT A TEST</p>
+    <h1>Evaporation</h1>
+    <p class="lede">Every question here is written from one paragraph of your own material and <b>cites it</b>, so you can check it was not invented. Grading is multiple choice and short answer.</p>
+
+    <div class="shape">
+      <b>5 questions survived being checked</b> against the paragraphs they came from. 4 more were written and not shown: 3 failed the source check, 1 did not fit the limit. Nothing has been made up to fill the gap.
+    </div>
+
+    <form onsubmit="return false">
+      <section class="q">
+        <p class="cite">From weeks 1–6 deck, slide 68 · <a href="#">open that paragraph</a></p>
+        <p class="prompt">Vapour leaving a plant through its stomata is called ____</p>
+        <ul class="choices">
+          <li><label><input type="radio" name="q1" /> Evaporation</label></li>
+          <li><label><input type="radio" name="q1" checked /> Transpiration</label></li>
+          <li><label><input type="radio" name="q1" /> Infiltration</label></li>
+          <li><label><input type="radio" name="q1" /> Interception</label></li>
+        </ul>
+      </section>
+
+      <section class="q">
+        <p class="cite">From weeks 1–6 deck, slides 71–76 · <a href="#">open that paragraph</a></p>
+        <p class="prompt">The air just above a lake is close to saturation. All else equal, what happens to the rate of evaporation?</p>
+        <ul class="choices">
+          <li><label><input type="radio" name="q2" /> It increases, because the air holds more water</label></li>
+          <li><label><input type="radio" name="q2" /> It barely changes; only wind matters</label></li>
+          <li><label><input type="radio" name="q2" checked /> It slows, because the air can carry little more vapour</label></li>
+          <li><label><input type="radio" name="q2" /> It stops entirely</label></li>
+        </ul>
+      </section>
+
+      <section class="q">
+        <p class="cite">From weeks 1–6 deck, slide 78 · <a href="#">open that paragraph</a></p>
+        <p class="prompt">Why are pan readings corrected with a pan coefficient?</p>
+        <input type="text" placeholder="Your answer" aria-label="Your answer" />
+      </section>
+
+      <section class="q">
+        <p class="cite">From weeks 1–6 deck, slide 79 · <a href="#">open that paragraph</a></p>
+        <p class="prompt">A class-A pan records 7.2 mm in a day. Taking the pan coefficient as 0.75, what is the open-water evaporation for that day?</p>
+        <input type="text" placeholder="Your answer, in mm" aria-label="Your answer, in mm" />
+      </section>
+
+      <section class="q">
+        <p class="cite">From weeks 1–6 deck, slides 77–82 · <a href="#">open that paragraph</a></p>
+        <p class="prompt">Which of these does the deck list among the four most-examined factors controlling evaporation?</p>
+        <ul class="choices">
+          <li><label><input type="radio" name="q5" /> Air pressure</label></li>
+          <li><label><input type="radio" name="q5" checked /> Depth of the water body</label></li>
+          <li><label><input type="radio" name="q5" /> Colour of the pan</label></li>
+          <li><label><input type="radio" name="q5" /> Time of the reading</label></li>
+        </ul>
+      </section>
+
+      <div class="actions">
+        <button class="cta" type="submit">Mark my answers</button>
+        <button class="quiet-btn" type="button">Write different questions</button>
+        <p class="fine">Marking is instant and free. A retake is a new set of questions, written from the same paragraphs. The same questions twice would teach you the answer key, not the topic.</p>
+      </div>
+    </form>
+
+    <nav class="foot">
+      <a href="#">Back to your week</a>
+      <a href="#">Back to your material</a>
+    </nav>
+  </main>
+</body>
+</html>

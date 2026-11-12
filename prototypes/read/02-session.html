@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Today's session · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 900px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 34px clamp(20px, 4vw, 40px) 80px;
+  }
+  /* Session strip: what you sat down to do, and where in it you are */
+  .strip {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .strip .who {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--green);
+  }
+  .strip .progress { font-size: 13.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .bar {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    margin-bottom: 26px;
+  }
+  .bar i { display: block; height: 100%; width: 34%; background: var(--green); border-radius: 999px; }
+
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 3.4vw, 33px);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .src { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 24px; }
+  .src a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .src a:hover { text-decoration: underline; }
+
+  /* One section at a time: the page never scrolls past where you are */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: clamp(22px, 3.5vw, 40px) clamp(20px, 4vw, 44px);
+  }
+  .card .of {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .card h2 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 23px;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+  .card p { font-size: 15.5px; line-height: 1.65; max-width: 66ch; margin-bottom: 10px; }
+  .card ul { margin: 0 0 10px 22px; }
+  .card li { font-size: 15px; line-height: 1.6; margin-bottom: 5px; }
+  .card .note {
+    background: var(--bg);
+    border-left: 3px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin: 12px 0;
+  }
+  .card .note b { color: var(--ink); font-weight: 600; }
+
+  /* Turn nav: only ever two directions */
+  .turn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 22px 0 0;
+  }
+  .turn .ghost, .turn .next {
+    font: 600 14px "Hanken Grotesk", sans-serif;
+    border-radius: 8px;
+    padding: 11px 18px;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--ink-soft);
+  }
+  .turn .ghost:hover, .turn .next:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .turn .next {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15.5px;
+    color: #fff;
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .turn .next:hover { background: #0b6a4e; color: #fff; }
+  .turn .next::after { content: " →"; }
+
+  .away {
+    margin-top: 26px;
+    text-align: center;
+    font-size: 13.5px;
+  }
+  .away a { color: var(--ink-soft); text-decoration: none; }
+  .away a:hover { color: var(--ink); text-decoration: underline; }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 22px; }
+    .card { padding: 22px 18px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <div class="strip">
+      <span class="who">TODAY'S SESSION · EVAPORATION · 40 MIN</span>
+      <span class="progress">section 2 of 6</span>
+    </div>
+    <div class="bar"><i></i></div>
+
+    <h1>Factors controlling the rate</h1>
+    <p class="src">Slides 71–76 of your weeks 1–6 deck · <a href="#">open the original slide 71</a></p>
+
+    <section class="card">
+      <p>The rate depends on energy supply and on how easily vapour is carried away from the surface. The deck lists six factors; four are examined most often:</p>
+      <ul>
+        <li><b>Temperature</b>: more energy, more vapour.</li>
+        <li><b>Wind</b>: carries vapour away from the surface.</li>
+        <li><b>Humidity of the air above</b>: the closer to saturation, the slower.</li>
+        <li><b>Area and depth of the water body</b>: bigger and shallower evaporates faster.</li>
+      </ul>
+      <p>The remaining two, solar radiation and air pressure, appear in the derivation questions rather than the define-and-explain ones.</p>
+      <p class="note"><b>Worth knowing:</b> the 2021 paper asked "explain three factors", any three of these four were accepted, which is why the deck keeps them in one list.</p>
+
+      <div class="turn">
+        <a class="ghost" href="#">← Back</a>
+        <a class="next" href="#">Next: Measuring it</a>
+      </div>
+    </section>
+
+    <p class="away"><a href="#">Read the whole material instead, every section, any order</a></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Evaporation quiz · marked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 940px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 36px clamp(20px, 4vw, 40px) 80px;
+  }
+  .result {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+  }
+  .result h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(23px, 3vw, 28px);
+    margin-bottom: 12px;
+  }
+  .meter {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    max-width: 420px;
+    margin-bottom: 14px;
+  }
+  .meter i { display: block; height: 100%; width: 60%; background: var(--green); border-radius: 999px; }
+  .result p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 8px; }
+  .result p b { color: var(--ink); font-weight: 600; }
+  .result .two-numbers {
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+
+  .marked-q {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px 14px;
+    margin-bottom: 10px;
+  }
+  .marked-q.right { border-left: 4px solid var(--green); }
+  .marked-q.wrong { border-left: 4px solid var(--flag); }
+  .cite { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 7px; }
+  .cite a { color: var(--green); font-weight: 600; text-decoration: none; }
+  .cite a:hover { text-decoration: underline; }
+  .prompt { font-size: 15.5px; font-weight: 600; line-height: 1.45; margin-bottom: 9px; }
+  .mark {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .right .mark { color: var(--green); background: var(--green-soft); }
+  .wrong .mark { color: var(--flag); background: var(--flag-soft); }
+  .given { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  .expected { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+  .expected b { font-weight: 600; }
+
+  .again {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .again p { font-size: 13.5px; color: var(--ink-soft); flex: 1; min-width: 240px; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    text-decoration: none;
+    flex: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .ghost {
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    flex: none;
+  }
+  .ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+  @media (max-width: 680px) {
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 24px; }
+    .result { padding: 18px 16px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <section class="result">
+      <h1>You got 3 of 5 right</h1>
+      <div class="meter"><i></i></div>
+      <p>That is a failing sitting, and <b>it has still finished this topic</b>: you worked through it, so it is off your outstanding work either way. What you know about it is a different number, mastery, and it can go up from here.</p>
+      <p class="two-numbers">3 of those 3 right answers are worded the way the paragraph they came from words them. The other two questions were asking for the paragraph's words, which is what the "read that paragraph again" links are for.</p>
+    </section>
+
+    <section class="marked-q right">
+      <p class="cite">From weeks 1–6 deck, slide 68 · <a href="#">open that paragraph</a></p>
+      <p class="prompt">Vapour leaving a plant through its stomata is called ____</p>
+      <span class="mark">Right</span>
+      <p class="given">You chose: Transpiration</p>
+    </section>
+
+    <section class="marked-q wrong">
+      <p class="cite">From weeks 1–6 deck, slide 79 · <a href="#">read that paragraph again</a></p>
+      <p class="prompt">A class-A pan records 7.2 mm in a day. Taking the pan coefficient as 0.75, what is the open-water evaporation for that day?</p>
+      <span class="mark">Not this one</span>
+      <p class="given">You wrote: 7.95 mm</p>
+      <p class="expected"><b>What the paragraph says:</b> 7.2 × 0.75 = 5.4 mm. The coefficient shrinks the pan reading, because the pan loses water faster than the lake.</p>
+    </section>
+
+    <section class="marked-q right">
+      <p class="cite">From weeks 1–6 deck, slides 71–76 · <a href="#">open that paragraph</a></p>
+      <p class="prompt">The air just above a lake is close to saturation. All else equal, what happens to the rate of evaporation?</p>
+      <span class="mark">Right</span>
+      <p class="given">You chose: It slows, because the air can carry little more vapour</p>
+    </section>
+
+    <section class="marked-q wrong">
+      <p class="cite">From weeks 1–6 deck, slide 78 · <a href="#">read that paragraph again</a></p>
+      <p class="prompt">Why are pan readings corrected with a pan coefficient?</p>
+      <span class="mark">Not this one</span>
+      <p class="given">You left this blank.</p>
+      <p class="expected"><b>What the paragraph says:</b> because a pan is small and metal, it loses water faster than a real lake, so its reading overstates open-water evaporation.</p>
+    </section>
+
+    <section class="marked-q right">
+      <p class="cite">From weeks 1–6 deck, slides 77–82 · <a href="#">open that paragraph</a></p>
+      <p class="prompt">Which of these does the deck list among the four most-examined factors controlling evaporation?</p>
+      <span class="mark">Right</span>
+      <p class="given">You chose: Depth of the water body</p>
+    </section>
+
+    <div class="again">
+      <p>Mastery for this topic now sits at 43%, from two sittings: your best sitting, counted down once for every sitting since. A retake is a <b>new set</b> from the same paragraphs.</p>
+      <div style="display:flex; gap:10px; flex:none;">
+        <a class="cta" href="#">Try a new set</a>
+        <a class="ghost" href="#">Back to your week</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

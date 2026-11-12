@@ -487,8 +487,11 @@ class TodaysSessionTests(ScheduleTestCase):
         self.assertIn("No slides pointed at yet", html)
 
     def test_a_week_whose_dates_have_all_gone_offers_a_fresh_one(self) -> None:
-        self.set_availability(days=7, hours=6)
-        with a_week_of(date(2026, 11, 10)):
+        """The plan is built one week and read back in the next, so every date
+        on it has gone by the time the student opens the page again."""
+        with a_week_of(A_MONDAY):
+            self.set_availability(days=7, hours=6)
+        with a_week_of(A_MONDAY + timedelta(days=9)):  # the Wednesday after
             html = self.plan_page()
         self.assertIn("Every date on this plan has passed", html)
 

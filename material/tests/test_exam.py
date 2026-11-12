@@ -274,10 +274,24 @@ class WholeCourseTests(ExamTestCase):
         )
 
     def test_what_was_left_out_of_the_paper_is_said(self) -> None:
-        html = flat(self.paper())
-        dropped = self.the_exam().dropped
-        self.assertGreater(dropped, 0)
-        self.assertIn(f"{dropped} questions more were written and not shown", html)
+        """Everything the model wrote is either on the paper or counted in one
+        of the three ways it did not make it, rather than a quiet shortfall."""
+        model = QuizModel(FROM_THE_MATERIAL)
+        html = flat(self.paper(model))
+        written = model.written_for_paragraphs
+        self.assertGreater(written, MockQuestion.objects.count())
+        counts = re.search(
+            r"(\d+) questions? did not pass source verification; "
+            r"(\d+) more could not be grounded, marked, or checked within the "
+            r"verification budget; (\d+) passed verification but exceeded the "
+            r"2-per-topic limit",
+            html,
+        )
+        assert counts is not None
+        self.assertEqual(
+            written,
+            MockQuestion.objects.count() + sum(int(group) for group in counts.groups()),
+        )
 
 
 class BeforeSubmissionTests(ExamTestCase):
@@ -349,10 +363,9 @@ class PageOwnCopyTests(ExamTestCase):
         """An exam already sat is refused by the exam's rules, not failed by
         the model, and "press again" would be a sentence arguing with the
         refusal above it."""
-        with use_fake_model():
-            html = self.paper()
-            self.hand_in(html, self.right(html))
-            again = flat(self.client.post("/courses/1/exam/start/").content.decode())
+        html = self.paper()
+        self.hand_in(html, self.right(html))
+        again = flat(self.client.post("/courses/1/exam/start/").content.decode())
         self.assertIn("one attempt", again)
         self.assertNotIn("Press the button again", again)
 

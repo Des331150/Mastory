@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · Your week · Basic Hydrology (CHE 212)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 780px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px clamp(20px, 4vw, 40px) 72px;
+  }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(25px, 3.2vw, 32px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .mode-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .chip { font-size: 12px; font-weight: 600; color: var(--green); background: var(--green-soft); border-radius: 999px; padding: 3px 10px; }
+  .mode-line span { font-size: 14px; color: var(--ink-soft); }
+  /* The timetable: your study days as blocks, the way a department
+     timetable is drawn, sessions live on days, today is filled in. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .day {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 10px 12px;
+    min-height: 150px;
+  }
+  .day b {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+  }
+  .day small { display: block; font-size: 11px; color: var(--ink-soft); opacity: 0.8; margin-bottom: 8px; }
+  .slot {
+    display: block;
+    border-radius: 7px;
+    padding: 7px 8px;
+    font-size: 11.5px;
+    line-height: 1.35;
+    text-decoration: none;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    margin-bottom: 6px;
+  }
+  .slot small { display: block; color: var(--ink-soft); margin: 2px 0 0; }
+  .slot.done { background: var(--green-soft); border-color: transparent; }
+  .slot.done::before { content: "✓ "; color: var(--green); font-weight: 700; }
+  .day.today { border-color: var(--green); background: var(--green-soft); }
+  .day.today b { color: var(--green); }
+  .day.today .slot { background: var(--panel); border-color: var(--green); }
+  .day.off { border-style: dashed; background: transparent; }
+  .day.off span { color: var(--ink-soft); font-size: 11.5px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-soft); margin-bottom: 28px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .legend .g { background: var(--green); }
+  .legend .n { background: var(--line); }
+  .today-card {
+    background: var(--panel);
+    border: 1px solid var(--green);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 24px;
+  }
+  .today-card .label { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; color: var(--green); margin-bottom: 6px; }
+  .today-card h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 22px; margin-bottom: 4px; }
+  .today-card .sub { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cta {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+    background: var(--green);
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .cta:hover { background: #0b6a4e; }
+  .ghost {
+    font: 600 13.5px "Hanken Grotesk", sans-serif;
+    color: var(--ink-soft);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+  .finish { font-size: 14px; color: var(--ink-soft); }
+  .finish b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .day.today { order: -1; grid-column: span 2; }
+    .masthead { padding: 14px 16px; }
+    main { padding-top: 26px; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Basic Hydrology (CHE 212)</a>
+  </header>
+  <main>
+    <h1>Your week</h1>
+    <div class="mode-line">
+      <span class="chip">Exam mode</span>
+      <span>5 weeks to go · exam Fri 18 Dec · <b style="color:var(--ink)">3 of 4 sessions done this week</b></span>
+    </div>
+
+    <section class="grid" aria-label="This week's sessions">
+      <div class="day"><b>Mon</b><small>9 Nov</small>
+        <a class="slot done" href="#">Infiltration<small>45 min · done</small></a>
+      </div>
+      <div class="day"><b>Tue</b><small>10 Nov</small>
+        <a class="slot done" href="#">Runoff<small>55 min · done</small></a>
+      </div>
+      <div class="day today"><b>Wed</b><small>11 Nov · today</small>
+        <a class="slot" href="#">Evaporation<small>40 min · not yet</small></a>
+      </div>
+      <div class="day off"><b>Thu</b><small>12 Nov</small><span>not a study day</span></div>
+      <div class="day"><b>Fri</b><small>13 Nov</small>
+        <a class="slot" href="#">Hydrographs<small>45 min · not yet</small></a>
+      </div>
+      <div class="day off"><b>Sat</b><small>14 Nov</small><span>rest</span></div>
+      <div class="day off"><b>Sun</b><small>15 Nov</small><span>rest</span></div>
+    </section>
+
+    <div class="legend">
+      <span><i class="g"></i>done</span>
+      <span><i class="n"></i>waiting</span>
+      <span>Miss a day and the plan shifts. It never squeezes.</span>
+    </div>
+
+    <section class="today-card">
+      <p class="label">TODAY · WED 11 NOV</p>
+      <h2>Evaporation, 40 min</h2>
+      <p class="sub">Slides 67–87 · weeks 1–6 deck</p>
+      <div class="row">
+        <a class="cta" href="#">Start reading</a>
+        <button class="ghost">Mark done</button>
+        <button class="ghost">Skip today</button>
+      </div>
+    </section>
+
+    <p class="finish">On this pace you finish <b>10 Dec</b>: 8 days before the exam.</p>
+  </main>
+</body>
+</html>
