@@ -363,9 +363,13 @@ class RebuildingKeepsTheRecordTests(SessionLogTestCase):
         still waiting is what moves, and work already done is not moved, not
         hidden, and not thrown away by a plan that has run out of days.
         """
-        self.set_availability()
-        self.mark("Eigenvalues", "done")
-        self.mark("Eigenspaces", "done")
+        # The week is built and the work done one week before the rebuild, so
+        # the finished days are behind the student and the exam is genuinely
+        # two days out when the week is built again.
+        with a_week_of(A_MONDAY - timedelta(days=7)):
+            self.set_availability()
+            self.mark("Eigenvalues", "done")
+            self.mark("Eigenspaces", "done")
         with a_week_of(A_MONDAY):
             self.set_availability(days=1, hours=6, exam="2026-11-04")
             html = self.plan_page()

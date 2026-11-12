@@ -187,8 +187,10 @@ class GroundingTests(QuizTestCase):
 
         dropped = self.rewrite(QuizModel(FROM_THE_MATERIAL, verified=(200,)))
         self.assertEqual(len(self.blocks(dropped)), 0)
-        self.assertIn("written and not shown", flat(dropped))
-        dropped_count = re.search(r"(\d+) question\w* more", flat(dropped))
+        self.assertIn("did not pass source verification", flat(dropped))
+        dropped_count = re.search(
+            r"(\d+) questions? did not pass source verification", flat(dropped)
+        )
         assert dropped_count is not None
         self.assertGreater(int(dropped_count.group(1)), 0)
 
@@ -200,14 +202,26 @@ class GroundingTests(QuizTestCase):
 
     def test_a_question_written_past_the_limit_is_counted_as_left_out(self) -> None:
         """A topic whose paragraphs support more verified questions than a short
-        quiz holds gets four, and the page says the rest were written and not
-        shown rather than claiming nothing was left out."""
+        quiz holds gets four, and the page accounts for the rest rather than
+        claiming nothing was left out: everything the model wrote is either
+        shown or counted in one of the three ways it was not."""
         model = QuizModel(FROM_THE_MATERIAL)
         html = self.quiz(model)
         self.assertEqual(len(self.blocks(html)), 4)
         written = model.written_for_paragraphs
         self.assertGreater(written, 4)
-        self.assertIn(f"{written - 4} questions more were written and not shown", flat(html))
+        counts = re.search(
+            r"(\d+) questions? did not pass source verification; "
+            r"(\d+) more could not be grounded, marked, or checked within the "
+            r"verification budget; (\d+) passed verification but did not fit the "
+            r"short-quiz limit",
+            flat(html),
+        )
+        assert counts is not None
+        self.assertEqual(
+            written,
+            len(self.blocks(html)) + sum(int(group) for group in counts.groups()),
+        )
 
     def test_a_short_answer_the_paragraph_never_uses_is_dropped(self) -> None:
         """A model answering from outside the student's slides is refused before

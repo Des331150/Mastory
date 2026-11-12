@@ -495,18 +495,32 @@ class ModelRequestTests(TopicPathTestCase):
     """
 
     def test_the_model_is_handed_the_students_own_slides(self) -> None:
+        """The outline pass sees only their titles; the content check their text."""
         fake = RecordingModel(fake_topic("Eigenvalues", [2]))
         fake.use(self)
         self.client.post("/courses/1/topics/infer/")
+        outline_request = json.loads(fake.prompts[0])
+        self.assertEqual(
+            [slide["title"] for slide in outline_request["slides"]],
+            [
+                "MATH 201: Linear Algebra",
+                "Definition of an eigenvalue",
+                "Computing the characteristic polynomial",
+                "Eigenvectors and eigenspaces",
+                "Diagonalisation worked example",
+            ],
+        )
+        self.assertNotIn("text", outline_request["slides"][0])
         slides = fake.last_request["slides"]
-        self.assertEqual(len(slides), 5)
-        self.assertIn("eigenvalue", slides[1]["text"].lower())
+        self.assertEqual(len(slides), 1)
+        self.assertIn("eigenvalue", slides[0]["text"].lower())
 
     def test_a_deck_with_headings_hands_the_model_its_outline(self) -> None:
+        """The deck's own headings travel with the pass that is bounded by them."""
         fake = RecordingModel(fake_topic("Eigenvalues", [2]))
         fake.use(self)
         self.client.post("/courses/1/topics/infer/")
-        outline = fake.last_request["outline"]
+        outline = json.loads(fake.prompts[0])["outline"]
         self.assertTrue(outline["present"])
         self.assertEqual(
             [entry["heading"] for entry in outline["headings"]],
