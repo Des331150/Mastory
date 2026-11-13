@@ -765,3 +765,103 @@ main.front-door, .hero, .rest, .empty { max-width: 920px; margin-left: auto; mar
 .file-list li { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
 .file-list li:first-child { border-top: 0; }
 .file-list li .error { margin-left: auto; font-size: 13px; }
+
+/* The topic path as the locked checklist (topic-path/01): one card per
+   topic, the slide pointers one click away, the edit forms one more. */
+
+.topic-page { max-width: 780px; }
+.topic-page > h1 { font-size: clamp(24px, 3vw, 30px); margin-bottom: 6px; }
+.topic-page .lede { margin-bottom: 22px; }
+.topic-page .lede b { color: var(--ink); }
+
+.topic-list { padding-left: 0; list-style: none; margin: 0; }
+.topic-list .topic {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px 14px;
+  margin-bottom: 10px;
+}
+.topic-list .topic-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+}
+.topic-list .topic-head h2 {
+  font-weight: 600;
+  font-size: 17px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.topic-list .time {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.topic-list .grounding {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.topic-list .grounding a { font-weight: 600; text-decoration: none; }
+.topic-list .flag {
+  margin: 10px 0 0;
+  background: var(--flag-soft, #f7ecd9);
+  border-left: 3px solid var(--flag, #8a5a12);
+  border-radius: 0 8px 8px 0;
+  padding: 9px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--flag, #8a5a12);
+}
+.topic-list .topic-slides, .topic-list .topic-edit { margin: 8px 0 0; }
+.topic-list .topic-slides summary, .topic-list .topic-edit summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.topic-list .topic-slides summary:hover, .topic-list .topic-edit summary:hover { color: var(--ink); }
+.topic-list .slide-pointer-list { margin: 8px 0 0; font-size: 13.5px; }
+.topic-list .slide-pointer-list li { padding: 3px 0; }
+.topic-list .slide-pointer-list .muted { font-size: 12px; margin-left: 8px; }
+.topic-list .edit-forms { display: grid; gap: 12px; margin-top: 10px; }
+.topic-list .edit-forms form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.topic-list .edit-forms label { width: 100%; font-size: 13.5px; color: var(--ink-soft); }
+.topic-list .edit-forms input[type="text"] { flex: 1; min-width: 140px; }
+.topic-list .edit-forms select { padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); font: 14px "Hanken Grotesk", sans-serif; color: var(--ink); }
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 20px 0 26px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.toolbar a { color: var(--ink-soft); }
+.toolbar a:hover { color: var(--ink); }
+.topic-empty { margin: 0 0 22px; }
+
+.confirm {
+  background: var(--panel);
+  border: 1px solid var(--green);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  max-width: 780px;
+}
+.confirm h2 { font-weight: 700; font-size: 20px; margin-bottom: 6px; }
+.confirm p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; margin: 0 0 14px; }
+.topic-add h2, .topic-reset h2 { margin-top: 0; }
+.topic-add .stack label, .stack label { display: block; margin-bottom: 6px; }
+.topic-add .stack input { max-width: 420px; }
