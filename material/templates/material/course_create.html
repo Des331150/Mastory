@@ -1,10 +1,15 @@
 {% extends "material/base.html" %}
 
-{% block title %}Upload a course PDF{% endblock %}
+{% block title %}Start a course{% endblock %}
+
+{% block masthead_right %}
+<a class="crumb" href="{% url 'course-list' %}">← Back to your courses</a>
+{% endblock %}
 
 {% block content %}
-<section class="panel">
-  <h1>Upload a course PDF</h1>
-  {% include "material/_upload_form.html" %}
-</section>
+<div class="course-new">
+<h1>Start a course</h1>
+<p class="lede">Name it, drop the slides in. The week comes later, first we read what you gave us.</p>
+{% include "material/_upload_form.html" %}
+</div>
 {% endblock %}

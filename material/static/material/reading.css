@@ -660,7 +660,8 @@ main.front-door, .hero, .rest, .empty { max-width: 920px; margin-left: auto; mar
   font-size: clamp(26px, 3.4vw, 34px);
   margin: 16px 0 10px;
 }
-.lede { color: var(--ink-soft); font-size: 15.5px; line-height: 1.55; max-width: 44ch; margin: 0 auto; }
+.lede { color: var(--ink-soft); font-size: 15.5px; line-height: 1.55; max-width: 44ch; }
+.empty .lede { margin: 0 auto; }
 .steps {
   margin: 30px auto 0;
   max-width: 420px;
@@ -696,3 +697,71 @@ main.front-door, .hero, .rest, .empty { max-width: 920px; margin-left: auto; mar
   .session { flex-wrap: wrap; }
   .session .go { width: 100%; text-align: center; }
 }
+
+/* Starting a course: the locked quiet form (course-new/01). Name it, drop
+   the slides in, and say up front what each file will go through. */
+
+.back { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+.back:hover { color: var(--ink); }
+
+.course-new { max-width: 560px; margin: 0 auto; }
+.course-new h1 { font-size: clamp(26px, 3.4vw, 34px); margin-bottom: 6px; }
+.course-new .lede { margin-bottom: 22px; }
+
+.field { display: grid; gap: 6px; margin-bottom: 16px; }
+.field label { font-size: 14px; font-weight: 600; }
+.field label small { font-weight: 400; color: var(--ink-soft); }
+
+.drop {
+  display: block;
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+}
+.drop { position: relative; }
+.drop:hover { border-color: var(--green); background: var(--green-soft); }
+.drop:focus-within { outline: 2px solid var(--green); outline-offset: 3px; }
+.drop b { display: block; font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+.drop span { font-size: 13.5px; color: var(--ink-soft); }
+.drop input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.upload-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 18px 0 10px;
+}
+.upload-stages li { display: flex; align-items: center; gap: 7px; }
+.upload-stages i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  display: inline-block;
+}
+
+.fine { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.upload .fine { margin-bottom: 18px; }
+
+/* The course home panel (course-detail). A quiet index of what is in. */
+.file-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.file-list li { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.file-list li:first-child { border-top: 0; }
+.file-list li .error { margin-left: auto; font-size: 13px; }

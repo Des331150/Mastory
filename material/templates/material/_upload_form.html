@@ -4,18 +4,28 @@
       hx-post="{% url 'course-create' %}" hx-encoding="multipart/form-data"
       hx-swap="none">
   {% csrf_token %}
-  <label for="id_title">Course title</label>
-  <input id="id_title" type="text" name="title" placeholder="e.g. MATH 201 Linear Algebra" />
+  <div class="field">
+    <label for="id_title">Course title <small>optional, we can take it from the file name</small></label>
+    <input id="id_title" type="text" name="title" placeholder="e.g. MATH 201 Linear Algebra" />
+  </div>
 
-  <label for="id_files">Course PDFs</label>
-  <input id="id_files" type="file" name="files" accept="application/pdf" multiple required />
+  <div class="field">
+    <label for="id_files">Course PDFs <small>as many as you have. Decks from different weeks are fine</small></label>
+    <label class="drop" for="id_files">
+      <b>Choose PDFs or drag them here</b>
+      <span>One deck or a whole semester, 200-plus slides are welcome</span>
+      <input id="id_files" type="file" name="files" accept="application/pdf" multiple required />
+    </label>
+  </div>
+
+  <ol class="upload-stages" aria-label="What happens to each file">
+    <li><i></i>Reading pages</li>
+    <li><i></i>Converting</li>
+    <li><i></i>Verifying</li>
+  </ol>
+  <p class="fine">Each file goes through these three stages in turn. A file that
+    cannot be read says so and leaves the others alone. Reading is metered, so
+    re-uploading is re-paying. Check the list once before you start.</p>
 
   <button type="submit">Upload and read</button>
-  <ol class="upload-stages" aria-label="What happens to each file">
-    <li>Reading pages</li>
-    <li>Converting</li>
-    <li>Verifying</li>
-  </ol>
-  <p class="muted small">Each file goes through these three stages in turn. A file that
-    cannot be read says so and leaves the others alone.</p>
 </form>

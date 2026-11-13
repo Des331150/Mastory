@@ -2,7 +2,12 @@
 
 {% block title %}{{ course.title }}{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'course-list' %}">← Your courses</a>
+{% endblock %}
+
 {% block content %}
+<div class="course-home">
 <section class="panel">
   <h1>{{ course.title }}</h1>
   <p><a class="cta" href="{% url 'course-read' course.pk %}">Read the material</a></p>
@@ -25,4 +30,5 @@
     {% endfor %}
   </ul>
 </section>
+</div>
 {% endblock %}

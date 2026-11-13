@@ -175,8 +175,14 @@ def course_list(request: HttpRequest) -> HttpResponse:
     )
 
 
-@require_POST
 def course_create(request: HttpRequest) -> HttpResponse:
+    """The locked quiet form: name it, drop the slides in.
+
+    A GET is the empty form the masthead's "+ New course" promises; a POST
+    without files is the same form saying what it needs.
+    """
+    if request.method == "GET":
+        return render(request, "material/course_create.html", {})
     uploads = request.FILES.getlist("files")
     if not uploads:
         return render(
