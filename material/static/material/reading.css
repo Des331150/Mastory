@@ -865,3 +865,172 @@ main.front-door, .hero, .rest, .empty { max-width: 920px; margin-left: auto; mar
 .topic-add h2, .topic-reset h2 { margin-top: 0; }
 .topic-add .stack label, .stack label { display: block; margin-bottom: 6px; }
 .topic-add .stack input { max-width: 420px; }
+
+/* The week as the locked timeline (plan/01-timeline + plan/03-behind): a mode
+   line under the title, one green card to start from today, and every session
+   as a dated row with its state said plainly. Behind reads as the honest date,
+   amber, never as an alarm. */
+:root { --honest: #8a5a12; --honest-soft: #f7ecd9; }
+
+.plan-page { max-width: 700px; margin: 0 auto; }
+.plan-page > h1 { font-weight: 700; font-size: clamp(25px, 3.2vw, 32px); letter-spacing: -0.01em; margin: 0 0 6px; }
+.plan-empty { margin: 0 0 22px; }
+
+.mode-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 20px; }
+.mode-line .chip {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.mode-line .chip.open { color: var(--ink-soft); background: var(--ground); border: 1px solid var(--line); }
+.mode-line .countdown { font-size: 14px; color: var(--ink-soft); }
+
+.completion { margin-bottom: 26px; }
+.completion-line { margin: 0 0 8px; font-size: 14px; }
+.completion-line b { font-weight: 600; }
+.completion-line span { color: var(--ink-soft); }
+.meter { height: 6px; max-width: 420px; background: var(--panel); border: 1px solid var(--line); }
+.meter .meter-fill { background: var(--green); border-radius: 999px; }
+
+.panel.next-session { border: 1px solid var(--green); border-radius: 14px; padding: 22px 24px; margin-bottom: 26px; }
+.next-session .next-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--green);
+  text-transform: none;
+}
+.next-session h2 { font-weight: 700; font-size: 24px; margin: 0 0 4px; }
+.next-session .sub { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-soft); }
+.today-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 8px; }
+.next-session .session-actions { margin: 0; }
+
+.week-panel { margin-bottom: 20px; }
+.week-panel h2 { margin: 0 0 2px; font-size: 20px; }
+.wk-sub { margin: 0 0 12px; }
+.plan-page .week { margin: 0; }
+.plan-page .session {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin: 0 0 8px;
+}
+.plan-page .session-when {
+  flex: none;
+  width: 78px;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.plan-page .session .tick {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="black" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 15px no-repeat;
+          mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="black" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / 15px no-repeat;
+}
+.plan-page .session .what { flex: 1; min-width: 140px; }
+.plan-page .session-topic { margin: 0; font-size: 14.5px; font-weight: 600; }
+.plan-page .session-length { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+.plan-page .session-state {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.plan-page .session-state[data-state="done"] { color: var(--green); background: var(--green-soft); border-color: transparent; }
+.plan-page .session-link { grid-column: auto; font-size: 12.5px; color: var(--ink-soft); text-decoration: none; }
+.plan-page .session-link:hover { color: var(--ink); }
+.plan-page .session-actions { grid-column: auto; margin: 0 0 0 auto; }
+
+/* The honest panel: not an alarm, a fact with a price tag on it. */
+.panel.behind { border-left: 4px solid var(--honest); margin-bottom: 26px; }
+.behind h2 { font-weight: 700; font-size: 20px; margin: 0 0 8px; }
+.behind .behind-line { margin: 0 0 10px; font-size: 15.5px; line-height: 1.5; }
+.behind .behind-line strong {
+  font-family: "Gabarito", sans-serif;
+  font-weight: 700;
+  color: var(--honest);
+}
+.cuts { margin-top: 16px; }
+.cuts h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-soft); }
+.plan-page .cut-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.plan-page .cut-option .what { flex: 1; min-width: 220px; }
+.plan-page .cut-topic { margin: 0; font-size: 14.5px; font-weight: 600; }
+.plan-page .cut-cost { margin: 0; grid-column: auto; font-size: 13px; color: var(--ink-soft); }
+.plan-page .cut-option form { grid-column: auto; flex: none; }
+.cut-option button.quiet {
+  font: 600 13px "Hanken Grotesk", sans-serif;
+  color: var(--honest);
+  background: var(--honest-soft);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 8px 13px;
+}
+.cut-option button.quiet:hover { background: var(--honest-soft); border-color: var(--honest); }
+
+details.settings {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 30px;
+}
+details.settings summary { font-weight: 600; font-size: 15.5px; cursor: pointer; }
+.settings-note { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin: 10px 0 14px; }
+.settings-fields { display: grid; gap: 12px; max-width: 380px; }
+.settings-fields label { font-size: 13px; font-weight: 600; }
+
+.foot {
+  margin-top: 26px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.foot a { color: var(--ink-soft); }
+.foot a:hover { color: var(--ink); }
+
+/* The schedule gate pages: the quiet form's two states. */
+.schedule-gate { max-width: 700px; margin: 0 auto; }
+.schedule-gate > h1 { font-weight: 700; font-size: clamp(25px, 3.2vw, 32px); margin: 0 0 6px; }
+.schedule-gate .lede { margin-bottom: 22px; }
+
+/* The week stacks its roomier grids on a phone rather than squeezing them. */
+@media (max-width: 680px) {
+  .mode-line .countdown { flex: 1 1 220px; min-width: 0; }
+  .plan-page .session { align-items: flex-start; }
+  .plan-page .session-actions { margin: 0; }
+  .standing-row { grid-template-columns: 1fr; gap: 2px; }
+  .plan-page .cut-option { align-items: flex-start; }
+}
