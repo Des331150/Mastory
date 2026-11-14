@@ -1034,3 +1034,108 @@ details.settings summary { font-weight: 600; font-size: 15.5px; cursor: pointer;
   .standing-row { grid-template-columns: 1fr; gap: 2px; }
   .plan-page .cut-option { align-items: flex-start; }
 }
+
+/* Reading as the locked quiet reader (read/01 + read/03): the index left,
+   the material right, and the honest conversion states said up front. */
+.reader { grid-template-columns: 248px minmax(0, 1fr); gap: 44px; max-width: 1120px; align-items: start; }
+.index { position: sticky; top: 24px; align-self: start; }
+.index h2 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  margin: 22px 0 8px;
+}
+.index .doc-name { font-weight: 600; font-size: 13.5px; margin: 14px 0 6px; }
+.index ol { list-style: none; margin: 0; padding: 0; }
+.index li a {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-left: 2px solid transparent;
+  border-radius: 0 6px 6px 0;
+}
+.index li a:hover { color: var(--ink); background: var(--panel); }
+.index li.no-match { opacity: 0.55; }
+
+.reading { background: transparent; border: 0; border-radius: 0; padding: 0; min-width: 0; }
+.reading-head { border-bottom: 0; padding-bottom: 0; margin-bottom: 18px; }
+.reading-head h1 { font-weight: 700; font-size: clamp(25px, 3.2vw, 31px); letter-spacing: -0.01em; margin: 0 0 8px; }
+.reading-head .src { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+.reading-head .src a { color: var(--green); font-weight: 600; text-decoration: none; }
+.reading-head .src a:hover { text-decoration: underline; }
+
+/* The honest conversion states, folded in from the material screen. */
+.converted {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.converted .stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: transparent;
+  border-radius: 0;
+  font-size: 13.5px;
+}
+.converted .stage { color: var(--ink-soft); }
+.converted .stage.failed { color: var(--flag, #8a5a12); }
+.converted .fine { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.reader .failure {
+  background: var(--flag-soft, #f7ecd9);
+  border: 1px solid var(--flag, #8a5a12);
+  color: var(--flag, #8a5a12);
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.reader .failure b { font-weight: 700; }
+
+.search-line { font-size: 14px; color: var(--ink-soft); margin: 0 0 14px; }
+.search-line b { color: var(--ink); font-weight: 600; }
+
+.doc {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: clamp(22px, 3.5vw, 44px) clamp(20px, 4vw, 48px);
+  margin: 0 0 26px;
+}
+.slide { padding: 26px 0; border-top: 1px solid var(--line); }
+.slide:first-of-type { border-top: 0; padding-top: 0; }
+.slide .where { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 10px; }
+.slide .where a { color: var(--green); font-weight: 600; text-decoration: none; }
+.slide .where a:hover { text-decoration: underline; }
+.slide h2 {
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+.slide p { font-size: 15.5px; line-height: 1.65; max-width: 66ch; }
+.slide.dimmed { opacity: 0.32; }
+/* The section's own h2 already says the slide's name; the markdown's first
+   heading is that same line again, so it yields. The first block is only
+   hidden when it *is* a heading, which is exactly when the title came from it. */
+.slide > .span:first-of-type > :is(h1, h2, h3, h4, h5, h6),
+.slide > .block:first-of-type > :is(h1, h2, h3, h4, h5, h6) { display: none; }
+
+@media (max-width: 860px) {
+  .reader { grid-template-columns: 1fr; gap: 24px; }
+  .index { position: static; display: none; }
+  .index.open { display: block; }
+}

@@ -1,20 +1,24 @@
 {% extends "material/base.html" %}
 {% block title %}{{ course.title }}: reading{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'plan' course.pk %}">← Your week</a>
+{% endblock %}
+
 {% block content %}
 <div class="reader" x-data="{ navOpen: false }">
-  <aside class="reader-sidebar" :class="navOpen && 'open'">
+  <aside class="index" :class="navOpen && 'open'">
     <form class="search" method="get" action="{% url 'course-read' course.pk %}">
       <label class="visually-hidden" for="id_q">Search this material</label>
       <input id="id_q" type="search" name="q" value="{{ query }}"
              placeholder="Search this material" />
-      <button type="submit">Search</button>
+      <button type="submit" class="visually-hidden">Search</button>
     </form>
 
-    <nav class="index">
+    <nav class="page-index">
       <h2>On this page</h2>
       {% for document in documents %}
-        <p class="index-file">
+        <p class="doc-name">
           <a href="{% url 'source-original' course.pk document.source_file.pk %}"
              >{{ document.source_file.original_name }}</a>
         </p>
@@ -29,35 +33,36 @@
     </nav>
   </aside>
 
-  <article class="reading">
+  <main class="reading">
     <header class="reading-head">
       <button class="nav-toggle" type="button" @click="navOpen = !navOpen">Sections</button>
       <h1>{{ course.title }}</h1>
-      <p class="muted">
+      <p class="src">
         Converted from your PDF.
         {% for document in documents %}
           <a href="{% url 'source-original' course.pk document.source_file.pk %}"
              >View the original {{ document.source_file.original_name }}</a>{% if not forloop.last %} ·{% endif %}
         {% endfor %}
       </p>
-      <p class="muted">
-        <a href="{% url 'topic-path' course.pk %}">Your topic path</a> &middot;
+      <p class="src">
+        <a href="{% url 'topic-path' course.pk %}">Your topic path</a> ·
         <a href="{% url 'plan' course.pk %}">Your week</a>
       </p>
     </header>
 
     {% for failed in failures %}
-      <p class="error failure" role="alert">
-        {{ failed.source_file.original_name }} could not be converted.
+      <p class="failed error" role="alert">
+        <b>{{ failed.source_file.original_name }} could not be converted.</b>
         {{ failed.source_file.failure_reason }}
         {{ failed.source_file.failure_advice }}
       </p>
     {% endfor %}
 
     {% if query %}
-      <p class="search-summary" role="status">
+      <p class="search-line" role="status">
         {% if matching %}
-          {{ matching|length }} section{{ matching|length|pluralize }} match &ldquo;{{ query }}&rdquo;
+          <b>{{ matching|length }} section{{ matching|length|pluralize }} match &ldquo;{{ query }}&rdquo;</b>:
+          the rest are dimmed below, not hidden.
         {% else %}
           No sections match &ldquo;{{ query }}&rdquo;
         {% endif %}
@@ -65,20 +70,26 @@
     {% endif %}
 
     {% for document in documents %}
-      <div class="document">
+      <div class="converted">
         <ol class="stages">
           {% for stage in document.stages %}
             <li class="stage {{ stage.outcome }}">{{ stage.label }}: {{ stage.detail }}</li>
           {% endfor %}
         </ol>
+        <p class="fine">Re-uploading a file is re-paying for its conversion, so check this
+          list before you upload again.</p>
+      </div>
+
+      <article class="doc">
         {% for section in document.sections %}
           <section id="{{ section.anchor }}" class="slide{% if query and not section.matched %} dimmed{% endif %}">
+            <p class="where">Slide {{ section.number }}</p>
             <h2>{{ section.title }}</h2>
             {{ section.html|safe }}
           </section>
         {% endfor %}
-      </div>
+      </article>
     {% endfor %}
-  </article>
+  </main>
 </div>
 {% endblock %}
