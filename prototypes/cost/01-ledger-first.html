@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · what this course has cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 880px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px clamp(20px, 4vw, 40px) 64px;
+  }
+  .course { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 29px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .lede { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 18px; max-width: 62ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px 26px;
+    margin-bottom: 14px;
+  }
+  .panel h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 4px; }
+
+  /* The ledger, leading: what it cost, then the work that cost it. */
+  .headline { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; margin: 8px 0 14px; }
+  .headline .big {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 52px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .headline .side { font-size: 13.5px; color: var(--ink-soft); line-height: 1.6; }
+  .headline .side b { color: var(--ink); font-weight: 600; }
+
+  .spend { margin: 0; padding: 0 0 0 20px; list-style: none; border-left: 2px solid var(--line); }
+  .spend-row { position: relative; padding: 9px 0 9px 14px; }
+  .spend-row::before {
+    content: "";
+    position: absolute;
+    left: -25px;
+    top: 16px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+  .spend-row[data-kind="topics"]::before,
+  .spend-row[data-kind="quiz"]::before,
+  .spend-row[data-kind="exam"]::before { background: var(--green); }
+  .spend-what { font-weight: 600; font-size: 14px; }
+  .spend-detail { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .framing {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .framing b { color: var(--ink); font-weight: 600; }
+
+  /* The share of the course got through. */
+  .metric-grid { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; margin: 10px 0 2px; }
+  .metric-figure { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 44px; line-height: 1; }
+  .metric-grid p:last-child { flex: 1; min-width: 240px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
+  .meter { height: 6px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; margin: 10px 0 6px; }
+  .meter i { display: block; height: 100%; width: 50%; background: var(--green); border-radius: 999px; }
+
+  /* The claim, both sides counted. */
+  .arms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 10px; }
+  .arm-row { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  .arm-row[data-side="went-back"] { border-color: var(--green); background: var(--green-soft); }
+  .arm-name { font-weight: 600; font-size: 13.5px; }
+  .arm-detail { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .correlation-refusal { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .correlation-note { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+
+  .foot { margin-top: 22px; font-size: 13px; color: var(--ink-soft); display: flex; gap: 18px; flex-wrap: wrap; }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .headline .big { font-size: 42px; }
+    .arms { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="course">Basic Hydrology (CHE 212)</p>
+    <h1>What serving this course has cost</h1>
+    <p class="lede">Two readings of the same record: <b>what it cost</b> and <b>how much of the course you have got through</b>. Neither was asked of you; both were kept as they happened.</p>
+
+    <section class="panel ledger"
+             data-calls="9" data-seconds="195.810" data-tokens="19058" data-cost="0.038116">
+      <h2>Everything this course has caused</h2>
+      <div class="headline">
+        <p class="big">$0.038116</p>
+        <p class="side"><b>9 model calls</b> · 195.81 seconds · 19,058 tokens moved, since you uploaded this course.</p>
+      </div>
+      <ul class="spend">
+        <li class="spend-row" data-kind="ingest" data-calls="0" data-seconds="12.400" data-tokens="0" data-cost="0.000000">
+          <p class="spend-what">Reading material in: math-201-eigenvalues.pdf</p>
+          <p class="spend-detail">0 calls, 12.40 seconds, 0 tokens, $0.000000</p>
+        </li>
+        <li class="spend-row" data-kind="ingest" data-calls="0" data-seconds="9.860" data-tokens="0" data-cost="0.000000">
+          <p class="spend-what">Reading material in: bio-110-membrane-transport.pdf</p>
+          <p class="spend-detail">0 calls, 9.86 seconds, 0 tokens, $0.000000</p>
+        </li>
+        <li class="spend-row" data-kind="topics" data-calls="3" data-seconds="46.210" data-tokens="4213" data-cost="0.008426">
+          <p class="spend-what">Working out the topic path</p>
+          <p class="spend-detail">3 calls, 46.21 seconds, 4,213 tokens, $0.008426</p>
+        </li>
+        <li class="spend-row" data-kind="quiz" data-calls="2" data-seconds="31.840" data-tokens="2904" data-cost="0.005808">
+          <p class="spend-what">Writing a topic quiz: Eigenvalues</p>
+          <p class="spend-detail">2 calls, 31.84 seconds, 2,904 tokens, $0.005808</p>
+        </li>
+        <li class="spend-row" data-kind="quiz" data-calls="2" data-seconds="29.620" data-tokens="2761" data-cost="0.005522">
+          <p class="spend-what">Writing a topic quiz: Eigenspaces</p>
+          <p class="spend-detail">2 calls, 29.62 seconds, 2,761 tokens, $0.005522</p>
+        </li>
+        <li class="spend-row" data-kind="exam" data-calls="2" data-seconds="88.140" data-tokens="9180" data-cost="0.018360">
+          <p class="spend-what">Writing the mock exam</p>
+          <p class="spend-detail">2 calls, 88.14 seconds, 9,180 tokens, $0.018360</p>
+        </li>
+      </ul>
+      <p class="framing">
+        <b>Nothing on this page was written before you asked for it.</b> A quiz is
+        written when you open one, once; opening it again costs nothing and adds
+        no row here, and asking for different questions writes the next one.
+      </p>
+    </section>
+
+    <section class="panel metric readable"
+             data-metric="50" data-crossed="2" data-weighed="2" data-total="4">
+      <h2>How much of this course you have got through</h2>
+      <div class="metric-grid">
+        <p class="metric-figure">50%</p>
+        <p>2 of this course's 4 topics are over the four in five mastery line. Each figure rests on one sitting, so it is one guess.</p>
+      </div>
+      <div class="meter"><i></i></div>
+      <p class="framing">
+        This is worked out from the quizzes you have sat. Nobody is asked how the
+        course is going, and nobody has to fill anything in. A topic you have cut
+        off your week is still on the exam, so it is still counted here.
+      </p>
+    </section>
+
+    <section class="panel correlation refused" data-comparable="no">
+      <h2>Whether going back to what you failed works</h2>
+      <p class="lede" style="margin-bottom: 0;">The claim this product is built on: students who go back to a quiz they failed do better on the mock exam. Both sides are counted here, from sittings and mock scores, and nothing is asked.</p>
+      <div class="arms">
+        <div class="arm-row" data-side="went-back" data-students="1" data-mocks="1" data-mean="50">
+          <p class="arm-name">Went back to a failed quiz</p>
+          <p class="arm-detail">1 student, 1 mock sat, 50% on average</p>
+        </div>
+        <div class="arm-row" data-side="carried-on" data-students="0" data-mocks="0" data-mean="">
+          <p class="arm-name">Sat once and carried on</p>
+          <p class="arm-detail">0 students, 0 mocks sat</p>
+        </div>
+      </div>
+      <p class="correlation-refusal" role="status">Nobody who has never been back to a failed quiz has sat the mock yet, so the two sides do not have a mock score each to put beside each other.</p>
+    </section>
+
+    <nav class="foot">
+      <a href="#">Your readiness report</a>
+      <a href="#">Back to your week</a>
+    </nav>
+  </main>
+</body>
+</html>
