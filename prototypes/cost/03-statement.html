@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · what this course has cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 880px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px clamp(20px, 4vw, 40px) 64px;
+  }
+  .course { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 29px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .lede { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 18px; max-width: 62ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px 26px;
+    margin-bottom: 14px;
+  }
+  .panel h2 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 2px; }
+
+  /* The statement: headline numbers in a row, then the itemised rows. */
+  .headline { display: flex; gap: 0; margin: 12px 0 4px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .headline div { flex: 1; padding: 14px 18px; }
+  .headline div + div { border-left: 1px solid var(--line); }
+  .headline span { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px; }
+  .headline b { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .headline .prime b { font-size: 34px; color: var(--ink); }
+
+  table.items { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .items th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 0 10px 7px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .items td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+  .items tr:last-child td { border-bottom: 0; }
+  .items .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .items td.what { font-weight: 600; }
+  .items td.kindcell { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+  .items tr[data-kind="quiz"] td.kindcell, .items tr[data-kind="exam"] td.kindcell, .items tr[data-kind="topics"] td.kindcell { color: var(--green); }
+  .items td.num b { color: var(--ink); font-weight: 600; }
+  .framing {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .framing b { color: var(--ink); font-weight: 600; }
+
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .duo .panel { margin-bottom: 0; }
+  .metric-figure { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 40px; line-height: 1; }
+  .metric p.shown { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin: 8px 0 0; }
+  .meter { height: 6px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; margin: 10px 0 4px; }
+  .meter i { display: block; height: 100%; width: 50%; background: var(--green); border-radius: 999px; }
+  .correlation-refusal { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 8px; }
+  .correlation-note { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 8px; }
+  .arm-detail { font-size: 12.5px; color: var(--ink-soft); padding: 7px 0; border-top: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  .arm-detail:first-of-type { border-top: 0; }
+  .arm-name { font-weight: 600; font-size: 13px; padding-top: 8px; }
+
+  .foot { margin-top: 22px; font-size: 13px; color: var(--ink-soft); display: flex; gap: 18px; flex-wrap: wrap; }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 680px) {
+    .headline { flex-wrap: wrap; }
+    .headline div { flex: 1 1 40%; }
+    .duo { grid-template-columns: 1fr; }
+    .items th:nth-child(3), .items td.num.tokens { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="course">Basic Hydrology (CHE 212)</p>
+    <h1>What serving this course has cost</h1>
+    <p class="lede">The statement and the reading: <b>what serving you cost</b>, itemised, and <b>how much of the course you have got through</b>. Both are read off records this product kept as it went; nobody was asked anything.</p>
+
+    <section class="panel ledger"
+             data-calls="9" data-seconds="195.810" data-tokens="19058" data-cost="0.038116">
+      <h2>Everything this course has caused</h2>
+      <div class="headline">
+        <div class="prime"><span>Cost</span><b>$0.038116</b></div>
+        <div><span>Calls</span><b>9</b></div>
+        <div><span>Tokens</span><b>19,058</b></div>
+        <div><span>Seconds</span><b>195.81</b></div>
+      </div>
+      <table class="items">
+        <thead>
+          <tr><th>Work</th><th>What</th><th class="num">Calls</th><th class="num">Seconds</th><th class="num tokens">Tokens</th><th class="num">Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr class="spend-row" data-kind="ingest" data-calls="0" data-seconds="12.400" data-tokens="0" data-cost="0.000000">
+            <td class="kindcell">Read in</td>
+            <td class="what">math-201-eigenvalues.pdf</td>
+            <td class="num">0</td><td class="num">12.40</td><td class="num tokens">0</td><td class="num">$0.000000</td>
+          </tr>
+          <tr class="spend-row" data-kind="ingest" data-calls="0" data-seconds="9.860" data-tokens="0" data-cost="0.000000">
+            <td class="kindcell">Read in</td>
+            <td class="what">bio-110-membrane-transport.pdf</td>
+            <td class="num">0</td><td class="num">9.86</td><td class="num tokens">0</td><td class="num">$0.000000</td>
+          </tr>
+          <tr class="spend-row" data-kind="topics" data-calls="3" data-seconds="46.210" data-tokens="4213" data-cost="0.008426">
+            <td class="kindcell">Topics</td>
+            <td class="what">Working out the topic path</td>
+            <td class="num">3</td><td class="num">46.21</td><td class="num tokens">4,213</td><td class="num">$0.008426</td>
+          </tr>
+          <tr class="spend-row" data-kind="quiz" data-calls="2" data-seconds="31.840" data-tokens="2904" data-cost="0.005808">
+            <td class="kindcell">Quiz</td>
+            <td class="what">Eigenvalues</td>
+            <td class="num">2</td><td class="num">31.84</td><td class="num tokens">2,904</td><td class="num">$0.005808</td>
+          </tr>
+          <tr class="spend-row" data-kind="quiz" data-calls="2" data-seconds="29.620" data-tokens="2761" data-cost="0.005522">
+            <td class="kindcell">Quiz</td>
+            <td class="what">Eigenspaces</td>
+            <td class="num">2</td><td class="num">29.62</td><td class="num tokens">2,761</td><td class="num">$0.005522</td>
+          </tr>
+          <tr class="spend-row" data-kind="exam" data-calls="2" data-seconds="88.140" data-tokens="9180" data-cost="0.018360">
+            <td class="kindcell">Exam</td>
+            <td class="what">The mock exam</td>
+            <td class="num">2</td><td class="num">88.14</td><td class="num tokens">9,180</td><td class="num"><b>$0.018360</b></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="framing">
+        <b>Nothing on this page was written before you asked for it.</b> A quiz is
+        written when you open one, once; opening it again costs nothing and adds
+        no row here, and asking for different questions writes the next one.
+      </p>
+    </section>
+
+    <div class="duo">
+      <section class="panel metric readable" data-metric="50" data-crossed="2" data-weighed="2" data-total="4">
+        <h2>How far you have got</h2>
+        <p class="metric-figure">50%</p>
+        <p class="shown">2 of this course's 4 topics are over the four in five mastery line. Each figure rests on one sitting, so it is one guess. A topic you have cut off your week is still on the exam, so it is still counted here.</p>
+        <div class="meter"><i></i></div>
+      </section>
+
+      <section class="panel correlation refused" data-comparable="no">
+        <h2>Whether going back works</h2>
+        <p class="arm-name">Went back to a failed quiz</p>
+        <p class="arm-detail" data-side="went-back" data-students="1" data-mocks="1" data-mean="50">1 student, 1 mock sat, 50% on average</p>
+        <p class="arm-name">Sat once and carried on</p>
+        <p class="arm-detail" data-side="carried-on" data-students="0" data-mocks="0" data-mean="">0 students, 0 mocks sat</p>
+        <p class="correlation-refusal" role="status">Nobody who has never been back to a failed quiz has sat the mock yet, so the two sides do not have a mock score each to put beside each other.</p>
+      </section>
+    </div>
+
+    <nav class="foot">
+      <a href="#">Your readiness report</a>
+      <a href="#">Back to your week</a>
+    </nav>
+  </main>
+</body>
+</html>

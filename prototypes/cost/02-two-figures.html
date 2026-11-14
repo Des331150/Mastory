@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mastory · what this course has cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f2f5f1;
+    --ink: #17281f;
+    --ink-soft: #5d6f63;
+    --line: #dbe2da;
+    --green: #0e7c5b;
+    --green-soft: #e2efe8;
+    --panel: #ffffff;
+    --flag: #8a5a12;
+    --flag-soft: #f6ecd9;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 880px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 4vw, 48px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .wordmark::before {
+    content: "";
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--green);
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') center / contain no-repeat;
+  }
+  .crumb { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  .crumb:hover { color: var(--ink); }
+
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px clamp(20px, 4vw, 40px) 64px;
+  }
+  .course { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+  h1 {
+    font-family: "Gabarito", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 29px);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .lede { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 18px; max-width: 62ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 28px 22px;
+  }
+  .card .grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 30px; }
+
+  .figure-label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+  .figure strong { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 46px; letter-spacing: -0.02em; line-height: 1; display: block; }
+  .figure small { font-size: 13px; color: var(--ink-soft); display: block; margin-top: 6px; line-height: 1.5; }
+  .minis { margin: 14px 0 0; }
+  .minis div { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+  .minis div:first-child { border-top: 0; }
+  .minis span { color: var(--ink-soft); }
+  .minis b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .framing {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .framing b { color: var(--ink); font-weight: 600; }
+
+  .block h3 { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .block + .block { margin-top: 20px; }
+  .note { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; line-height: 1.5; max-width: 58ch; }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  .spend { margin: 0; padding: 0; list-style: none; }
+  .spend-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  .spend-row:first-child { border-top: 0; }
+  .kind {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .spend-row[data-kind="quiz"] .kind, .spend-row[data-kind="exam"] .kind, .spend-row[data-kind="topics"] .kind { color: var(--green); }
+  .spend-what { font-weight: 600; }
+  .spend-detail { text-align: right; color: var(--ink-soft); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+  .twonums { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin: 4px 0 0; }
+  .metric-figure { font-family: "Gabarito", sans-serif; font-weight: 700; font-size: 40px; line-height: 1; }
+  .twonums p:last-child { flex: 1; min-width: 220px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; }
+  .meter { height: 6px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; margin: 8px 0 4px; }
+  .meter i { display: block; height: 100%; width: 50%; background: var(--green); border-radius: 999px; }
+
+  .arms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 10px; }
+  .arm-row { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  .arm-row[data-side="went-back"] { border-color: var(--green); background: var(--green-soft); }
+  .arm-name { font-weight: 600; font-size: 13.5px; }
+  .arm-detail { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .correlation-refusal { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .correlation-note { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+
+  .foot { margin-top: 22px; font-size: 13px; color: var(--ink-soft); display: flex; gap: 18px; flex-wrap: wrap; }
+  .foot a { color: var(--ink-soft); }
+  .foot a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .card { padding: 20px 16px 16px; }
+    .card .grid { grid-template-columns: 1fr; gap: 22px; }
+    .spend-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .spend-row .kind { grid-column: 1 / -1; }
+    .arms { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#">Mastory</a>
+    <a class="crumb" href="#">← Your week</a>
+  </header>
+
+  <main>
+    <p class="course">Basic Hydrology (CHE 212)</p>
+    <h1>What serving this course has cost</h1>
+    <p class="lede">One record, read two ways: <b>what it cost to serve you</b>, and <b>how much of the course you have got through</b>. Nobody was asked either; both were kept as they happened.</p>
+
+    <section class="card">
+      <div class="grid">
+        <div>
+          <p class="figure-label">Everything this course has caused</p>
+          <div class="figure">
+            <strong>$0.038116</strong>
+            <small>since you uploaded this course. Nothing was written before you asked for it: a quiz is written when you open one, once, and opening it again adds no row here.</small>
+          </div>
+          <div class="minis">
+            <div><span>Model calls</span><b>9</b></div>
+            <div><span>Seconds</span><b>195.81</b></div>
+            <div><span>Tokens moved</span><b>19,058</b></div>
+          </div>
+          <p class="framing">
+            <b>Nothing on this page was written before you asked for it.</b> Asking
+            for different questions writes the next one.
+          </p>
+        </div>
+
+        <div>
+          <div class="block">
+            <h3>The work, in the order it happened</h3>
+            <ul class="spend">
+              <li class="spend-row" data-kind="ingest" data-calls="0" data-seconds="12.400" data-tokens="0" data-cost="0.000000">
+                <span class="kind">Read in</span>
+                <p class="spend-what">math-201-eigenvalues.pdf</p>
+                <p class="spend-detail">0 calls · 12.40s · $0.000000</p>
+              </li>
+              <li class="spend-row" data-kind="ingest" data-calls="0" data-seconds="9.860" data-tokens="0" data-cost="0.000000">
+                <span class="kind">Read in</span>
+                <p class="spend-what">bio-110-membrane-transport.pdf</p>
+                <p class="spend-detail">0 calls · 9.86s · $0.000000</p>
+              </li>
+              <li class="spend-row" data-kind="topics" data-calls="3" data-seconds="46.210" data-tokens="4213" data-cost="0.008426">
+                <span class="kind">Topics</span>
+                <p class="spend-what">Working out the topic path</p>
+                <p class="spend-detail">3 calls · 46.21s · $0.008426</p>
+              </li>
+              <li class="spend-row" data-kind="quiz" data-calls="2" data-seconds="31.840" data-tokens="2904" data-cost="0.005808">
+                <span class="kind">Quiz</span>
+                <p class="spend-what">Eigenvalues</p>
+                <p class="spend-detail">2 calls · 31.84s · $0.005808</p>
+              </li>
+              <li class="spend-row" data-kind="quiz" data-calls="2" data-seconds="29.620" data-tokens="2761" data-cost="0.005522">
+                <span class="kind">Quiz</span>
+                <p class="spend-what">Eigenspaces</p>
+                <p class="spend-detail">2 calls · 29.62s · $0.005522</p>
+              </li>
+              <li class="spend-row" data-kind="exam" data-calls="2" data-seconds="88.140" data-tokens="9180" data-cost="0.018360">
+                <span class="kind">Exam</span>
+                <p class="spend-what">The mock exam</p>
+                <p class="spend-detail">2 calls · 88.14s · $0.018360</p>
+              </li>
+            </ul>
+          </div>
+
+          <div class="block metric readable" data-metric="50" data-crossed="2" data-weighed="2" data-total="4">
+            <h3>How much of this course you have got through</h3>
+            <p class="note">A topic you have cut off your week is still on the exam, so it is still counted here.</p>
+            <div class="twonums">
+              <p class="metric-figure">50%</p>
+              <p>2 of this course's 4 topics are over the four in five mastery line. Each figure rests on one sitting, so it is one guess.</p>
+            </div>
+            <div class="meter"><i></i></div>
+          </div>
+
+          <div class="block correlation refused" data-comparable="no">
+            <h3>Whether going back to what you failed works</h3>
+            <p class="note">The claim this product is built on, with both sides counted from sittings and mock scores. Nothing is asked.</p>
+            <div class="arms">
+              <div class="arm-row" data-side="went-back" data-students="1" data-mocks="1" data-mean="50">
+                <p class="arm-name">Went back to a failed quiz</p>
+                <p class="arm-detail">1 student, 1 mock sat, 50% on average</p>
+              </div>
+              <div class="arm-row" data-side="carried-on" data-students="0" data-mocks="0" data-mean="">
+                <p class="arm-name">Sat once and carried on</p>
+                <p class="arm-detail">0 students, 0 mocks sat</p>
+              </div>
+            </div>
+            <p class="correlation-refusal" role="status">Nobody who has never been back to a failed quiz has sat the mock yet, so the two sides do not have a mock score each to put beside each other.</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="foot">
+        <a href="#">Your readiness report</a>
+        <a href="#">Back to your week</a>
+      </nav>
+    </section>
+  </main>
+</body>
+</html>

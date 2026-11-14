@@ -152,15 +152,37 @@ def _query_from(request: HttpRequest) -> str:
 
 @require_GET
 def course_list(request: HttpRequest) -> HttpResponse:
+    """The front door: one course is the work, the rest wait their turn.
+
+    The hero is the course whose next session comes soonest - the thing the
+    student would actually sit down to today. A page of courses with nothing
+    scheduled has no such course, so the first one stands in and says what it
+    is waiting for instead of pretending there is a session to start.
+    """
+    everything = planning.briefs(list(owned(Course.objects.all())))
+    with_sessions = [b for b in everything if b.next_session is not None]
+    hero = (
+        min(with_sessions, key=lambda b: b.next_session.scheduled_on)
+        if with_sessions
+        else everything[0] if everything
+        else None
+    )
+    rest = [b for b in everything if b is not hero]
     return render(
         request,
         "material/course_list.html",
-        {"courses": owned(Course.objects.all())},
+        {"hero": hero, "rest": rest},
     )
 
 
-@require_POST
 def course_create(request: HttpRequest) -> HttpResponse:
+    """The locked quiet form: name it, drop the slides in.
+
+    A GET is the empty form the masthead's "+ New course" promises; a POST
+    without files is the same form saying what it needs.
+    """
+    if request.method == "GET":
+        return render(request, "material/course_create.html", {})
     uploads = request.FILES.getlist("files")
     if not uploads:
         return render(
@@ -809,6 +831,8 @@ def _exam_page(
             "course": course,
             "exam": current,
             "paper": asked,
+            "pages": _paper_pages(asked),
+            "marked": _marked_pages(result),
             "result": result,
             # How many questions a topic contributes, named here rather than left
             # to the template's arithmetic: the page states it in two places and
@@ -817,6 +841,70 @@ def _exam_page(
             "error": error,
         },
     )
+
+
+#: How many questions one page of the paper shows at a time.
+QUESTIONS_PER_PAGE = 3
+
+
+def _paper_pages(asked: Any) -> list[dict[str, Any]]:
+    """The paper split into pages of three, for reading only.
+
+    Paging is presentational and the hand-in is not: every page of questions
+    lives in the same form, so what is served carries all of the paper whatever
+    page the student is on, and the marks never depend on which page was
+    showing when the button was pressed.
+    """
+    if asked is None:
+        return []
+    total = len(asked.questions)
+    chunks = [
+        list(asked.questions[start : start + QUESTIONS_PER_PAGE])
+        for start in range(0, total, QUESTIONS_PER_PAGE)
+    ]
+    return [
+        {
+            "number": number,
+            "of": len(chunks),
+            "first": (number - 1) * QUESTIONS_PER_PAGE + 1,
+            "last": (number - 1) * QUESTIONS_PER_PAGE + len(chunk),
+            "total": total,
+            "dots": list(range(len(chunks))),
+            "questions": [
+                {
+                    "question": question,
+                    "number": (number - 1) * QUESTIONS_PER_PAGE + offset,
+                }
+                for offset, question in enumerate(chunk, start=1)
+            ],
+        }
+        for number, chunk in enumerate(chunks, start=1)
+    ]
+
+
+def _marked_pages(result: Any) -> list[dict[str, Any]]:
+    """The marked paper grouped by topic, in the order the paper asked them.
+
+    The result is shown topic by topic because that is how the paper reads
+    back: each page carries its topic's name and its own tally, so a topic that
+    went badly is a page of its own rather than one wrong answer in a number.
+    """
+    if result is None:
+        return []
+    pages: list[dict[str, Any]] = []
+    for answer in result.answers:
+        title = answer.question.topic.title
+        if pages and pages[-1]["title"] == title:
+            pages[-1]["answers"].append(answer)
+        else:
+            pages.append({"title": title, "answers": [answer], "next": None})
+    for page, following in zip(pages, pages[1:], strict=False):
+        page["next"] = following["title"]
+    for page in pages:
+        page["of"] = len(pages)
+        page["dots"] = list(range(len(pages)))
+        page["right"] = sum(1 for answer in page["answers"] if answer.correct)
+    return pages
 
 
 @require_GET

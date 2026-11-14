@@ -11,6 +11,9 @@
       event is a 403 the student never sees.
     {% endcomment %}
     <meta name="csrf-token" content="{{ csrf_token }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{% static 'material/reading.css' %}" />
     <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
     <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
@@ -18,7 +21,7 @@
   <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <header class="masthead">
       <a class="wordmark" href="{% url 'course-list' %}">Mastory</a>
-      <span class="tagline">Your course material, readable</span>
+      {% block masthead_right %}{% endblock %}
     </header>
     <main>{% block content %}{% endblock %}</main>
   </body>

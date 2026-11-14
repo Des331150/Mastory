@@ -14,8 +14,11 @@ from django.test import TestCase
 
 from material.tests.helpers import (
     CELL_BIOLOGY_PDF,
+    HANDOUT_NOTES_PDF,
     LINEAR_ALGEBRA_PDF,
+    fake_topic,
     pdf_upload,
+    use_fake_model,
     use_temporary_media_root,
 )
 
@@ -34,6 +37,55 @@ class UploadedCourseTestCase(TestCase):
         super().setUp()
         use_temporary_media_root(self)
         self.client.post("/courses/new/", {"title": "", "files": pdf_upload()})
+
+
+class FrontDoorTests(TestCase):
+    """The front door opens on the course whose week is live, and says what
+    every other course is waiting for, rather than listing files."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        use_temporary_media_root(self)
+        self.client.post("/courses/new/", {"title": "Math 201", "files": [pdf_upload(LINEAR_ALGEBRA_PDF)]})
+        self.client.post("/courses/new/", {"title": "Organic chemistry", "files": [pdf_upload(HANDOUT_NOTES_PDF)]})
+
+    def infer(self, course: int, *topics: Any) -> None:
+        with use_fake_model(*topics):
+            self.client.post(f"/courses/{course}/topics/infer/")
+
+    def front_door(self) -> str:
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
+    def test_a_course_whose_topic_path_is_unconfirmed_says_what_it_is_waiting_for(self) -> None:
+        """A path the student has not checked is the one thing standing between
+        them and a week, so the front door names it instead of counting files."""
+        self.infer(1, fake_topic("Eigenvalues", [2, 3]))
+        page = self.front_door()
+        self.assertIn("waiting for your check", page)
+        self.assertIn('href="/courses/1/topics/"', page)
+
+    def test_a_planned_course_opens_the_front_door_with_its_next_session(self) -> None:
+        self.infer(1, fake_topic("Eigenvalues", [2, 3]), fake_topic("Eigenspaces", [4, 5]))
+        self.client.post("/courses/1/topics/confirm/")
+        self.client.post(
+            "/courses/1/plan/settings/",
+            {"exam_date": "", "days_per_week": "2", "hours_per_week": "6"},
+        )
+        page = self.front_door()
+        self.assertIn("Next:", page)
+        self.assertIn("Eigenvalues", page)
+        self.assertIn("min", page)
+        self.assertIn('href="/courses/1/plan/"', page)
+
+    def test_a_course_with_no_plan_yet_says_so_without_blaming_anybody(self) -> None:
+        self.infer(2, fake_topic("Curved-arrow mechanisms", [1, 2]))
+        self.client.post("/courses/2/topics/confirm/")
+        page = self.front_door()
+        self.assertIn("Organic chemistry", page)
+        self.assertIn("no plan yet", page)
+        self.assertIn('href="/courses/2/plan/"', page)
 
 
 class UploadAndReadTests(UploadedCourseTestCase):

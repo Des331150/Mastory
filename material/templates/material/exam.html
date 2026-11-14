@@ -6,19 +6,36 @@
   no citation, no expected answer, no mark - because naming the paragraph a
   question came from is reading ahead to the answer, and this paper is the one
   place the student is being examined.
+
+  The paper is read a page at a time but handed in as one piece: every page of
+  questions lives in the same form, so what is served carries the whole paper
+  whatever page is showing, and the marks never depend on which page was up
+  when the button was pressed.
 {% endcomment %}
 
 {% block title %}{{ course.title }}: mock exam{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'plan' course.pk %}">← Your week</a>
+{% endblock %}
+
 {% block content %}
 <div class="quiz-page exam-page">
   <header class="quiz-head">
-    <h1>Mock exam: {{ course.title }}</h1>
+    {% if result %}
+      <h1>Mock exam: {{ course.title }}</h1>
+    {% elif exam %}
+      <p class="kicker">Mock exam · the whole course, one paper</p>
+      <h1>Mock exam: {{ course.title }}</h1>
+    {% else %}
+      <p class="kicker">Mock exam</p>
+      <h1>Mock exam: {{ course.title }}</h1>
+    {% endif %}
     {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   </header>
 
   {% if not exam %}
-    <section class="panel">
+    <section class="panel offer">
       <h2>One exam, one attempt</h2>
       <p>
         This is the whole course in one paper: questions written from your own
@@ -27,12 +44,12 @@
         paragraph it came from is left out rather than shown.
       </p>
       <p>
-        You get <strong>one attempt</strong>. The questions are written once and
+        You get <b>one attempt</b>. The questions are written once and
         are not written again, nothing is spent on a sitting, and the marks, the
         score and the paragraph behind every wrong answer all come back together
-        when you hand the paper in &mdash; not before.
+        when you hand the paper in, not before.
       </p>
-      <p class="muted">
+      <p class="quiet">
         Nothing has been written yet. A paper is written when you ask for one,
         not when you open this page.
       </p>
@@ -40,15 +57,14 @@
         {% csrf_token %}
         <button type="submit">Write my mock exam</button>
       </form>
-      <p class="muted small">
+      <p class="fine">
         Topic quizzes are not spent by this and nothing is taken off them: sit
         those as often as you like, before or after.
       </p>
     </section>
   {% else %}
     {% if paper %}
-      <section class="panel exam-shape">
-        <h2>What this paper is</h2>
+      <div class="shape">
         <p class="quiz-count">
           {{ paper.questions|length }} question{{ paper.questions|length|pluralize }}
           from {{ paper.covered }} of the course&rsquo;s {{ paper.asked }}
@@ -75,16 +91,14 @@
             {% endif %}
           </p>
         {% endif %}
-        {% if not paper.whole_course and paper.missed_topics %}
-          <p class="low-confidence" role="status">
-            No question on this paper could be checked against these topics, so
-            they are not really being examined:
-            {% for title in paper.missed_topics %}{{ title }}{% if not forloop.last %}, {% endif %}{% endfor %}.
-            Read them, or point them at the slides that cover them, before you
-            read anything into the score.
-          </p>
-        {% endif %}
-      </section>
+      </div>
+      {% for missed in paper.missed_topics %}
+        <div class="missed">
+          {{ missed }}: no question on this paper could be checked against its
+          slides, so it is not really being examined here. Read it, or point it
+          at the slides that cover it, before you read anything into the score.
+        </div>
+      {% endfor %}
     {% endif %}
 
     {% if not result %}
@@ -100,44 +114,70 @@
           </p>
         </section>
       {% else %}
-        <section class="panel">
-          <h2>Before you start</h2>
-          <p>
-            There is no timer and nothing is saved as you go: the paper is
-            submitted in one go, and it cannot be sat again afterwards. Nothing on
-            this page tells you whether an answer is right &mdash; that is the
-            point of it.
-          </p>
+        <section class="rules">
+          <p><b>Before you start.</b> There is no timer. Your answers stay on
+          this page as you work, in pages of three. Nothing is marked or sent
+          anywhere until you hand the whole paper in, and once handed in, it
+          cannot be sat again. Nothing tells you whether an answer is right.
+          That is the point of it.</p>
+          <p>Your topic quizzes are not touched by this: sit those as often as
+          you like, before or after.</p>
         </section>
 
-        <form method="post" action="{% url 'exam-submit' course.pk %}" class="quiz-form">
+        <form method="post" action="{% url 'exam-submit' course.pk %}"
+              class="exam-form" x-data="{ page: 0 }">
           {% csrf_token %}
           <input type="hidden" name="exam" value="{{ exam.pk }}" />
-          <ol class="questions">
-            {% for question in paper.questions %}
-              <li class="question" id="question-{{ question.pk }}">
-                <p class="question-prompt">{{ question.prompt }}</p>
-                {% if question.kind == "multiple_choice" %}
-                  <ul class="choices">
-                    {% for choice in question.choices %}
-                      <li>
-                        <label>
-                          <input type="radio" name="q-{{ question.pk }}" value="{{ choice }}" />
-                          {{ choice }}
-                        </label>
-                      </li>
+          {% for page in pages %}
+            <div class="page" x-show="page === {{ forloop.counter0 }}">
+              <ol class="questions">
+                {% for item in page.questions %}
+                  <li class="question" id="question-{{ item.question.pk }}">
+                    <p class="num">Question {{ item.number }} of {{ page.total }}</p>
+                    <p class="question-prompt">{{ item.question.prompt }}</p>
+                    {% if item.question.kind == "multiple_choice" %}
+                      <ul class="choices">
+                        {% for choice in item.question.choices %}
+                          <li>
+                            <label>
+                              <input type="radio" name="q-{{ item.question.pk }}" value="{{ choice }}" />
+                              {{ choice }}
+                            </label>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <label class="visually-hidden" for="answer-{{ item.question.pk }}">Your answer</label>
+                      <input id="answer-{{ item.question.pk }}" type="text" name="q-{{ item.question.pk }}"
+                             autocomplete="off" placeholder="Your answer" />
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ol>
+              <div class="pager">
+                <button type="button" class="page-btn" :class="{ off: page === 0 }"
+                        :disabled="page === 0" @click="page = page - 1"
+                        {% if forloop.first %}disabled{% endif %}>&larr; Previous</button>
+                <div class="pager-mid">
+                  <p class="page-count">Page {{ page.number }} of {{ page.of }} · Questions {{ page.first }}–{{ page.last }} of {{ page.total }}</p>
+                  <div class="dots">
+                    {% for dot in page.dots %}
+                      <i{% if forloop.counter0 == forloop.parentloop.counter0 %} class="here"{% endif %}></i>
                     {% endfor %}
-                  </ul>
+                  </div>
+                </div>
+                {% if forloop.last %}
+                  <button type="submit">Hand in my exam</button>
                 {% else %}
-                  <label class="visually-hidden" for="answer-{{ question.pk }}">Your answer</label>
-                  <input id="answer-{{ question.pk }}" type="text" name="q-{{ question.pk }}"
-                         autocomplete="off" />
+                  <button type="button" class="page-btn" @click="page = page + 1">Next page &rarr;</button>
                 {% endif %}
-              </li>
-            {% endfor %}
-          </ol>
-          <button type="submit">Hand in my exam</button>
+              </div>
+            </div>
+          {% endfor %}
         </form>
+        <p class="pager-note">Your answers stay on this page as you move between
+        pages. Handing in happens on the last page, one press spends your one
+        attempt.</p>
       {% endif %}
     {% else %}
       <section class="panel quiz-result">
@@ -150,49 +190,77 @@
           {{ result.passes|pluralize:"is,are" }} worded the way the paragraph they came from
           words {{ result.passes|pluralize:"it,them" }}.
         </p>
+        <p>Now that the paper is in, every question shows the paragraph it came
+        from.</p>
         <p class="standing-finished">
           That is the whole course marked as one paper, on {{ exam.taken_on|date:"j F Y" }},
-          and it is the one attempt you get. It has not finished or started any
+          and it is <b>the one attempt you get</b>. It has not finished or started any
           topic: your week and what you know of each topic are still read from
           your topic quizzes, which you can sit as often as you like.
         </p>
       </section>
 
-      <ol class="questions marked">
-        {% for answer in result.answers %}
-          <li class="question{% if answer.correct %} right{% else %} wrong{% endif %}"
-              id="question-{{ answer.question.pk }}">
-            <p class="question-topic">{{ answer.question.topic.title }}</p>
-            <p class="question-citation">
-              From {{ answer.citation }}
-              &middot;
-              <a href="{% url 'course-read' course.pk %}#{{ answer.anchor }}"
-                 >{% if answer.correct %}open that paragraph{% else %}read that paragraph again{% endif %}</a>
-            </p>
-            <p class="question-prompt">{{ answer.question.prompt }}</p>
-            <p class="mark" data-correct="{{ answer.correct|yesno:'yes,no' }}">
-              {% if answer.correct %}Right{% else %}Not this one{% endif %}
-            </p>
-            {% if answer.given %}
-              <p class="given">You wrote: {{ answer.given }}</p>
-            {% else %}
-              <p class="given">You left this blank.</p>
-            {% endif %}
-            {% if not answer.correct %}
-              <p class="expected">
-                What the paragraph says: {{ answer.question.answers|join:" or " }}
-              </p>
-            {% endif %}
-          </li>
+      <div x-data="{ page: 0 }">
+        {% for topic in marked %}
+          <div class="page" x-show="page === {{ forloop.counter0 }}">
+            <div class="pager">
+              {% if not forloop.first %}
+                <button type="button" class="page-btn" @click="page = page - 1">&larr; Previous</button>
+              {% else %}
+                <span></span>
+              {% endif %}
+              <div class="pager-mid">
+                <p class="page-count">Page {{ forloop.counter }} of {{ topic.of }} · {{ topic.title }}</p>
+                <div class="dots">
+                  {% for dot in topic.dots %}
+                    <i{% if forloop.counter0 == forloop.parentloop.counter0 %} class="here"{% endif %}></i>
+                  {% endfor %}
+                </div>
+              </div>
+              {% if topic.next %}
+                <button type="button" class="page-btn" @click="page = page + 1">Next: {{ topic.next }} &rarr;</button>
+              {% else %}
+                <span></span>
+              {% endif %}
+            </div>
+            <p class="topic-band">{{ topic.title }} <span>{{ topic.right }} of {{ topic.answers|length }} right</span></p>
+            <ol class="questions marked">
+              {% for answer in topic.answers %}
+                <li class="question{% if answer.correct %} right{% else %} wrong{% endif %}"
+                    id="question-{{ answer.question.pk }}">
+                  <p class="question-citation">
+                    From {{ answer.citation }}
+                    &middot;
+                    <a href="{% url 'course-read' course.pk %}#{{ answer.anchor }}"
+                       >{% if answer.correct %}open that paragraph{% else %}read that paragraph again{% endif %}</a>
+                  </p>
+                  <p class="question-prompt">{{ answer.question.prompt }}</p>
+                  <p class="mark" data-correct="{{ answer.correct|yesno:'yes,no' }}">
+                    {% if answer.correct %}Right{% else %}Not this one{% endif %}
+                  </p>
+                  {% if answer.given %}
+                    <p class="given">You wrote: {{ answer.given }}</p>
+                  {% else %}
+                    <p class="given">You left this blank.</p>
+                  {% endif %}
+                  {% if not answer.correct %}
+                    <p class="expected">
+                      What the paragraph says: {{ answer.question.answers|join:" or " }}
+                    </p>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ol>
+          </div>
         {% endfor %}
-      </ol>
+      </div>
     {% endif %}
   {% endif %}
 
-  <p class="muted small">
-    <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
-    <a href="{% url 'course-read' course.pk %}">Back to your material</a> &middot;
-    <a href="{% url 'readiness' course.pk %}">Read your readiness report</a>
-  </p>
+  <nav class="foot">
+    <a href="{% url 'plan' course.pk %}">Back to your week</a>
+    <a href="{% url 'course-read' course.pk %}">Back to your material</a>
+    <a href="{% url 'readiness' course.pk %}">Readiness report</a>
+  </nav>
 </div>
 {% endblock %}

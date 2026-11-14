@@ -2,138 +2,117 @@
 
 {% block title %}{{ course.title }}: your readiness report{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'plan' course.pk %}">← Your week</a>
+{% endblock %}
+
 {% comment %}
   One screen, on purpose. This is the artefact a student screenshots and shows a
   course-mate, so nothing here is behind a fold, a tab or a second page: the
-  figure, the three topics to revise, the whole table of topics and the days
-  studied all fit on one screen at a phone's width too.
+  figure, the topics to revise, the whole table of topics and the days studied
+  all fit on one screen at a phone's width too.
+
+  When there is not enough evidence for a figure, the refusal takes the figure's
+  place in the reading order and everything else stays: the topics and the days
+  are the student's record either way, and a refusal that hid the record it
+  refused to summarise would be a page about a number rather than about them.
 {% endcomment %}
 
 {% block content %}
 <div class="report-page">
   <header class="report-head">
-    <p class="report-course">{{ course.title }}</p>
+    <p class="course">{{ course.title }}</p>
     <h1>Your readiness report</h1>
-    <p class="muted">
-      Read off the {{ report.readiness.covered }} of your
-      {{ report.readiness.total }} topic{{ report.readiness.total|pluralize }}
+    <p class="lede">
+      Read off the <b>{{ report.readiness.covered }} of your
+      {{ report.readiness.total }} topic{{ report.readiness.total|pluralize }}</b>
       you have sat, on the day you opened this. Nothing here is stored; it is
       your record, read.
     </p>
   </header>
 
-  <section class="panel readiness{% if report.readiness.measurable %} measurable{% else %} refused{% endif %}"
-           data-readiness="{% if report.readiness.measurable %}{{ report.readiness.percent }}{% else %}unmeasurable{% endif %}"
-           data-covered="{{ report.readiness.covered }}"
-           data-total="{{ report.readiness.total }}">
-    <h2>{% if report.readiness.measurable %}Your readiness{% else %}Your readiness is not measurable{% endif %}</h2>
-    {% if report.readiness.measurable %}
-      <p class="readiness-figure">{{ report.readiness.percent }}%</p>
-      <div class="meter">
-        <span class="meter-fill" style="width: {{ report.readiness.percent }}%"></span>
-      </div>
-      <p class="muted">
-        The mean of what you have been weighed at on
-        {{ report.readiness.covered }} of your
-        {{ report.readiness.total }} topics, each counting for as much as you gave
-        it on your topic path.
-      </p>
-    {% else %}
-      <p class="readiness-refusal" role="status">{{ report.readiness.reason }}</p>
-    {% endif %}
-    <p class="framing">
-      This is a reading of your quizzes, not a prediction of your exam. Nobody
-      knows how your paper will go; what this can tell you is where you are
-      weakest, and that is what the ranking below is for.
-    </p>
-  </section>
+  {% if report.readiness.measurable %}
+    <section class="panel readiness measurable"
+             data-readiness="{{ report.readiness.percent }}"
+             data-covered="{{ report.readiness.covered }}"
+             data-total="{{ report.readiness.total }}">
+      <div class="grid">
+        <div class="col-fig">
+          <p class="figure-label">Your readiness</p>
+          <div class="figure">
+            <p class="readiness-figure">{{ report.readiness.percent }}%</p>
+            <p class="figure-note">
+              The mean of what you have been weighed at on
+              {{ report.readiness.covered }} of your
+              {{ report.readiness.total }} topics, each counting for as much as
+              you gave it on your topic path.
+            </p>
+          </div>
+          <div class="meter">
+            <span class="meter-fill" style="width: {{ report.readiness.percent }}%"></span>
+          </div>
+          <p class="framing">
+            <b>A reading of your quizzes, not a prediction of your exam.</b>
+            Nobody knows how your paper will go; this tells you where you are
+            weakest, and that is what the ranking is for.
+          </p>
+          {% if report.weakest %}
+            <div class="revise">
+              <h3>Revise these first</h3>
+              <ol class="weakest-list">
+                {% for reading in report.weakest %}
+                  <li class="weakest-row" data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}">
+                    <p class="weakest-rank">{{ forloop.counter }}</p>
+                    <p class="weakest-topic">{{ reading.topic.title }}</p>
+                    <p class="weakest-mastery">{{ reading.summary }}</p>
+                  </li>
+                {% endfor %}
+              </ol>
+            </div>
+          {% endif %}
+        </div>
 
-  {% if report.weakest %}
-    <section class="panel weakest">
-      <h2>Revise these first</h2>
-      <p class="muted">
-        Your {{ report.weakest|length }} weakest weighed topic{{ report.weakest|length|pluralize }},
-        lowest first. This is what the figure is for.
-      </p>
-      <ol class="weakest-list">
-        {% for reading in report.weakest %}
-          <li class="weakest-row" data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}">
-            <p class="weakest-rank">{{ forloop.counter }}</p>
-            <p class="weakest-topic">{{ reading.topic.title }}</p>
-            <p class="weakest-mastery">{{ reading.summary }}</p>
-          </li>
-        {% endfor %}
-      </ol>
+        <div class="col-body">
+          {% include "material/readiness_topics.html" %}
+          {% include "material/readiness_days.html" %}
+        </div>
+      </div>
+    </section>
+  {% else %}
+    <section class="panel readiness refused"
+             data-readiness="unmeasurable"
+             data-covered="{{ report.readiness.covered }}"
+             data-total="{{ report.readiness.total }}">
+      <h2>Your readiness is not measurable</h2>
+      <p class="reason" role="status">{{ report.readiness.reason }}</p>
+      {% if not report.readiness.enough_topics %}
+        {% comment %}
+          The way up, in the numbers the refusal itself used: the same count,
+          the count at which a figure appears, and the whole course. The weight
+          refusal has no path of this shape - its way up is different quizzes,
+          not more of them, and the reason above says which.
+        {% endcomment %}
+        <div class="path">
+          <span class="step now">{{ report.readiness.covered }} topic{{ report.readiness.covered|pluralize }} sat</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step">{{ report.readiness.needed }} topics sat: a figure appears</span>
+          <span class="arrow">&rarr;</span>
+          <span class="step">{{ report.readiness.total }} topics sat: the full report</span>
+        </div>
+      {% endif %}
+      <p>Until then, <b>your week is still your week</b>: the plan does not
+      wait for a percentage.</p>
+    </section>
+
+    <section class="panel readiness-body">
+      {% include "material/readiness_topics.html" with heading="What is measured so far" %}
+      {% include "material/readiness_days.html" %}
     </section>
   {% endif %}
 
-  <section class="panel report-topics">
-    <h2>Every topic</h2>
-    <p class="muted">
-      Mastery is your best sitting on that topic, counted down once for every
-      sitting since. The sittings are on the row because one sitting and five are
-      not the same claim: a topic measured once could be a lucky guess.
-    </p>
-    {% if report.topics %}
-      <ul class="standing-list report-list">
-        {% for reading in report.topics %}
-          <li class="standing-row" data-complete="{{ reading.topic.completed_on|yesno:'yes,no' }}"
-              data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}"
-              data-sittings="{{ reading.sittings }}">
-            <p class="standing-topic">{{ reading.topic.title }}</p>
-            <p class="standing-complete" data-state="{{ reading.state }}">{{ reading.completion }}</p>
-            <p class="standing-mastery">{{ reading.evidence }}</p>
-            {% if reading.quiz and reading.quiz.count == 0 %}
-              <p class="quiz-empty" role="status">
-                The latest quiz produced no verified questions, so there is no
-                sitting on this topic to measure.
-              </p>
-            {% endif %}
-            {% if reading.topic.quiz_refused_at %}
-              <p class="quiz-unavailable" role="status">
-                The last quiz request could not be completed because the model
-                was unavailable, on {{ reading.topic.quiz_refused_at|date:"j F Y, P" }}.
-              </p>
-            {% endif %}
-            <p class="report-when">{{ reading.studied }}</p>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">This course has no topics on it yet.</p>
-    {% endif %}
-    {% if report.unweighed %}
-      <p class="unweighed-note">{{ report.unweighed_note }}</p>
-    {% endif %}
-  </section>
-
-  <section class="panel report-days">
-    <h2>When you studied</h2>
-    {% if report.days %}
-      <p class="muted">
-        {{ report.days_studied }} day{{ report.days_studied|pluralize }} your
-        record says you worked, earliest first. Sittings are quizzes you sat;
-        finished is topics you marked done.
-      </p>
-      <ol class="log">
-        {% for day in report.days %}
-          <li class="log-entry" data-date="{{ day.on|date:"Y-m-d" }}">
-            <p class="log-when">{{ day.on|date:"D j M Y" }}</p>
-            <p class="log-topic">{{ day.did }}</p>
-          </li>
-        {% endfor %}
-      </ol>
-    {% else %}
-      <p class="log-empty">
-        No days in your record yet. Sit a topic quiz or mark a session done and
-        the day appears here.
-      </p>
-    {% endif %}
-  </section>
-
-  <p class="muted small">
-    <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
+  <nav class="foot">
+    <a href="{% url 'plan' course.pk %}">Back to your week</a>
     <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a>
-  </p>
+  </nav>
 </div>
 {% endblock %}

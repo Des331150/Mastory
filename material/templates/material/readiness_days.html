@@ -1,0 +1,26 @@
+{% comment %}
+  The report's days, shared by the measured and refused readings of the page.
+{% endcomment %}
+<div class="days">
+  <h3>When you studied</h3>
+  {% if report.days %}
+    <p class="note">
+      {{ report.days_studied }} day{{ report.days_studied|pluralize }}
+      your record says you worked, earliest first. Sittings are quizzes you sat;
+      finished is topics you marked done.
+    </p>
+    <ol class="log">
+      {% for day in report.days %}
+        <li class="log-entry" data-date="{{ day.on|date:'Y-m-d' }}">
+          <p class="log-when">{{ day.on|date:'D j M Y' }}</p>
+          <p class="log-topic">{{ day.did }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="log-empty">
+      No days in your record yet. Sit a topic quiz or mark a session done and
+      the day appears here.
+    </p>
+  {% endif %}
+</div>

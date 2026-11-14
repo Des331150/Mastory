@@ -1,0 +1,45 @@
+{% comment %}
+  The report's topics table, shared by the measured and refused readings of the
+  page: the table is the student's record either way, and only the heading
+  changes - it is "Every topic" when there is a figure to explain and "What is
+  measured so far" when the figure has been refused.
+{% endcomment %}
+<div class="topics">
+  <h3>{% if heading %}{{ heading }}{% else %}Every topic{% endif %}</h3>
+  <p class="note">
+    Mastery is your best sitting on that topic, counted down once for every
+    sitting since. <b>One sitting and five are not the same claim</b>: a topic
+    measured once could be a lucky guess.
+  </p>
+  {% if report.topics %}
+    <ul class="rows">
+      {% for reading in report.topics %}
+        <li class="standing-row" data-complete="{{ reading.topic.completed_on|yesno:'yes,no' }}"
+            data-mastery="{% if reading.measured %}{{ reading.percent }}{% else %}unmeasured{% endif %}"
+            data-sittings="{{ reading.sittings }}">
+          <p class="standing-topic">{{ reading.topic.title }}</p>
+          <p class="standing-complete" data-state="{{ reading.state }}">{{ reading.completion }}</p>
+          <p class="standing-mastery">{{ reading.evidence }}</p>
+          {% if reading.quiz and reading.quiz.count == 0 %}
+            <p class="quiz-empty" role="status">
+              The latest quiz produced no verified questions, so there is no
+              sitting on this topic to measure.
+            </p>
+          {% endif %}
+          {% if reading.topic.quiz_refused_at %}
+            <p class="quiz-unavailable" role="status">
+              The last quiz request could not be completed because the model
+              was unavailable, on {{ reading.topic.quiz_refused_at|date:"j F Y, P" }}.
+            </p>
+          {% endif %}
+          <p class="report-when">{{ reading.studied }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">This course has no topics on it yet.</p>
+  {% endif %}
+  {% if report.unweighed %}
+    <p class="unweighed-note">{{ report.unweighed_note }}</p>
+  {% endif %}
+</div>

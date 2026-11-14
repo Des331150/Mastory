@@ -2,14 +2,19 @@
 
 {% block title %}{{ course.title }}: your week{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'course-read' course.pk %}">← {{ course.title }}</a>
+{% endblock %}
+
 {% block content %}
 <div class="plan-page">
-  <header class="plan-head">
-    <h1>Your week</h1>
-    {% if plan %}
+  <h1>Your week</h1>
+
+  {% if plan %}
+    <div class="mode-line">
       {% if plan.exam_date %}
-        <p class="mode exam">Exam mode</p>
-        <p class="countdown">
+        <span class="chip">Exam mode</span>
+        <span class="countdown">
           {% if overview.days_left > 0 %}
             {{ overview.days_left }} day{{ overview.days_left|pluralize }} to go.
           {% elif overview.days_left == 0 %}
@@ -18,45 +23,41 @@
             Your exam date has passed.
           {% endif %}
           Exam on {{ plan.exam_date|date:"j F Y" }}.
-        </p>
+        </span>
       {% else %}
-        <p class="mode open">Open mode</p>
-        <p class="muted">
+        <span class="chip open">Open mode</span>
+        <span class="countdown">
           No exam date set, so this is your topic path in the order you put it in,
           with no deadline attached and no claim about when you will finish.
-        </p>
+        </span>
       {% endif %}
-    {% else %}
-      <p class="muted">
-        Nothing planned yet. Say when your exam is and how much time you have,
-        and the week is built from your topic path.
-      </p>
-    {% endif %}
-  </header>
+    </div>
+  {% else %}
+    <p class="muted plan-empty">
+      Nothing planned yet. Say when your exam is and how much time you have,
+      and the week is built from your topic path.
+    </p>
+  {% endif %}
 
   {% if summary %}
     <section class="panel completion">
-      <h2>How far you are</h2>
       {% if summary.planned %}
         <p class="completion-line">
-          You have done {{ summary.completed }} of {{ summary.planned }}
-          session{{ summary.planned|pluralize }} &middot;
-          {{ summary.percent }}% of your plan
+          <b>You have done {{ summary.completed }} of {{ summary.planned }}
+          session{{ summary.planned|pluralize }}</b> &middot;
+          <span>{{ summary.percent }}% of your plan. There is nothing to keep
+          up with here but the days you meant to.</span>
         </p>
         <div class="meter">
           <span class="meter-fill" style="width: {{ summary.percent }}%"></span>
         </div>
         {% if summary.skipped %}
-          <p class="skipped-note">
+          <p class="skipped-note muted small">
             {{ summary.skipped }} session{{ summary.skipped|pluralize }} you chose
             to skip, which costs you nothing. They stay in the count so that what
             you finished still says what it is worth.
           </p>
         {% endif %}
-        <p class="muted small">
-          This is how much of what you set out to do you have done. There is
-          nothing to keep up with here but the days you meant to.
-        </p>
       {% else %}
         <p class="muted">No sessions on your plan yet.</p>
       {% endif %}
@@ -68,23 +69,25 @@
       <p class="next-label">
         {% if overview.current.scheduled_on == today %}Today's session{% else %}Next session{% endif %}
       </p>
-      <h2>{{ overview.current.topic.title }}</h2>
-      <p class="muted">
-        {{ overview.current.minutes }} min &middot;
+      <h2>{{ overview.current.topic.title }}, {{ overview.current.minutes }} min</h2>
+      <p class="muted sub">
         {% if overview.current.scheduled_on == today %}today{% else %}{{ overview.current.scheduled_on|date:"l j F" }}{% endif %}
       </p>
       {% with slides=overview.current.topic.slides %}
         {% if slides %}
-          <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
-          <a class="quiet-link" href="{% url 'topic-quiz' course.pk overview.current.topic.pk %}">Take this topic&rsquo;s quiz</a>
+          <div class="today-actions">
+            <a class="cta" href="{% url 'course-read' course.pk %}#{{ slides.0.anchor }}">Start this session</a>
+            {% include "material/_session_actions.html" with session=overview.current %}
+          </div>
+          <p class="muted small"><a href="{% url 'topic-quiz' course.pk overview.current.topic.pk %}">Take this topic&rsquo;s quiz after</a></p>
         {% else %}
           <p class="muted">
             This topic points at no slides yet, so there is nothing to open for
             it. <a href="{% url 'topic-path' course.pk %}">Point it at the slides that cover it</a>.
           </p>
+          {% include "material/_session_actions.html" with session=overview.current %}
         {% endif %}
       {% endwith %}
-      {% include "material/_session_actions.html" with session=overview.current %}
     </section>
   {% elif plan %}
     <section class="panel">
@@ -111,9 +114,9 @@
   {% endif %}
 
   {% for week in overview.weeks %}
-    <section class="panel">
+    <section class="panel week-panel">
       <h2>{{ week.label }}</h2>
-      <p class="muted small">
+      <p class="muted small wk-sub">
         {{ week.sessions|length }} session{{ week.sessions|length|pluralize }} &middot;
         {{ week.minutes }} min in total
         {% if forloop.first and overview.unspent %}
@@ -127,8 +130,11 @@
             <p class="session-when">
               {{ session.scheduled_on|date:"D j M" }}{% if session.scheduled_on < today %} &middot; gone{% endif %}
             </p>
-            <h3 class="session-topic">{{ session.topic.title }}</h3>
-            <p class="session-length">{{ session.minutes }} min</p>
+            {% if session.state == "done" %}<span class="tick" aria-hidden="true"></span>{% endif %}
+            <div class="what">
+              <h3 class="session-topic">{{ session.topic.title }}</h3>
+              <p class="session-length">{{ session.minutes }} min</p>
+            </div>
             <p class="session-state" data-state="{{ session.state }}">{% if session.state == "done" %}done{% elif session.state == "skipped" %}skipped{% elif session.scheduled_on < today %}not marked{% else %}not yet{% endif %}</p>
             {% with slides=session.topic.slides %}
               {% if slides %}
@@ -218,12 +224,12 @@
               {% if row.state == "done" %}
                 <form method="post" action="{% url 'topic-mark' course.pk row.topic.pk %}">
                   {% csrf_token %}
-                  <button type="submit">Put this back into your work</button>
+                  <button type="submit" class="quiet">Put this back into your work</button>
                 </form>
               {% elif row.state == "planned" %}
                 <form method="post" action="{% url 'topic-mark' course.pk row.topic.pk %}">
                   {% csrf_token %}
-                  <button type="submit">Finished it</button>
+                  <button type="submit" class="quiet">Finished it</button>
                 </form>
               {% endif %}
             {% endif %}
@@ -249,25 +255,29 @@
         can still keep.
       </p>
       {% if overview.behind.cuts %}
-        <p class="muted">
-          The other answer is to stop spending your week on something. Here is
-          what each topic costs you and what it buys, so the choice is yours
-          with the numbers in front of you.
-        </p>
-        <ul class="cut-list">
-          {% for cut in overview.behind.cuts %}
-            <li class="cut-option">
-              <p class="cut-topic">{{ cut.topic.title }}</p>
-              <p class="cut-cost">
-                {{ cut.minutes }} min a week{% if cut.finishes_on %}, and you would finish on {{ cut.finishes_on|date:"l j F" }}{% if cut.in_time %}, before your exam{% else %}, which is still after it — one cut on its own is not enough{% endif %}{% endif %}
-              </p>
-              <form method="post" action="{% url 'plan-cut' course.pk cut.topic.pk %}">
-                {% csrf_token %}
-                <button type="submit">Cut this topic</button>
-              </form>
-            </li>
-          {% endfor %}
-        </ul>
+        <div class="cuts">
+          <h3>The other answer: stop spending your week on something</h3>
+          <p class="muted">
+            Here is what each topic costs you and what it buys, so the choice is
+            yours with the numbers in front of you.
+          </p>
+          <ul class="cut-list">
+            {% for cut in overview.behind.cuts %}
+              <li class="cut-option">
+                <div class="what">
+                  <p class="cut-topic">{{ cut.topic.title }}</p>
+                  <p class="cut-cost">
+                    {{ cut.minutes }} min a week{% if cut.finishes_on %}, and you would finish on {{ cut.finishes_on|date:"l j F" }}{% if cut.in_time %}, before your exam{% else %}, which is still after it — one cut on its own is not enough{% endif %}{% endif %}
+                  </p>
+                </div>
+                <form method="post" action="{% url 'plan-cut' course.pk cut.topic.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="quiet">Cut this topic</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
       {% endif %}
     </section>
   {% endif %}
@@ -283,11 +293,13 @@
       <ul class="cut-list">
         {% for topic in overview.cut_topics %}
           <li class="cut-option kept-out">
-            <p class="cut-topic">{{ topic.title }}</p>
-            <p class="cut-cost">Off your week since {{ topic.cut_on|date:"j F" }}</p>
+            <div class="what">
+              <p class="cut-topic">{{ topic.title }}</p>
+              <p class="cut-cost">Off your week since {{ topic.cut_on|date:"j F" }}</p>
+            </div>
             <form method="post" action="{% url 'plan-cut' course.pk topic.pk %}">
               {% csrf_token %}
-              <button type="submit">Put this back</button>
+              <button type="submit" class="quiet">Put this back</button>
             </form>
           </li>
         {% endfor %}
@@ -322,9 +334,9 @@
     </section>
   {% endif %}
 
-  <section class="panel">
-    <h2>{% if plan %}Change your week{% else %}Set up your week{% endif %}</h2>
-    <p class="muted">
+  <details class="settings"{% if not plan %} open{% endif %}>
+    <summary>{% if plan %}Change your week{% else %}Set up your week{% endif %}</summary>
+    <p class="muted settings-note">
       The time you say you have is the time the plan is built inside. It is
       better to be honest here and have a week you keep to.
       {% if plan %}
@@ -332,7 +344,7 @@
         you can study, change the number below and read which days it names.
       {% endif %}
     </p>
-    <form method="post" action="{% url 'plan-settings' course.pk %}" class="stack">
+    <form method="post" action="{% url 'plan-settings' course.pk %}" class="stack settings-fields">
       {% csrf_token %}
       {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
@@ -353,12 +365,12 @@
         <p class="muted small">This replaces the sessions still waiting and starts them again from today. Sessions you missed move to the next days you study rather than being squeezed into the days you have left, and the sessions you have already marked stay on the day they were.</p>
       {% endif %}
     </form>
-  </section>
+  </details>
 
-  <p class="muted small">
-    <a href="{% url 'topic-path' course.pk %}">Change your topic path</a> &middot;
-    <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a> &middot;
+  <nav class="foot">
+    <a href="{% url 'topic-path' course.pk %}">Change your topic path</a>
+    <a href="{% url 'exam' course.pk %}">Sit a mock exam across the course</a>
     <a href="{% url 'readiness' course.pk %}">Read your readiness report</a>
-  </p>
+  </nav>
 </div>
 {% endblock %}
