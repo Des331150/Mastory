@@ -1352,3 +1352,156 @@ details.settings summary { font-weight: 600; font-size: 15.5px; cursor: pointer;
   .pager { justify-content: center; }
   .pager-mid { order: -1; width: 100%; }
 }
+
+/* The readiness report in its two locked states (readiness/03 one card,
+   02 refused): one screen, the figure or the refusal in the reading order,
+   the topics and the days the record either way. */
+.report-page .course { margin: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.report-page .lede { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin: 0 0 18px; max-width: 60ch; }
+.report-page .lede b { color: var(--ink); font-weight: 600; }
+
+.report-page .readiness { padding: 26px 28px 22px; border-radius: 16px; }
+.report-page .readiness .grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 30px;
+}
+
+.figure-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+.report-page .figure { margin: 0; }
+.report-page .readiness-figure {
+  font-family: "Gabarito", sans-serif;
+  font-weight: 700;
+  font-size: 64px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0;
+}
+.figure-note { font-size: 13px; color: var(--ink-soft); display: block; margin: 6px 0 0; line-height: 1.5; }
+.report-page .meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin: 12px 0 4px;
+}
+.report-page .framing {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.report-page .framing b { color: var(--ink); font-weight: 600; }
+
+.revise { margin-top: 20px; }
+.revise h3, .topics h3, .days h3 {
+  font-weight: 700;
+  font-size: 14.5px;
+  margin: 0 0 8px;
+}
+.report-page .weakest-list { margin: 0; padding: 0; list-style: none; }
+.report-page .weakest-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px dashed var(--line);
+  font-size: 13.5px;
+}
+.report-page .weakest-rank { font-weight: 700; color: var(--ink-soft); width: 14px; flex: none; margin: 0; }
+.report-page .weakest-topic { font-weight: 600; flex: 1; margin: 0; }
+.report-page .weakest-mastery { color: var(--flag, #8a5a12); font-weight: 600; font-size: 12.5px; flex: none; margin: 0; }
+
+.topics .note, .days .note {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+  line-height: 1.5;
+  max-width: 56ch;
+}
+.topics .note b { color: var(--ink); font-weight: 600; }
+.report-page .rows { margin: 0; padding: 0; list-style: none; }
+.report-page .standing-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 200px;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.report-page .standing-row:first-child { border-top: 0; }
+.report-page .standing-topic { font-weight: 600; margin: 0; }
+.report-page .standing-complete { color: var(--ink-soft); font-size: 12.5px; margin: 0; }
+.report-page .standing-row[data-complete="yes"] .standing-complete { color: var(--green); font-weight: 600; }
+.report-page .standing-complete[data-state="skipped"] { color: var(--flag, #8a5a12); }
+.report-page .standing-mastery { text-align: right; color: var(--ink-soft); font-size: 12.5px; font-variant-numeric: tabular-nums; margin: 0; }
+.report-page .standing-row[data-mastery="unmeasured"] .standing-mastery { text-align: left; }
+.report-page .quiz-empty, .report-page .quiz-unavailable { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--flag, #8a5a12); }
+.report-page .report-when { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--ink-soft); }
+.report-page .unweighed-note { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+
+.report-page .days { margin-top: 20px; }
+.report-page .log { margin: 0; padding: 0; list-style: none; }
+.report-page .log-entry { padding: 6px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+.report-page .log-entry:first-child { border-top: 0; }
+.report-page .log-when { margin: 0; color: var(--ink); font-weight: 600; display: inline; }
+.report-page .log-topic { margin: 0; color: var(--ink-soft); display: inline; }
+.report-page .log-entry { display: flex; gap: 8px; align-items: baseline; }
+.report-page .log-when { flex: none; }
+.report-page .log-empty { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+.report-page .refused h2 { font-weight: 700; font-size: 19px; margin: 0 0 8px; }
+.report-page .refused .reason { color: var(--flag, #8a5a12); font-size: 14px; line-height: 1.55; margin: 0; max-width: 62ch; }
+.report-page .refused p { font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.report-page .refused p b { color: var(--ink); font-weight: 600; }
+.report-page .refused p + p { margin: 12px 0 0; }
+.path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  flex-wrap: wrap;
+}
+.path .arrow { color: var(--ink-soft); }
+.step {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 13px;
+}
+.step.now { color: var(--green); background: var(--green-soft); border-color: var(--green); }
+
+.report-page .readiness-body { padding: 22px 24px; border-radius: 16px; }
+.report-page .readiness-body .days { margin-top: 18px; }
+
+.report-page .foot {
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.report-page .foot a { color: var(--ink-soft); }
+.report-page .foot a:hover { color: var(--ink); }
+
+@media (max-width: 860px) {
+  .report-page .readiness { padding: 20px 16px 16px; }
+  .report-page .readiness .grid { grid-template-columns: 1fr; gap: 22px; }
+  .report-page .standing-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .report-page .standing-mastery { grid-column: 1 / -1; text-align: left; }
+}
