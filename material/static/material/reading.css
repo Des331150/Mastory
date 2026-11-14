@@ -1139,3 +1139,109 @@ details.settings summary { font-weight: 600; font-size: 15.5px; cursor: pointer;
   .index { position: static; display: none; }
   .index.open { display: block; }
 }
+
+/* The quiz in its three locked states (quiz/01 sitting, 02 marked, 03 held):
+   the shape box says what survived the checks, each question is a card that
+   cites its paragraph, and a mark is a word, never an alarm. */
+.quiz-page { max-width: 700px; }
+.quiz-page .kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin: 0 0 6px;
+}
+.quiz-page h1 { font-weight: 700; font-size: clamp(25px, 3.2vw, 31px); letter-spacing: -0.01em; margin: 0 0 6px; }
+.quiz-page .lede { margin: 0 0 20px; }
+.quiz-page .lede b { color: var(--ink); }
+
+.shape {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin: 0 0 16px;
+}
+.shape b { color: var(--ink); font-weight: 600; }
+.shape .dropped-note,
+.shape .low-confidence { margin: 8px 0 0; padding: 0; border-left: 0; background: transparent; font-size: 13.5px; }
+
+.quiz-page .question {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px 16px;
+  margin: 0 0 10px;
+}
+.quiz-page .question::before { content: none; }
+.quiz-page .question-citation { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 8px; }
+.quiz-page .question-citation a { color: var(--green); font-weight: 600; text-decoration: none; }
+.quiz-page .question-citation a:hover { text-decoration: underline; }
+.quiz-page .question-prompt {
+  font-weight: 600;
+  font-size: 16.5px;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+.quiz-page .choices label {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14.5px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.quiz-page .choices label:hover { border-color: var(--ink-soft); }
+.quiz-page .choices input { accent-color: var(--green); }
+.quiz-page .question input[type="text"] {
+  font: 15px "Hanken Grotesk", sans-serif;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.quiz-actions { margin: 20px 0 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.quiz-actions .fine { flex-basis: 100%; font-size: 12.5px; color: var(--ink-soft); margin: 0; }
+.quiz-page form + form { margin-top: 4px; }
+
+.quiz-result { padding: 20px 24px; margin: 0 0 16px; }
+.quiz-result h2 { font-weight: 700; font-size: 24px; margin: 0 0 10px; }
+.quiz-result p { font-size: 14px; color: var(--ink-soft); line-height: 1.55; }
+.quiz-result p b { color: var(--ink); font-weight: 600; }
+
+.quiz-page .question.right { border-color: var(--line); border-left: 4px solid var(--green); }
+.quiz-page .question.wrong { border-color: var(--line); border-left: 4px solid var(--flag, #8a5a12); }
+.quiz-page .mark {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin: 0 0 8px;
+}
+.quiz-page .question.right .mark { color: var(--green); background: var(--green-soft); }
+.quiz-page .question.wrong .mark { color: var(--flag, #8a5a12); background: var(--flag-soft, #f7ecd9); }
+.quiz-page .given { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 4px; }
+.quiz-page .expected { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+.quiz-page .expected b { font-weight: 600; }
+
+.quiz-again {
+  margin: 20px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.quiz-page .to-read { margin: 10px 0; padding: 0; list-style: none; }
+.quiz-page .to-read form { margin: 0; }

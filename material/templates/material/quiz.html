@@ -2,13 +2,18 @@
 
 {% block title %}{{ course.title }}: {{ topic.title }} quiz{% endblock %}
 
+{% block masthead_right %}
+<a class="crumb" href="{% url 'plan' course.pk %}">← Your week</a>
+{% endblock %}
+
 {% block content %}
 <div class="quiz-page">
   <header class="quiz-head">
+    <p class="kicker">Topic quiz · a check, not a test</p>
     <h1>{{ topic.title }}</h1>
-    <p class="muted">
+    <p class="lede">
       Every question here is written from one paragraph of your own material and
-      cites it, so you can check it was not invented. Grading is multiple choice
+      <b>cites it</b>, so you can check it was not invented. Grading is multiple choice
       and short answer, up to {{ limit }} questions.
     </p>
     {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
@@ -97,12 +102,9 @@
   </section>
 
   {% if quiz %}
-    <section class="panel quiz-shape">
-      <h2>What this quiz is</h2>
-      <p class="quiz-count">
-        {{ quiz.count }} question{{ quiz.count|pluralize }} survived being checked
-        against the paragraphs they came from.
-      </p>
+    <div class="shape">
+      <b>{{ quiz.count }} question{{ quiz.count|pluralize }} survived being checked</b>
+      against the paragraphs they came from.
       {% if quiz.dropped %}
         <p class="dropped-note">
           {% if quiz.verification_rejected != None and quiz.cut != None %}
@@ -122,7 +124,7 @@
       {% if quiz.low_confidence %}
         <p class="low-confidence" role="status">{{ quiz.note }}</p>
       {% endif %}
-    </section>
+    </div>
   {% endif %}
 
   {% if not quiz %}
@@ -190,24 +192,26 @@
               {% else %}
                 <label class="visually-hidden" for="answer-{{ question.pk }}">Your answer</label>
                 <input id="answer-{{ question.pk }}" type="text" name="q-{{ question.pk }}"
-                       autocomplete="off" />
+                       autocomplete="off" placeholder="Your answer" />
               {% endif %}
             </li>
           {% endfor %}
         </ol>
-        {% if spent %}
-          <p class="muted">
-            You have sat these questions. A retake of them would be the same
-            questions again, so the next attempt is a new set.
-          </p>
-        {% else %}
-          <button type="submit">Mark my answers</button>
-        {% endif %}
-      </form>
-
-      <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="quiet">Write different questions</button>
+        <div class="quiz-actions">
+          {% if spent %}
+            <p class="muted">
+              You have sat these questions. A retake of them would be the same
+              questions again, so the next attempt is a new set.
+            </p>
+          {% else %}
+            <button type="submit">Mark my answers</button>
+          {% endif %}
+          <button type="submit" class="quiet" formaction="{% url 'topic-quiz-rewrite' course.pk topic.pk %}"
+                  formnovalidate>Write different questions</button>
+          <p class="fine">Marking is instant and costs nothing. A retake is a new set
+            of questions from the same paragraphs; the same questions twice would
+            teach you the answer key, not the topic.</p>
+        </div>
       </form>
     {% endif %}
   {% else %}
@@ -226,13 +230,13 @@
       </p>
       <p class="standing-finished">
         {% if result.failed %}
-          That is a failing sitting, and it has still finished this topic: you
+          That is a failing sitting, and <b>it has still finished this topic</b>: you
           worked through it, so it is off your outstanding work either way - and
           the button above puts it back in whenever you want it. What
           you know about it is the mastery figure above, which is a different
           number and can go up.
         {% else %}
-          That has finished this topic, which is what takes it off your
+          That has <b>finished this topic</b>, which is what takes it off your
           outstanding work - and the button above takes it back out whenever you
           want it there again.
         {% endif %}
@@ -260,7 +264,7 @@
           {% endif %}
           {% if not answer.correct %}
             <p class="expected">
-              What the paragraph says: {{ answer.question.answers|join:" or " }}
+              <b>What the paragraph says:</b> {{ answer.question.answers|join:" or " }}
             </p>
           {% endif %}
         </li>
@@ -268,16 +272,19 @@
     </ol>
 
     {% if not reread.required %}
-      <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="quiet">Try it again with different questions</button>
-      </form>
+      <div class="quiz-again">
+        <form method="post" action="{% url 'topic-quiz-rewrite' course.pk topic.pk %}">
+          {% csrf_token %}
+          <button type="submit">Try it again with different questions</button>
+        </form>
+        <a class="quiet-link" href="{% url 'plan' course.pk %}">Back to your week</a>
+      </div>
     {% endif %}
   {% endif %}
 
-  <p class="muted small">
-    <a href="{% url 'plan' course.pk %}">Back to your week</a> &middot;
+  <nav class="foot">
+    <a href="{% url 'plan' course.pk %}">Back to your week</a>
     <a href="{% url 'course-read' course.pk %}">Back to your material</a>
-  </p>
+  </nav>
 </div>
 {% endblock %}
