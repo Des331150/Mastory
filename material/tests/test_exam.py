@@ -328,6 +328,35 @@ class BeforeSubmissionTests(ExamTestCase):
         self.assertNotIn("You got", flat(html))
 
 
+class PaginatedPaperTests(ExamTestCase):
+    """The paper is one form, shown a page at a time.
+
+    The prototype paginates for reading; the exam is still handed in as one
+    piece. These tests hold the seam: the served HTML carries every question
+    whatever page you are on, so a student without JavaScript reads one long
+    paper and a student with it reads pages of three, and both hand in the
+    same way.
+    """
+
+    def test_the_paper_is_one_form_whatever_page_you_are_on(self) -> None:
+        html = self.paper()
+        self.assertEqual(flat(html).count("<form"), 1)
+        inputs = re.findall(r'name="q-\d+"', html)
+        self.assertGreater(len(inputs), 3)
+
+    def test_the_paper_says_answers_stay_until_the_whole_paper_is_handed_in(self) -> None:
+        """The prototype's sitting rules, pinned as the page says them."""
+        html = flat(self.paper())
+        self.assertIn(
+            "Nothing is marked or sent anywhere until you hand the whole paper in",
+            html,
+        )
+
+    def test_the_pager_counts_pages_of_three(self) -> None:
+        html = flat(self.paper())
+        self.assertRegex(html, r"Page 1 of \d+ · Questions 1–3 of \d+")
+
+
 class PageOwnCopyTests(ExamTestCase):
     """What a model failure says about the page it lands on is the page's to say.
 

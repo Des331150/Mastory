@@ -1245,3 +1245,110 @@ details.settings summary { font-weight: 600; font-size: 15.5px; cursor: pointer;
 }
 .quiz-page .to-read { margin: 10px 0; padding: 0; list-style: none; }
 .quiz-page .to-read form { margin: 0; }
+
+/* The mock exam in its three locked states (exam/03 not written, 01 sitting,
+   02 marked): an offer, then a paper read a page at a time and handed in as
+   one piece, then the marks back topic by topic. */
+.exam-page .kicker { color: var(--ink-soft); }
+.exam-page h1 { margin: 0 0 18px; }
+
+.exam-page .offer { padding: 26px 28px; }
+.exam-page .offer h2 { font-weight: 700; font-size: 21px; margin: 0 0 10px; }
+.exam-page .offer p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+  max-width: 56ch;
+}
+.exam-page .offer p b { color: var(--ink); font-weight: 600; }
+.exam-page .offer .quiet { font-size: 13px; margin-bottom: 20px; }
+.exam-page .offer button { justify-self: start; margin: 4px 0 12px; }
+.exam-page .offer .fine { max-width: 56ch; }
+
+.rules {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 18px;
+}
+.rules b { font-weight: 600; }
+.rules p { margin: 0; }
+.rules p + p { margin-top: 6px; color: var(--ink-soft); }
+
+.exam-page .missed {
+  background: var(--flag-soft, #f7ecd9);
+  border: 1px solid var(--flag, #8a5a12);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: var(--flag, #8a5a12);
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.exam-page .shape { margin: 0 0 12px; }
+.exam-page .shape .quiz-count { font-weight: 600; color: var(--ink); }
+.exam-page .shape .dropped-note { margin: 8px 0 0; padding: 0; border-left: 0; background: transparent; }
+
+.exam-page .num {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+}
+
+.exam-page .pager {
+  margin: 22px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.page-btn {
+  font: 600 14px "Hanken Grotesk", sans-serif;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px 16px;
+  cursor: pointer;
+  flex: none;
+}
+.page-btn:hover { border-color: var(--ink-soft); }
+.page-btn.off { color: var(--ink-soft); opacity: 0.5; cursor: default; }
+.pager-mid { text-align: center; }
+.page-count {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 7px;
+}
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 22px; height: 4px; border-radius: 999px; background: var(--line); }
+.dots i.here { background: var(--green); }
+.pager-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.exam-page .topic-band {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  margin: 26px 4px 10px;
+}
+.exam-page .topic-band span { font-weight: 500; letter-spacing: 0; }
+@media (max-width: 680px) {
+  .pager { justify-content: center; }
+  .pager-mid { order: -1; width: 100%; }
+}
